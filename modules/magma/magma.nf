@@ -86,7 +86,6 @@ process run_gene_analysis	{
 
 
 process run_real_geneset	{
-  executor 'lsf'
   input:
   		tuple	val(trait),
   				path(gene_results_file)

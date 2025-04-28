@@ -67,16 +67,14 @@ workflow magma {
     gene_analysis.gene_results
 
 //    run_random_sets(gene_analysis.gene_results)
-    perms_ch = Channel.from(1..params.num_random_sets)
+random_sets_inputs = gene_analysis.gene_results
+    .combine(perms_ch)
+    .map { trait, gene_result, perm -> 
+        println "Creating job for ${trait} with permutation ${perm}"
+        [trait, gene_result, perm] 
+    }
 
-    gene_analysis.gene_results
-        .cross(perms_ch)
-        .map { row, perm -> [row[0], row[1], perm] }
-        | run_random_sets
-
-    // Optional: expose outputs for downstream use
-    //emit:
-    //real, random
+run_random_sets(random_sets_inputs)
 }
 
 ////////////////////////////////////////////////////////////////////
