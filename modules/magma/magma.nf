@@ -86,6 +86,7 @@ process run_gene_analysis	{
 
 
 process run_real_geneset	{
+  executor 'lsf'
   input:
   		tuple	val(trait),
   				path(gene_results_file)
@@ -108,6 +109,7 @@ process run_real_geneset	{
 
 
 process run_random_sets {
+  executor 'lsf'
   tag "${trait}_set_random${perm}"
   input:
     tuple val(trait),
