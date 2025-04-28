@@ -131,3 +131,5 @@
 2025-04-24 13:46:18	7.6s	curious_williams	OK	3251b80639e2a993b2b9e9596ca3f07f	4ec11d02-0ecd-4802-9089-7c1bea3cb320	nextflow run -resume main.nf
 2025-04-24 13:49:27	7.7s	pensive_lorenz	OK	3251b80639e2a993b2b9e9596ca3f07f	4ec11d02-0ecd-4802-9089-7c1bea3cb320	nextflow run -resume main.nf -with-dag
 2025-04-24 13:54:16	9m 33s	modest_mestorf	OK	b4e714e641960cf661d2a9c90e6af8ec	2dd46f55-d40f-4053-9e36-172c5515cb48	nextflow run main.nf
+2025-04-28 15:53:44	5m 23s	fervent_shannon	ERR	b4e714e641960cf661d2a9c90e6af8ec	81bab688-fdd7-4327-8758-a87631ee6fc6	nextflow run main.nf
+2025-04-28 16:04:15	12.1s	loving_bardeen	OK	b4e714e641960cf661d2a9c90e6af8ec	81bab688-fdd7-4327-8758-a87631ee6fc6	nextflow run -resume main.nf

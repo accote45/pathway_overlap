@@ -1,0 +1,99 @@
+Apr-24 13:32:57.563 [main] DEBUG nextflow.cli.Launcher - $> nextflow run -resume main.nf
+Apr-24 13:32:57.932 [main] DEBUG nextflow.cli.CmdRun - N E X T F L O W  ~  version 24.04.4
+Apr-24 13:32:57.962 [main] DEBUG nextflow.plugin.PluginsFacade - Setting up plugin manager > mode=prod; embedded=false; plugins-dir=/hpc/users/cotea02/.nextflow/plugins; core-plugins: nf-amazon@2.5.3,nf-azure@1.6.1,nf-cloudcache@0.4.1,nf-codecommit@0.2.1,nf-console@1.1.3,nf-ga4gh@1.3.0,nf-google@1.13.2-patch1,nf-tower@1.9.1,nf-wave@1.4.2-patch1
+Apr-24 13:32:57.989 [main] INFO  o.pf4j.DefaultPluginStatusProvider - Enabled plugins: []
+Apr-24 13:32:57.990 [main] INFO  o.pf4j.DefaultPluginStatusProvider - Disabled plugins: []
+Apr-24 13:32:57.994 [main] INFO  org.pf4j.DefaultPluginManager - PF4J version 3.12.0 in 'deployment' mode
+Apr-24 13:32:58.022 [main] INFO  org.pf4j.AbstractPluginManager - No plugins
+Apr-24 13:32:58.071 [main] DEBUG nextflow.config.ConfigBuilder - Found config local: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/nextflow.config
+Apr-24 13:32:58.082 [main] DEBUG nextflow.config.ConfigBuilder - Parsing config file: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/nextflow.config
+Apr-24 13:32:58.152 [main] DEBUG n.secret.LocalSecretsProvider - Secrets store: /hpc/users/cotea02/.nextflow/secrets/store.json
+Apr-24 13:32:58.155 [main] DEBUG nextflow.secret.SecretsLoader - Discovered secrets providers: [nextflow.secret.LocalSecretsProvider@5bb3131b] - activable => nextflow.secret.LocalSecretsProvider@5bb3131b
+Apr-24 13:32:58.175 [main] DEBUG nextflow.config.ConfigBuilder - Applying config profile: `standard`
+Apr-24 13:32:59.109 [main] DEBUG nextflow.cli.CmdRun - Applied DSL=2 from script declaration
+Apr-24 13:32:59.139 [main] DEBUG nextflow.cli.CmdRun - Launching `main.nf` [fervent_banach] DSL2 - revision: 0faf216674
+Apr-24 13:32:59.140 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins default=[]
+Apr-24 13:32:59.140 [main] DEBUG nextflow.plugin.PluginsFacade - Plugins resolved requirement=[]
+Apr-24 13:32:59.212 [main] DEBUG nextflow.Session - Session UUID: 4ec11d02-0ecd-4802-9089-7c1bea3cb320
+Apr-24 13:32:59.213 [main] DEBUG nextflow.Session - Run name: fervent_banach
+Apr-24 13:32:59.213 [main] DEBUG nextflow.Session - Executor pool size: 2
+Apr-24 13:32:59.224 [main] DEBUG nextflow.file.FilePorter - File porter settings maxRetries=3; maxTransfers=50; pollTimeout=null
+Apr-24 13:32:59.268 [main] DEBUG nextflow.cli.CmdRun - 
+  Version: 24.04.4 build 5917
+  Created: 01-08-2024 07:05 UTC (03:05 EDT)
+  System: Linux 5.14.0-427.13.1.el9_4.x86_64
+  Runtime: Groovy 4.0.21 on Java HotSpot(TM) 64-Bit Server VM 21.0.4+8-LTS-274
+  Encoding: UTF-8 (UTF-8)
+  Process: 2356498@lc03e17 [172.28.3.76]
+  CPUs: 1 - Mem: 1.5 TB (681.2 GB) - Swap: 178.8 GB (174.4 GB) - Virtual threads ON
+Apr-24 13:32:59.374 [main] DEBUG nextflow.Session - Work-dir: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/work [gpfs]
+Apr-24 13:32:59.375 [main] DEBUG nextflow.Session - Script base path does not exist or is not a directory: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/bin
+Apr-24 13:32:59.384 [main] DEBUG nextflow.executor.ExecutorFactory - Extension executors providers=[]
+Apr-24 13:32:59.407 [main] DEBUG nextflow.Session - Observer factory: DefaultObserverFactory
+Apr-24 13:32:59.449 [main] DEBUG nextflow.cache.CacheFactory - Using Nextflow cache factory: nextflow.cache.DefaultCacheFactory
+Apr-24 13:32:59.472 [main] DEBUG nextflow.util.CustomPoolFactory - Creating virtual thread pool
+Apr-24 13:32:59.631 [main] DEBUG nextflow.Session - Session start
+Apr-24 13:33:00.241 [main] DEBUG nextflow.script.ScriptRunner - > Launching execution
+Apr-24 13:33:00.987 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Apr-24 13:33:00.987 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Apr-24 13:33:01.003 [main] DEBUG nextflow.executor.Executor - [warm up] executor > local
+Apr-24 13:33:01.009 [main] DEBUG n.processor.LocalPollingMonitor - Creating local task monitor for executor 'local' > cpus=1; memory=1.5 TB; capacity=1; pollInterval=100ms; dumpInterval=5m
+Apr-24 13:33:01.012 [main] DEBUG n.processor.TaskPollingMonitor - >>> barrier register (monitor: local)
+Apr-24 13:33:01.153 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: local
+Apr-24 13:33:01.153 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Apr-24 13:33:01.182 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withName:run_gene_analysis` matches process magma:run_gene_analysis
+Apr-24 13:33:01.185 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: lsf
+Apr-24 13:33:01.185 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'lsf'
+Apr-24 13:33:01.191 [main] DEBUG nextflow.executor.Executor - [warm up] executor > lsf
+Apr-24 13:33:01.193 [main] DEBUG n.processor.TaskPollingMonitor - Creating task monitor for executor 'lsf' > capacity: 100; pollInterval: 5s; dumpInterval: 5m 
+Apr-24 13:33:01.193 [main] DEBUG n.processor.TaskPollingMonitor - >>> barrier register (monitor: lsf)
+Apr-24 13:33:01.207 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'lsf' > queue-stat-interval: 1m
+Apr-24 13:33:01.210 [main] DEBUG nextflow.executor.LsfExecutor - [LSF] Detected lsf.conf LSF_UNIT_FOR_LIMITS=MB
+Apr-24 13:33:01.216 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: null
+Apr-24 13:33:01.216 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'local'
+Apr-24 13:33:01.278 [main] DEBUG nextflow.script.ProcessConfig - Config settings `withName:run_random_sets` matches process magma:run_random_sets
+Apr-24 13:33:01.280 [main] DEBUG nextflow.executor.ExecutorFactory - << taskConfig executor: lsf
+Apr-24 13:33:01.280 [main] DEBUG nextflow.executor.ExecutorFactory - >> processorType: 'lsf'
+Apr-24 13:33:01.282 [main] DEBUG nextflow.Session - Workflow process names [dsl2]: magma:run_gene_analysis, run_random_sets, annotate_genes, run_gene_analysis, magma:run_real_geneset, prepare_input, run_real_geneset, magma:annotate_genes, magma:run_random_sets, magma:prepare_input
+Apr-24 13:33:01.282 [main] DEBUG nextflow.Session - Igniting dataflow network (7)
+Apr-24 13:33:01.283 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > magma:prepare_input
+Apr-24 13:33:01.287 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > magma:annotate_genes
+Apr-24 13:33:01.292 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > magma:run_gene_analysis
+Apr-24 13:33:01.299 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > magma:run_real_geneset
+Apr-24 13:33:01.312 [main] DEBUG nextflow.processor.TaskProcessor - Starting process > magma:run_random_sets
+Apr-24 13:33:01.322 [main] DEBUG nextflow.script.ScriptRunner - Parsed script files:
+  Script_c4478626e455ae48: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/main.nf
+  Script_0a0d2cbe73deacb7: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/./modules/magma/magma.nf
+Apr-24 13:33:01.322 [main] DEBUG nextflow.script.ScriptRunner - > Awaiting termination 
+Apr-24 13:33:01.322 [main] DEBUG nextflow.Session - Session await
+Apr-24 13:33:01.604 [Actor Thread 12] INFO  nextflow.processor.TaskProcessor - [9f/1280d1] Cached process > magma:prepare_input (1)
+Apr-24 13:33:01.714 [Actor Thread 19] INFO  nextflow.processor.TaskProcessor - [6f/c4faeb] Cached process > magma:annotate_genes (1)
+Apr-24 13:33:02.349 [Task submitter] DEBUG nextflow.executor.GridTaskHandler - [LSF] submitted process magma:run_gene_analysis (1) > jobId: 182137513; workDir: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/work/86/20a060323593454ff612983ccb03c4
+Apr-24 13:33:02.350 [Task submitter] INFO  nextflow.Session - [86/20a060] Submitted process > magma:run_gene_analysis (1)
+Apr-24 13:38:01.223 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor local > No more task to compute -- The following nodes are still active:
+[process] magma:run_real_geneset
+  status=ACTIVE
+  port 0: (queue) OPEN  ; channel: -
+  port 1: (cntrl) -     ; channel: $
+
+[process] magma:run_random_sets
+  status=ACTIVE
+  port 0: (queue) OPEN  ; channel: -
+  port 1: (cntrl) -     ; channel: $
+
+Apr-24 13:38:06.198 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor lsf > tasks to be completed: 1 -- submitted tasks are shown below
+~> TaskHandler[jobId: 182137513; id: 3; name: magma:run_gene_analysis (1); status: RUNNING; exit: -; error: -; workDir: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/work/86/20a060323593454ff612983ccb03c4 started: 1745516011197; exited: -; ]
+Apr-24 13:38:41.201 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[jobId: 182137513; id: 3; name: magma:run_gene_analysis (1); status: COMPLETED; exit: 0; error: -; workDir: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/work/86/20a060323593454ff612983ccb03c4 started: 1745516011197; exited: 2025-04-24T17:38:38.956181839Z; ]
+Apr-24 13:38:41.362 [Task submitter] DEBUG n.executor.local.LocalTaskHandler - Launch cmd line: /bin/bash -ue .command.run
+Apr-24 13:38:41.363 [Task submitter] INFO  nextflow.Session - [89/c03e9a] Submitted process > magma:run_real_geneset (1)
+Apr-24 13:38:49.390 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[id: 4; name: magma:run_real_geneset (1); status: COMPLETED; exit: 0; error: -; workDir: /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/work/89/c03e9a50f751120baa7ce0afa639a9]
+Apr-24 13:38:49.439 [main] DEBUG nextflow.Session - Session await > all processes finished
+Apr-24 13:38:49.489 [Task monitor] DEBUG n.processor.TaskPollingMonitor - <<< barrier arrives (monitor: local) - terminating tasks monitor poll loop
+Apr-24 13:38:51.198 [Task monitor] DEBUG n.processor.TaskPollingMonitor - <<< barrier arrives (monitor: lsf) - terminating tasks monitor poll loop
+Apr-24 13:38:51.198 [main] DEBUG nextflow.Session - Session await > all barriers passed
+Apr-24 13:38:51.201 [main] DEBUG nextflow.util.ThreadPoolManager - Thread pool 'TaskFinalizer' shutdown completed (hard=false)
+Apr-24 13:38:51.201 [main] DEBUG nextflow.util.ThreadPoolManager - Thread pool 'PublishDir' shutdown completed (hard=false)
+Apr-24 13:38:51.209 [main] DEBUG n.trace.WorkflowStatsObserver - Workflow completed > WorkflowStats[succeededCount=2; failedCount=0; ignoredCount=0; cachedCount=2; pendingCount=0; submittedCount=0; runningCount=0; retriesCount=0; abortedCount=0; succeedDuration=5m 18s; failedDuration=0ms; cachedDuration=4.8s;loadCpus=0; loadMemory=0; peakRunning=1; peakCpus=1; peakMemory=48.8 GB; ]
+Apr-24 13:38:51.391 [main] DEBUG nextflow.cache.CacheDB - Closing CacheDB done
+Apr-24 13:38:51.430 [main] DEBUG nextflow.util.ThreadPoolManager - Thread pool 'FileTransfer' shutdown completed (hard=false)
+Apr-24 13:38:51.430 [main] DEBUG nextflow.script.ScriptRunner - > Execution complete -- Goodbye
