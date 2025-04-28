@@ -8,3 +8,5 @@
 work/
 
 
+# Ignore Nextflow logs
+*.nextflow.log*
