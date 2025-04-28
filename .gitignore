@@ -9,8 +9,10 @@ work/
 
 
 # Ignore Nextflow logs
-*.nextflow.log
+*.nextflow.log*
 .nextflow
 
 # ignore results
 results/
+
+
