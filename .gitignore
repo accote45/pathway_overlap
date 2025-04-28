@@ -1,0 +1,10 @@
+# Ignore Nextflow logs and reports
+*.nextflow.log
+*.html
+*.dot
+
+
+# Ignore Nextflow work directory
+work/
+
+
