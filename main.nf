@@ -67,6 +67,8 @@ workflow magma {
     gene_analysis.gene_results
 
 //    run_random_sets(gene_analysis.gene_results)
+
+perms_ch = Channel.from(1..params.num_random_sets)
 random_sets_inputs = gene_analysis.gene_results
     .combine(perms_ch)
     .map { trait, gene_result, perm -> 
