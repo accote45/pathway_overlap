@@ -8,7 +8,7 @@
       "pval_col": "p",
       "n_col": "N"
     },
-    { 
+    {
       "trait": "cad",
       "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/cad-std.sumstat.txt_forpascal",
       "rsid_col": "snp",
@@ -197,4 +197,4 @@
     "pval_col": "P",
     "n_col": "N"
   }
- ]
+]
