@@ -125,7 +125,7 @@ process run_random_sets {
 
   magma \\
     --gene-results ${gene_results_file} \\
-    --set-annot --set-annot ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
+    --set-annot ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
     --out ${trait}_set_random${perm}
   """
 
