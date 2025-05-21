@@ -94,35 +94,23 @@ for (trait in trait_folders) {
   }
 }
 
-# Optional: Create a summary report with stats for all traits
-summary_data <- data.frame()
 
-for (trait in trait_folders) {
-  # Read trait-specific gene-level association
-  trait_file_path <- file.path(trait_dir, trait, paste0(trait, "_real_set.gsa.genes.out"))
-  
-  if (file.exists(trait_file_path)) {
-    gene <- read.table(trait_file_path, header=TRUE)
-    
-    # Merge gene frequency with gene-level data
-    master <- merge(gene_freq, gene, by="GENE")
-    
-    # Calculate correlation
-    cor_result <- cor.test(master$ZSTAT, master$Freq)
-    
-    # Add to summary data
-    summary_data <- rbind(summary_data, data.frame(
-      Trait = trait,
-      Correlation = cor_result$estimate,
-      P_value = cor_result$p.value,
-      N_genes = nrow(master)
-    ))
-  }
-}
 
-# Save summary data
-write.csv(summary_data, file.path('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/pathway_plots', 
-                                 'gene_pathway_correlation_summary.csv'),
-          row.names = FALSE)
+# plot pathsizexFPR corr by genefreqxgeneassoc corr
 
-cat("All plots created!\n")
+library(ggplot2)
+library(tidyverse)
+library(ggrepel)
+
+dat <- read.table('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/pathsizecorr_genefreqcorr_compare.txt', header=TRUE)
+
+cor.test(temp$pathsize_fpr_corr,temp$genefreq_zstat_corr)
+
+pdf('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/pathsize_fpr_corr_genefreq_zstat_corr.pdf')
+ggplot(temp, aes(x=pathsize_fpr_corr, y=genefreq_zstat_corr,label=trait)) +
+  geom_point() +
+  theme_classic() +
+  geom_text_repel(size=3) +
+  xlab('Pathway size x FPR correlation') +
+  ylab('Gene frequency x z-statistic correlation')
+dev.off()
