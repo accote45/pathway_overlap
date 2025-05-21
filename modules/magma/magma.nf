@@ -125,7 +125,7 @@ process run_random_sets {
 
   magma \\
     --gene-results ${gene_results_file} \\
-    --set-annot /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/randomized_gene_sets/random_${params.randomization_method}/GeneSet.random${perm}.gmt \\
+    --set-annot --set-annot ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
     --out ${trait}_set_random${perm}
   """
 
