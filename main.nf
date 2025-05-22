@@ -7,12 +7,16 @@ nextflow.enable.dsl=2
 ////////////////////////////////////////////////////////////////////
 
 include {
-    prepare_input
-    annotate_genes
-    run_gene_analysis
-    run_real_geneset
-    run_random_sets
+    prepare_input;
+    annotate_genes;
+    run_gene_analysis;
+    run_real_geneset;
+    run_random_sets;
 } from './modules/magma/magma.nf'
+
+include { 
+    run_random_sets_prset;
+} from './modules/prset/prset.nf'
 
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
@@ -24,26 +28,27 @@ include {
 
 import groovy.json.JsonSlurper
 
-// Parse the JSON input into a Channel
+// Parse the JSON input into a comprehensive Channel
 def jsonSlurper = new JsonSlurper()
 def configFile = new File(params.traits_config)
 def phenoConfig = jsonSlurper.parseText(configFile.text)
 
-sumstat = Channel.fromList(phenoConfig.collect { content ->
+// Create a single comprehensive channel with all trait information
+trait_data = Channel.fromList(phenoConfig.collect { content ->
     tuple(
-        content.trait,
-        content.gwas_file,
-        content.rsid_col,
-        content.chr_col,
-        content.pos_col,
-        content.pval_col,
-        content.n_col
+        content.trait,                           // [0] Trait name
+        content.gwas_file,                       // [1] GWAS file
+        content.rsid_col,                        // [2] RSID column
+        content.chr_col,                         // [3] Chromosome column
+        content.pos_col,                         // [4] Position column
+        content.pval_col,                        // [5] P-value column
+        content.n_col,                           // [6] Sample size column
+        content.binary_trait,                    // [7] Binary trait flag
+        content.effect_allele,                   // [8] Effect allele column
+        content.other_allele                     // [9] Other allele column
     )
 })
 
-//Channel
-//    .from(1..params.num_random_sets)
-//    .set { rand_set_ids }
 
 ////////////////////////////////////////////////////////////////////
 //                  Subworkflow: MAGMA analysis
@@ -51,10 +56,16 @@ sumstat = Channel.fromList(phenoConfig.collect { content ->
 
 workflow magma {
     take:
-    sumstat
+    trait_data
 
     main:
-    prepared = prepare_input(sumstat)
+    // Extract only the fields needed for MAGMA
+    magma_data = data.map { fullData ->
+        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
+        tuple(trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col)
+    }
+    
+    prepared = prepare_input(magma_data)
     // Select gene file based on background setting
     def selected_gene_file = params.gene_files[params.background]
 
@@ -64,19 +75,48 @@ workflow magma {
     annotated = annotate_genes(snp_loc_with_gene_file)
     gene_analysis = run_gene_analysis(annotated.gene_annot_data)
     run_real_geneset(gene_analysis.gene_results)
-    gene_analysis.gene_results
+    
+    perms_ch = Channel.from(1..params.num_random_sets)
+    random_sets_inputs = gene_analysis.gene_results
+        .combine(perms_ch)
+        .map { trait, gene_result, perm -> 
+            println "Creating MAGMA job for ${trait} with permutation ${perm}"
+            [trait, gene_result, perm] 
+        }
 
-//    run_random_sets(gene_analysis.gene_results)
+    run_random_sets(random_sets_inputs)
+    
+    emit:
+    gene_results = gene_analysis.gene_results
+}
 
-perms_ch = Channel.from(1..params.num_random_sets)
-random_sets_inputs = gene_analysis.gene_results
-    .combine(perms_ch)
-    .map { trait, gene_result, perm -> 
-        println "Creating job for ${trait} with permutation ${perm}"
-        [trait, gene_result, perm] 
+////////////////////////////////////////////////////////////////////
+//                  Subworkflow: PRSET analysis
+////////////////////////////////////////////////////////////////////
+
+workflow prset {
+    take:
+    trait_data
+
+    main:
+    // Map the comprehensive data to the format needed for PRSet
+    prset_data = data.map { fullData ->
+        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
+        tuple(trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col)
     }
-
-run_random_sets(random_sets_inputs)
+    
+    perms_ch = Channel.from(1..params.num_random_sets)
+    
+    // Combine prset data with permutation numbers
+    prset_random_inputs = prset_data
+        .combine(perms_ch)
+        .map { trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, perm ->
+            println "Creating PRSET job for ${trait} with permutation ${perm}"
+            [trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, perm]
+        }
+    
+    // Run PRSet for random sets
+    run_random_sets_prset(prset_random_inputs)
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -84,5 +124,7 @@ run_random_sets(random_sets_inputs)
 ////////////////////////////////////////////////////////////////////
 
 workflow {
-    magma(sumstat)
+    // Run both workflows with the same comprehensive data channel
+    magma(trait_data)
+    prset(trait_data)
 }
