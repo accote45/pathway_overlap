@@ -133,11 +133,89 @@ EOL
 done
 
 
-# merge gwas results for all chromosomes
 
-for i in $(ls *linear);do
-cat ${i} | grep -v CHROM | awk '{print $0"\t""173200"}'>> IGF-1_gwas.txt
+
+
+
+#!/bin/bash
+
+# Set paths
+BASE_PATH="/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/ukb"
+OUTPUT_PATH="${BASE_PATH}/ukb_labvalue_gwas"
+PHENO_FILE="${BASE_PATH}/ukb_phenofile_forgwas.txt"
+
+# Read traits from CSV, removing quotes
+traits=($(awk -F, 'NR>1 {gsub(/"/,"",$1); print $1}' /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/heritability/selected_traits_for_gwas.csv))
+
+echo "Found ${#traits[@]} traits to process"
+
+# Function to process a specific trait
+process_trait() {
+  local trait=$1
+  local clean_trait=$(echo $trait | tr ' ' '_')
+  local trait_dir="${OUTPUT_PATH}/${clean_trait}"
+  local output_file="${trait_dir}/${clean_trait}_gwas.txt"
+  
+  echo "Processing ${clean_trait}..."
+  
+  # Create header for the merged file
+  echo -e "CHROM\tPOS\tID\tREF\tALT\tPROVISIONAL_REF?\tA1\tOMITTED\tA1_FREQ\tTEST\tOBS_CT\tBETA\tSE\tT_STAT\tP\tERRCODE\tN" > ${output_file}
+  
+  # Navigate to trait directory
+  cd ${trait_dir}
+  
+  # Merge all chromosome files for this trait
+  for linear_file in $(ls ${clean_trait}_chr*_gwas.${clean_trait}.glm.linear 2>/dev/null); do
+    if [ -f "$linear_file" ]; then
+      # Skip header and add sample size column
+      grep -v "^#" $linear_file | grep -v "CHROM" | awk '{print $0"\t173200"}' >> ${output_file}
+    fi
+  done
+  
+  # Check if any data was merged
+  if [ $(wc -l < ${output_file}) -le 1 ]; then
+    echo "Warning: No data found for ${clean_trait}"
+    return
+  fi
+  
+  echo "Merged ${clean_trait} results to ${output_file}"
+  
+  # Add the A2 column using R
+  Rscript - <<EOF
+library(data.table)
+# Read merged data
+dat <- read.table("${output_file}",header=T,sep="\t")
+dat <- as.data.table(dat)
+
+# Create A2 column based on relationship between A1, REF, and ALT
+dat[, A2 := ifelse(A1 == REF, ALT, 
+             ifelse(A1 == ALT, REF, NA_character_))]
+
+# Check for any rows where A2 is NA
+na_count <- sum(is.na(dat\$A2))
+if (na_count > 0) {
+  cat("Warning:", na_count, "rows have NA values for A2 in ${clean_trait}\n")
+}
+
+# remove any rows with NA
+dat <- dat[complete.cases(dat), ]
+
+# Write updated data back to file
+fwrite(dat, "${output_file}", sep = "\t")
+cat("Added A2 column to ${clean_trait}\n")
+EOF
+
+  # Copy final file to the GWAS directory
+  cp ${output_file} /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/
+  echo "Copied ${clean_trait} to GWAS directory"
+  
+  # Return to original directory
+  cd ${OUTPUT_PATH}
+}
+
+# Process each trait in parallel (up to 4 at a time)
+for trait in "${traits[@]}"; do
+  process_trait "${trait}"
 done
-CHROM	POS	ID	REF	ALT	PROVISIONAL_REF?	A1	OMITTED	A1_FREQ	TEST	OBS_CT	BETA	SE	T_STAT	P	ERRCODE N
 
-cp *txt /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas
+
