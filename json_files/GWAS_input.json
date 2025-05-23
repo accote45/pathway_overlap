@@ -6,7 +6,10 @@
       "chr_col": "V1",
       "pos_col": "V2",
       "pval_col": "p",
-      "n_col": "N"
+      "n_col": "N",
+      "effect_allele": "A1",
+      "other_allele": "A2",
+      "binary_trait": "F"
     },
     {
       "trait": "cad",
@@ -15,7 +18,10 @@
       "chr_col": "V1",
       "pos_col": "V2",
       "pval_col": "p",
-      "n_col": "samplesize"
+      "n_col": "samplesize",
+      "effect_allele": "a1",
+      "other_allele": "a2",
+      "binary_trait": "T"
     },
     {
       "trait": "height",
@@ -24,7 +30,10 @@
       "chr_col": "CHR",
       "pos_col": "POS",
       "pval_col": "P",
-      "n_col": "N"
+      "n_col": "N",
+      "effect_allele": "EFFECT_ALLELE",
+      "other_allele": "OTHER_ALLELE",
+      "binary_trait": "F"
     },
     {
       "trait": "t2d",
@@ -33,7 +42,10 @@
       "chr_col": "Chr",
       "pos_col": "Pos",
       "pval_col": "P-value",
-      "n_col": "TotalSampleSize"
+      "n_col": "TotalSampleSize",
+      "effect_allele": "Allele1",
+      "other_allele": "Allele2",
+      "binary_trait": "T"
     },
     {
       "trait": "mdd",
@@ -42,25 +54,10 @@
       "chr_col": "CHR",
       "pos_col": "POS",
       "pval_col": "PVAL",
-      "n_col": "N"
-    },
-    {
-      "trait": "adhd",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/ADHD2022_iPSYCH_deCODE_PGC.meta.edit.txt",
-      "rsid_col": "SNP",
-      "chr_col": "CHR",
-      "pos_col": "BP",
-      "pval_col": "P",
-      "n_col": "N"
-    },
-    {
-      "trait": "crp",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/crp_gwas.txt",
-      "rsid_col": "ID",
-      "chr_col": "CHROM",
-      "pos_col": "POS",
-      "pval_col": "P",
-      "n_col": "SS"
+      "n_col": "N",
+      "effect_allele": "EA",
+      "other_allele": "NEA",
+      "binary_trait": "T"
     },
     {
       "trait": "ibd",
@@ -69,7 +66,10 @@
       "chr_col": "CHR",
       "pos_col": "POS",
       "pval_col": "P.value",
-      "n_col": "N"
+      "n_col": "N",
+      "effect_allele": "Allele1",
+      "other_allele": "Allele2",
+      "binary_trait": "T"
     },
     {
       "trait": "scz",
@@ -78,7 +78,10 @@
       "chr_col": "CHROM",
       "pos_col": "POS",
       "pval_col": "PVAL",
-      "n_col": "TotalN"
+      "n_col": "TotalN",
+      "effect_allele": "A1",
+      "other_allele": "A2",
+      "binary_trait": "T"
     },
     {
       "trait": "breast",
@@ -87,25 +90,34 @@
       "chr_col": "chromosome",
       "pos_col": "base_pair_location",
       "pval_col": "p_value",
-      "n_col": "N"
+      "n_col": "N",
+      "effect_allele": "effect_allele",
+      "other_allele": "other_allele",
+      "binary_trait": "T"
     },
-      {
-    "trait": "ad",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/ad_gwas.txt",
-    "rsid_col": "rsid",
-    "chr_col": "chromosome",
-    "pos_col": "base_pair_location",
-    "pval_col": "p_value",
-    "n_col": "N"
-  },
-  {
+    {
+      "trait": "ad",
+      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/ad_gwas.txt",
+      "rsid_col": "rsid",
+      "chr_col": "chromosome",
+      "pos_col": "base_pair_location",
+      "pval_col": "p_value",
+      "n_col": "N",
+      "effect_allele": "effect_allele",
+      "other_allele": "other_allele",
+      "binary_trait": "T"
+    },
+    {
     "trait": "prostate",
     "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/prostate_cancer_gwas.txt",
     "rsid_col": "SNP_ID",
     "chr_col": "CHR",
     "pos_col": "POS",
     "pval_col": "P-value",
-    "n_col": "Sample_size"
+    "n_col": "Sample_size",
+    "effect_allele": "Allele1",
+    "other_allele": "Allele2",
+    "binary_trait": "T"
   },
   {
     "trait": "Alkaline_phosphatase",
@@ -114,7 +126,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Eosinophill_percentage",
@@ -123,7 +138,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "HDL_cholesterol",
@@ -132,7 +150,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Lymphocyte_count",
@@ -141,7 +162,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Mean_platelet_thrombocyte_volume",
@@ -150,7 +174,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
  {
     "trait": "Monocyte_percentage",
@@ -159,7 +186,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Platelet_crit",
@@ -168,7 +198,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Urea",
@@ -177,7 +210,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Vitamin_D",
@@ -186,7 +222,10 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   },
   {
     "trait": "Lipoprotein_A",
@@ -195,6 +234,9 @@
     "chr_col": "CHROM",
     "pos_col": "POS",
     "pval_col": "P",
-    "n_col": "N"
+    "n_col": "N",
+    "effect_allele": "A1",
+    "other_allele": "A2",
+    "binary_trait": "F"
   }
 ]
