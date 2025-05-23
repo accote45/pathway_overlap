@@ -8,8 +8,8 @@ process run_random_sets_prset {
           val(effect_allele),
           val(other_allele),
           val(rsid_col),
-          val(pval_col)
-    val(perm)
+          val(pval_col),
+          val(perm)
   
   output:
     path("${trait}_set_random${perm}*")
@@ -24,7 +24,6 @@ process run_random_sets_prset {
     --background /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdb.genes.txt:gene \\
     --bar-levels 1 \\
     --base ${gwas_file} \\
-    --beta \\
     --binary-target ${binary_trait} \\
     --clump-kb 1000kb \\
     --clump-p 1.000000 \\
@@ -43,7 +42,7 @@ process run_random_sets_prset {
     --pvalue ${pval_col} \\
     --set-perm 10000 \\
     --snp ${rsid_col} \\
-    --stat beta \\
+    --stat ${summary_statistic_type} \\
     --target ${params.ukb_dir}/ukb_labvalue_gwas/by_chr/chr# \\
     --thread 48 \\
     --ultra \\

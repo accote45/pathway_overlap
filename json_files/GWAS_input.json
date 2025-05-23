@@ -9,7 +9,9 @@
       "n_col": "N",
       "effect_allele": "A1",
       "other_allele": "A2",
-      "binary_trait": "F"
+      "binary_trait": "F",
+      "summary_statistic_type": XX,
+      "summary_statistic_col": XX
     },
     {
       "trait": "cad",
