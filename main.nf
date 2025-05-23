@@ -60,7 +60,7 @@ workflow magma {
 
     main:
     // Extract only the fields needed for MAGMA
-    magma_data = data.map { fullData ->
+    magma_data = trait_data.map { fullData ->
         def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
         tuple(trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col)
     }
@@ -100,7 +100,7 @@ workflow prset {
 
     main:
     // Map the comprehensive data to the format needed for PRSet
-    prset_data = data.map { fullData ->
+    prset_data = trait_data.map { fullData ->
         def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
         tuple(trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col)
     }
