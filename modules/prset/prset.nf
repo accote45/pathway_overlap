@@ -33,7 +33,7 @@ process run_random_sets_prset {
     --extract ${params.ukb_dir}/ukb18177-qc.snplist \\
     --fastscore \\
     --feature exon,gene,protein_coding,CDS \\
-    --gtf /sc/arion/projects/paul_oreilly/lab/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
+    --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
     --num-auto 22 \\
