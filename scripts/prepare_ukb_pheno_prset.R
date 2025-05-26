@@ -86,7 +86,7 @@ trait_summary <- data.frame(
 # Print summary
 print(trait_summary)
 
-write.table(final_pheno, file = '/sc/arion/projects/paul_oreilly/lab/shared/pheno/ukb_phenofile_forprset.txt', sep = "\t", row.names = FALSE, quote = FALSE)
+write.table(final_pheno, file = '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/ukb/ukb_phenofile_forprset.txt', sep = "\t", row.names = FALSE, quote = FALSE)
 
 
 
