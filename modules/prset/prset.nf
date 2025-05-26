@@ -9,6 +9,8 @@ process run_random_sets_prset {
           val(other_allele),
           val(rsid_col),
           val(pval_col),
+          val(summary_statistic_name),
+          val(summary_statistic_type),
           val(perm)
   
   output:
