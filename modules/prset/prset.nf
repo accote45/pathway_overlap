@@ -42,7 +42,8 @@ process run_random_sets_prset {
     --pvalue ${pval_col} \\
     --set-perm 10000 \\
     --snp ${rsid_col} \\
-    --stat ${summary_statistic_type} \\
+    --stat ${summary_statistic_name} \\
+    --${summary_statistic_type} \\
     --target ${params.ukb_dir}/ukb_labvalue_gwas/by_chr/chr# \\
     --thread 48 \\
     --ultra \\
