@@ -38,7 +38,7 @@ process run_random_sets_prset {
     --msigdb ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
     --num-auto 22 \\
     --out ${trait}_set_random${perm} \\
-    --pheno ${params.ukb_dir}/ukb_phenofile_forgwas.txt \\
+    --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
     --pheno-col ${trait} \\
     --print-snp \\
     --pvalue ${pval_col} \\
