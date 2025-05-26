@@ -45,7 +45,9 @@ trait_data = Channel.fromList(phenoConfig.collect { content ->
         content.n_col,                           // [6] Sample size column
         content.binary_trait,                    // [7] Binary trait flag
         content.effect_allele,                   // [8] Effect allele column
-        content.other_allele                     // [9] Other allele column
+        content.other_allele,                    // [9] Other allele column
+        content.summary_statistic_name,          // [10] Summary statistic column name
+        content.summary_statistic_type           // [11] Summary statistic type (beta/or)
     )
 })
 
@@ -61,7 +63,7 @@ workflow magma {
     main:
     // Extract only the fields needed for MAGMA
     magma_data = trait_data.map { fullData ->
-        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
+        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = fullData
         tuple(trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col)
     }
     
@@ -101,8 +103,8 @@ workflow prset {
     main:
     // Map the comprehensive data to the format needed for PRSet
     prset_data = trait_data.map { fullData ->
-        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele) = fullData
-        tuple(trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col)
+        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary_trait, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = fullData
+        tuple(trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, summary_statistic_name, summary_statistic_type)
     }
     
     perms_ch = Channel.from(1..params.num_random_sets)
@@ -110,9 +112,9 @@ workflow prset {
     // Combine prset data with permutation numbers
     prset_random_inputs = prset_data
         .combine(perms_ch)
-        .map { trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, perm ->
+        .map { trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, summary_statistic_name, summary_statistic_type, perm ->
             println "Creating PRSET job for ${trait} with permutation ${perm}"
-            [trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, perm]
+            [trait, gwas_file, binary_trait, effect_allele, other_allele, rsid_col, pval_col, summary_statistic_name, summary_statistic_type, perm]
         }
     
     // Run PRSet for random sets
