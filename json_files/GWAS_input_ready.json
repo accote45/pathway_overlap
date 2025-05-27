@@ -9,7 +9,7 @@
       "n_col": "N",
       "effect_allele": "A1",
       "other_allele": "A2",
-      "binary_trait": "F",
+      "binary_target": "F",
       "summary_statistic_name": "b",
       "summary_statistic_type": "beta"
     },
@@ -23,7 +23,7 @@
       "n_col": "samplesize",
       "effect_allele": "a1",
       "other_allele": "a2",
-      "binary_trait": "T",
+      "binary_target": "F",
       "summary_statistic_name": "beta",
       "summary_statistic_type": "beta"
     },
@@ -37,7 +37,7 @@
       "n_col": "TotalSampleSize",
       "effect_allele": "Allele1",
       "other_allele": "Allele2",
-      "binary_trait": "T",
+      "binary_target": "F",
       "summary_statistic_name": "Effect",
       "summary_statistic_type": "beta"
     },
@@ -51,7 +51,7 @@
       "n_col": "N",
       "effect_allele": "EA",
       "other_allele": "NEA",
-      "binary_trait": "T",
+      "binary_target": "F",
       "summary_statistic_name": "BETA",
       "summary_statistic_type": "beta"
     },
@@ -65,7 +65,7 @@
       "n_col": "N",
       "effect_allele": "effect_allele",
       "other_allele": "other_allele",
-      "binary_trait": "T",
+      "binary_target": "F",
       "summary_statistic_name": "beta",
       "summary_statistic_type": "beta"
     },
@@ -79,7 +79,7 @@
       "n_col": "N",
       "effect_allele": "effect_allele",
       "other_allele": "other_allele",
-      "binary_trait": "T",
+      "binary_target": "F",
       "summary_statistic_name": "beta",
       "summary_statistic_type": "beta"
     },
@@ -93,7 +93,7 @@
     "n_col": "Sample_size",
     "effect_allele": "Allele1",
     "other_allele": "Allele2",
-    "binary_trait": "T",
+    "binary_target": "F",
     "summary_statistic_name": "Odds_ratio",
     "summary_statistic_type": "or"
   },
@@ -107,7 +107,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -121,7 +121,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -135,7 +135,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -149,7 +149,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -163,7 +163,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
      "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -177,7 +177,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -191,7 +191,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -205,7 +205,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -219,7 +219,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   },
@@ -233,7 +233,7 @@
     "n_col": "N",
     "effect_allele": "A1",
     "other_allele": "A2",
-    "binary_trait": "F",
+    "binary_target": "F",
     "summary_statistic_name": "BETA",
     "summary_statistic_type": "beta"
   }

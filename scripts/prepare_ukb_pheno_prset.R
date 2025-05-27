@@ -74,23 +74,83 @@ case_control_counts <- sapply(binary_traits, function(trait) {
   }
 })
 
-# Create summary table
-trait_summary <- data.frame(
-  trait = names(sample_sizes),
-  sample_size = sample_sizes,
-  cases = case_control_counts["cases", ],
-  controls = case_control_counts["controls", ],
-  case_percentage = round(case_control_counts["cases", ] / sample_sizes * 100, 2)
-)
 
-# Print summary
-print(trait_summary)
+# Adjust outcomes for covariates, obtain residuals
 
-write.table(final_pheno, file = '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/ukb/ukb_phenofile_forprset.txt', sep = "\t", row.names = FALSE, quote = FALSE)
+# Define outcome variables (lab values + diseases)
+continuous_outcomes <- c("Total_bilirubin", "Alkaline_phosphatase", "HDL_cholesterol", 
+                  "IGF_1", "Lipoprotein_A", "Urea", "Vitamin_D", 
+                  "Eosinophill_percentage", "Lymphocyte_count", 
+                  "Mean_platelet_thrombocyte_volume", "Monocyte_percentage", 
+                  "Platelet_crit", "bmi")
 
+binary_outcomes <- c("cad", "breast", "ibd", "mdd", "prostate", "t2d", "ad")
 
+# Define covariates
+covariates <- c("Sex", "Age", "Batch", "Centre", 
+                paste0("PC", 1:15))
 
+# Create formula for covariates
+covariate_formula <- paste(covariates, collapse = " + ")
 
+# Function to get residuals from regression
+get_residuals <- function(outcome, data) {
+  # Create complete cases for this outcome
+  complete_data <- data[!is.na(data[[outcome]]), ]
+  
+  # Create formula
+  formula_str <- paste(outcome, "~", covariate_formula)
+  
+  # Fit model
+  model <- lm(as.formula(formula_str), data = complete_data)
+  
+  # Get residuals and put them back in original data structure
+  residuals_vector <- rep(NA, nrow(data))
+  residuals_vector[!is.na(data[[outcome]])] <- residuals(model)
+  
+  return(residuals_vector)
+}
 
+# Apply regression adjustment to continuous outcomes
+for(outcome in continuous_outcomes) {
+  if(outcome %in% colnames(final_pheno)) {
+    cat("Adjusting", outcome, "for covariates...\n")
+    final_pheno[[paste0(outcome, "_resid")]] <- get_residuals(outcome, final_pheno)
+  }
+}
 
+# For binary outcomes, use logistic regression
+get_logistic_residuals <- function(outcome, data) {
+  # Create complete cases for this outcome
+  complete_data <- data[!is.na(data[[outcome]]), ]
+  
+  # Create formula
+  formula_str <- paste(outcome, "~", covariate_formula)
+  
+  # Fit logistic model
+  model <- glm(as.formula(formula_str), data = complete_data, family = binomial)
+  
+  # Get Pearson residuals
+  residuals_vector <- rep(NA, nrow(data))
+  residuals_vector[!is.na(data[[outcome]])] <- residuals(model, type = "pearson")
+  
+  return(residuals_vector)
+}
 
+# Apply logistic regression adjustment to binary outcomes
+for(outcome in binary_outcomes) {
+  if(outcome %in% colnames(final_pheno)) {
+    cat("Adjusting", outcome, "for covariates using logistic regression...\n")
+    final_pheno[[paste0(outcome, "_resid")]] <- get_logistic_residuals(outcome, final_pheno)
+  }
+}
+
+# Save the adjusted phenotype file
+write.table(final_pheno, 
+            file = '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/ukb/ukb_phenofile_forprset.txt', 
+            sep = "\t", row.names = FALSE, quote = FALSE)
+
+# Print summary of adjustments
+cat("\nAdjusted outcomes available:\n")
+resid_cols <- colnames(final_pheno)[grepl("_resid$", colnames(final_pheno))]
+cat(paste(resid_cols, collapse = "\n"))

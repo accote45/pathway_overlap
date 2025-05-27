@@ -39,7 +39,7 @@ process run_random_sets_prset {
     --num-auto 22 \\
     --out ${trait}_set_random${perm} \\
     --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
-    --pheno-col ${trait} \\
+    --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
     --set-perm 10000 \\
