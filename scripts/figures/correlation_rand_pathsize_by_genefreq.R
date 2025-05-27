@@ -15,19 +15,25 @@ gene_pathway_summary$GENE <- gene_pathway_summary$gene
 master <- merge(gene_pathway_summary, magma_results, by = "GENE")
 
 # Plot mean pathway size vs. z-statistic
-ggplot(merged, aes(x = mean_size, y = zstat)) +
+pdf('test.pdf')
+ggplot(master, aes(x = mean_size, y = ZSTAT)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm") +
   xlab("Mean pathway size (random GMTs)") +
-  ylab("MAGMA gene z-statistic") +
-  ggtitle("Do genes in larger pathways tend to have higher GWAS association?")
+  ylab("MAGMA gene z-statistic")
+dev.off()
+
+master$freq <- master$n/1000
+pdf('test.pdf',width=7,height=7)
+ggplot(master, aes(x = mean_size, y = freq)) +
+  geom_point(alpha = 0.5) +
+  xlab("Mean pathway size (random GMTs)") +
+  ylab("Gene frequency") + theme_classic() + ylim(-1, NA)
+dev.off()
 
 # Correlation test
-cor_test <- cor.test(merged$mean_size, merged$zstat)
+cor_test <- cor.test(master$freq, master$mean_size, method = "spearman")
 print(cor_test)
-
-
-
 
 
 
