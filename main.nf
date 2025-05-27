@@ -131,12 +131,7 @@ workflow {
     // Force collection of all MAGMA results before PRSet
     all_magma_done = magma_results.gene_results.collect()
     
-    // Use collected results as trigger
-    prset_ready = all_magma_done
-        .combine(trait_data.collect())
-        .flatMap { magma_results, traits -> traits }
-    
-    prset(prset_ready)
+    prset(trait_data)
 }
 
 
