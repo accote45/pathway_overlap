@@ -126,7 +126,17 @@ workflow prset {
 ////////////////////////////////////////////////////////////////////
 
 workflow {
-    // Run both workflows with the same comprehensive data channel
-    magma(trait_data)
-    prset(trait_data)
+    magma_results = magma(trait_data)
+    
+    // Force collection of all MAGMA results before PRSet
+    all_magma_done = magma_results.gene_results.collect()
+    
+    // Use collected results as trigger
+    prset_ready = all_magma_done
+        .combine(trait_data.collect())
+        .flatMap { magma_results, traits -> traits }
+    
+    prset(prset_ready)
 }
+
+
