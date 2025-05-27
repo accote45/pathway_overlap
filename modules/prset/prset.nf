@@ -4,7 +4,7 @@ process run_random_sets_prset {
     input:
     tuple val(trait),
           path(gwas_file),
-          val(binary_trait),
+          val(binary_target),
           val(effect_allele),
           val(other_allele),
           val(rsid_col),
