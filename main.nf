@@ -126,7 +126,9 @@ workflow prset {
 ////////////////////////////////////////////////////////////////////
 
 workflow {
-    // Run both workflows with the same comprehensive data channel
-    magma(trait_data)
+    // Run MAGMA first
+    magma_results = magma(trait_data)
+    
+    // Run PRSet after (automatic dependency)
     prset(trait_data)
 }
