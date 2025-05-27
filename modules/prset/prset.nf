@@ -26,7 +26,7 @@ process run_random_sets_prset {
     --background /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdb.genes.txt:gene \\
     --bar-levels 1 \\
     --base ${gwas_file} \\
-    --binary-target ${binary_trait} \\
+    --binary-target ${binary_target} \\
     --clump-kb 1000kb \\
     --clump-p 1.000000 \\
     --clump-r2 0.100000 \\
