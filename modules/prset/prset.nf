@@ -94,7 +94,7 @@ process gwas_remove_dup_snps {
     cat("Removed", removed_snps, "SNPs with duplicate IDs\\n")
     
     # Write the deduplicated file
-    fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t", na="NA")
+    fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t", na="NA",quote=FALSE)
     cat("Wrote deduplicated file to ${trait}_deduplicated.txt\\n")
   } else {
     # Even if no duplicates, still write the file with NA values properly handled
