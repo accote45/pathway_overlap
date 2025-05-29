@@ -36,7 +36,20 @@ process gwas_remove_dup_snps {
   
   # Read the GWAS file
   cat("Reading GWAS file: ${gwas_file}\\n")
-  gwas <- fread("${gwas_file}", header=TRUE)
+  gwas <- fread("${gwas_file}", header=TRUE, na.strings=c("", "NA", "N/A", "."))
+  
+  # Replace empty cells with NA
+  cat("Replacing empty cells with NA\\n")
+  for(col in names(gwas)) {
+    # Replace empty strings with NA
+    if(is.character(gwas[[col]])) {
+      empty_mask <- gwas[[col]] == "" | gwas[[col]] == " "
+      if(sum(empty_mask, na.rm=TRUE) > 0) {
+        cat("  - Found", sum(empty_mask, na.rm=TRUE), "empty cells in column", col, "\\n")
+        gwas[empty_mask, (col) := NA]
+      }
+    }
+  }
   
   # Report initial counts
   initial_snps <- nrow(gwas)
@@ -44,6 +57,13 @@ process gwas_remove_dup_snps {
   
   # Store column names as R variables
   rsid_col <- "${rsid_col}"
+  
+  # Remove rows where the SNP ID is NA or empty
+  na_rsid <- is.na(gwas[[rsid_col]])
+  if(sum(na_rsid) > 0) {
+    cat("Removing", sum(na_rsid), "rows with NA values in", rsid_col, "column\\n")
+    gwas <- gwas[!na_rsid]
+  }
   
   # Identify duplicated SNP IDs
   cat("Checking for duplicated SNPs in column:", rsid_col, "\\n")
@@ -74,13 +94,13 @@ process gwas_remove_dup_snps {
     cat("Removed", removed_snps, "SNPs with duplicate IDs\\n")
     
     # Write the deduplicated file
-    fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t")
+    fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t", na="NA")
     cat("Wrote deduplicated file to ${trait}_deduplicated.txt\\n")
   } else {
-    cat("No duplicates found. Copying original file.\\n")
-    # If no duplicates, just copy the original file
-    file.copy("${gwas_file}", "${trait}_deduplicated.txt")
-    cat("Copied file to ${trait}_deduplicated.txt\\n")
+    # Even if no duplicates, still write the file with NA values properly handled
+    cat("No duplicates found. Writing file with properly handled NA values.\\n")
+    fwrite(gwas, "${trait}_deduplicated.txt", sep="\t", na="NA")
+    cat("Wrote file to ${trait}_deduplicated.txt\\n")
   }
   EOF
   """
