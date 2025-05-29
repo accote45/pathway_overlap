@@ -142,7 +142,6 @@ process run_random_sets_prset {
     --clump-r2 0.100000 \\
     --extract ${params.ukb_dir}/ukb18177-qc.snplist \\
     --fastscore \\
-    --feature exon,gene,protein_coding,CDS \\
     --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
@@ -156,8 +155,9 @@ process run_random_sets_prset {
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
-    --target ${params.ukb_dir}/ukb_labvalue_gwas/by_chr/chr# \\
+    --target ${params.ukb_dir}/ukb18177_chr1.22 \\
     --ultra \\
+    --thread ${task.cpus} \\
     --wind-3 35kb \\
     --wind-5 35kb
   """
