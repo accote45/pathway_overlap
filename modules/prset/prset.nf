@@ -137,7 +137,6 @@ process run_random_sets_prset {
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
     --target ${params.ukb_dir}/ukb_labvalue_gwas/by_chr/chr# \\
-    --thread 10 \\
     --ultra \\
     --wind-3 35kb \\
     --wind-5 35kb
