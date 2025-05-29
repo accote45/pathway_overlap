@@ -107,10 +107,13 @@ workflow prset {
         tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, summary_statistic_name, summary_statistic_type)
     }
     
+    // First, remove duplicate SNPs from GWAS files
+    deduplicated_gwas = gwas_remove_dup_snps(prset_data)
+    
     perms_ch = Channel.from(1..params.num_random_sets)
     
     // Combine prset data with permutation numbers
-    prset_random_inputs = prset_data
+    prset_random_inputs = deduplicated_gwas
         .combine(perms_ch)
         .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, summary_statistic_name, summary_statistic_type, perm ->
             println "Creating PRSET job for ${trait} with permutation ${perm}"

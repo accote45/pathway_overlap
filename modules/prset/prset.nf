@@ -1,3 +1,85 @@
+process gwas_remove_dup_snps {
+  executor 'lsf'
+  tag "${trait}_deduplicate"
+  
+  input:
+    tuple val(trait),
+          path(gwas_file),
+          val(binary_target),
+          val(effect_allele),
+          val(other_allele),
+          val(rsid_col),
+          val(pval_col),
+          val(summary_statistic_name),
+          val(summary_statistic_type)
+  
+  output:
+    tuple val(trait),
+          path("${trait}_deduplicated.txt"),
+          val(binary_target),
+          val(effect_allele),
+          val(other_allele),
+          val(rsid_col),
+          val(pval_col),
+          val(summary_statistic_name),
+          val(summary_statistic_type)
+
+  script:
+  """
+  #!/usr/bin/env Rscript
+  
+  # Load required libraries
+  library(data.table)
+  
+  # Read the GWAS file
+  cat("Reading GWAS file: ${gwas_file}\\n")
+  gwas <- fread("${gwas_file}", header=TRUE)
+  
+  # Report initial counts
+  initial_snps <- nrow(gwas)
+  cat("Initial number of SNPs:", initial_snps, "\\n")
+  
+  # Identify duplicated SNPs
+  cat("Checking for duplicated SNPs in column: ${rsid_col}\\n")
+  dup_snps <- duplicated(gwas[[${rsid_col}]]) | duplicated(gwas[[${rsid_col}]], fromLast=TRUE)
+  dup_count <- sum(dup_snps)
+  cat("Found", dup_count, "SNPs in duplicated groups\\n")
+  
+  if (dup_count > 0) {
+    # Get the list of duplicated SNP IDs
+    dup_ids <- unique(gwas[[${rsid_col}]][dup_snps])
+    cat("Number of unique SNP IDs with duplicates:", length(dup_ids), "\\n")
+    
+    # Strategy: remove duplicate SNPs    
+    # Create a clean dataset
+    gwas_clean <- data.table()
+    
+    # Process non-duplicated SNPs
+    gwas_clean <- rbind(gwas_clean, gwas[!gwas[[${rsid_col}]] %in% dup_ids])
+    
+    # Sort the data to maintain the original order where possible
+    if ("CHROM" %in% colnames(gwas_clean) && "POS" %in% colnames(gwas_clean)) {
+      setorder(gwas_clean, CHROM, POS)
+    }
+    
+    # Report final counts
+    final_snps <- nrow(gwas_clean)
+    cat("Final number of SNPs after deduplication:", final_snps, "\\n")
+    cat("Removed", initial_snps - final_snps, "duplicate SNPs\\n")
+    
+    # Write the deduplicated file
+    fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t")
+    cat("Wrote deduplicated file to ${trait}_deduplicated.txt\\n")
+  } else {
+    cat("No duplicates found. Creating symlink to original file.\\n")
+    # If no duplicates, just create a symlink to the original file
+    system("ln -s ${gwas_file} ${trait}_deduplicated.txt")
+  }
+  """
+}
+
+
+
 process run_random_sets_prset {
   executor 'lsf'
   tag "${trait}_set_random${perm}"
