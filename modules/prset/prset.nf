@@ -2,6 +2,8 @@ process gwas_remove_dup_snps {
   executor 'lsf'
   tag "${trait}_deduplicate"
   
+  beforeScript 'module load R'
+
   input:
     tuple val(trait),
           path(gwas_file),
