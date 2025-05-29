@@ -15,6 +15,7 @@ include {
 } from './modules/magma/magma.nf'
 
 include { 
+    gwas_remove_dup_snps;
     run_random_sets_prset;
 } from './modules/prset/prset.nf'
 
