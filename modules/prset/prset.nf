@@ -2,8 +2,6 @@ process gwas_remove_dup_snps {
   executor 'lsf'
   tag "${trait}_deduplicate"
   
-  beforeScript 'module load R'
-
   input:
     tuple val(trait),
           path(gwas_file),
@@ -28,8 +26,11 @@ process gwas_remove_dup_snps {
 
   script:
   """
-  #!/usr/bin/env Rscript
+  # Load R module
+  module load R
   
+  # Run R script
+  Rscript - <<EOF
   # Load required libraries
   library(data.table)
   
@@ -77,6 +78,7 @@ process gwas_remove_dup_snps {
     # If no duplicates, just create a symlink to the original file
     system("ln -s ${gwas_file} ${trait}_deduplicated.txt")
   }
+  EOF
   """
 }
 
