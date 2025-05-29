@@ -99,7 +99,7 @@ process gwas_remove_dup_snps {
   } else {
     # Even if no duplicates, still write the file with NA values properly handled
     cat("No duplicates found. Writing file with properly handled NA values.\\n")
-    fwrite(gwas, "${trait}_deduplicated.txt", sep="\t", na="NA")
+    fwrite(gwas, "${trait}_deduplicated.txt", sep="\t", na="NA",quote=FALSE)
     cat("Wrote file to ${trait}_deduplicated.txt\\n")
   }
   EOF
