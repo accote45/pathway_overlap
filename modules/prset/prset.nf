@@ -26,7 +26,7 @@ process gwas_remove_dup_snps {
 
   script:
   """
-  # Load R module
+  #!/bin/bash
   module load R
   
   # Run R script
@@ -42,23 +42,25 @@ process gwas_remove_dup_snps {
   initial_snps <- nrow(gwas)
   cat("Initial number of SNPs:", initial_snps, "\\n")
   
-  # Identify duplicated SNPs
-  cat("Checking for duplicated SNPs in column: ${rsid_col}\\n")
-  dup_snps <- duplicated(gwas[[${rsid_col}]]) | duplicated(gwas[[${rsid_col}]], fromLast=TRUE)
-  dup_count <- sum(dup_snps)
-  cat("Found", dup_count, "SNPs in duplicated groups\\n")
+  # Store column names as R variables
+  rsid_col <- "${rsid_col}"
+  
+  # Identify duplicated SNP IDs
+  cat("Checking for duplicated SNPs in column:", rsid_col, "\\n")
+  
+  # Count occurrences of each SNP ID
+  snp_counts <- table(gwas[[rsid_col]])
+  
+  # Get IDs that appear more than once
+  dup_ids <- names(snp_counts[snp_counts > 1])
+  dup_count <- length(dup_ids)
+  
+  cat("Found", dup_count, "unique SNP IDs with duplicates\\n")
   
   if (dup_count > 0) {
-    # Get the list of duplicated SNP IDs
-    dup_ids <- unique(gwas[[${rsid_col}]][dup_snps])
-    cat("Number of unique SNP IDs with duplicates:", length(dup_ids), "\\n")
-    
-    # Strategy: remove duplicate SNPs    
-    # Create a clean dataset
-    gwas_clean <- data.table()
-    
-    # Process non-duplicated SNPs
-    gwas_clean <- rbind(gwas_clean, gwas[!gwas[[${rsid_col}]] %in% dup_ids])
+    # Strategy: remove ALL instances of duplicate SNPs
+    # Keep only SNPs that appear exactly once
+    gwas_clean <- gwas[!(gwas[[rsid_col]] %in% dup_ids)]
     
     # Sort the data to maintain the original order where possible
     if ("CHROM" %in% colnames(gwas_clean) && "POS" %in% colnames(gwas_clean)) {
@@ -67,16 +69,18 @@ process gwas_remove_dup_snps {
     
     # Report final counts
     final_snps <- nrow(gwas_clean)
+    removed_snps <- initial_snps - final_snps
     cat("Final number of SNPs after deduplication:", final_snps, "\\n")
-    cat("Removed", initial_snps - final_snps, "duplicate SNPs\\n")
+    cat("Removed", removed_snps, "SNPs with duplicate IDs\\n")
     
     # Write the deduplicated file
     fwrite(gwas_clean, "${trait}_deduplicated.txt", sep="\t")
     cat("Wrote deduplicated file to ${trait}_deduplicated.txt\\n")
   } else {
-    cat("No duplicates found. Creating symlink to original file.\\n")
-    # If no duplicates, just create a symlink to the original file
-    system("ln -s ${gwas_file} ${trait}_deduplicated.txt")
+    cat("No duplicates found. Copying original file.\\n")
+    # If no duplicates, just copy the original file
+    file.copy("${gwas_file}", "${trait}_deduplicated.txt")
+    cat("Copied file to ${trait}_deduplicated.txt\\n")
   }
   EOF
   """
