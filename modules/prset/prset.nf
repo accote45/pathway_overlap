@@ -160,6 +160,8 @@ process run_random_sets_prset {
     --thread ${task.cpus} \\
     --wind-3 35kb \\
     --wind-5 35kb
+
+rm ${trait}_set_random${perm}.best
   """
 }
 
