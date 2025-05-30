@@ -70,7 +70,7 @@ process run_gene_analysis	{
   		tuple	val(trait),
   				path("${trait}_case.control_genebased.genes.raw"), emit: gene_results
 
-  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy'
+  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy', overwrite: true
 
   script:
   """
@@ -93,7 +93,7 @@ process run_real_geneset	{
   output:
     path("${trait}_real_set.*")
 
-  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy'
+  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy', overwrite: true
 
   script:
   """
@@ -117,7 +117,7 @@ process run_random_sets {
   output:
     path("${trait}_set_random${perm}*")
 
-  publishDir "${params.outdir}/magma_random/${params.randomization_method}/${params.background}/${trait}", mode: 'copy'
+  publishDir "${params.outdir}/magma_random/${params.randomization_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
   """

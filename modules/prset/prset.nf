@@ -126,7 +126,7 @@ process run_random_sets_prset {
   output:
     path("${trait}_set_random${perm}*")
 
-  publishDir "${params.outdir}/prset_random/${params.randomization_method}/${params.background}/${trait}", mode: 'copy'
+  publishDir "${params.outdir}/prset_random/${params.randomization_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
