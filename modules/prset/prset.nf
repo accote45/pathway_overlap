@@ -36,7 +36,8 @@ process gwas_remove_dup_snps {
   
   # Read the GWAS file
   cat("Reading GWAS file: ${gwas_file}\\n")
-  gwas <- fread("${gwas_file}", header=TRUE, na.strings=c("", "NA", "N/A", "."))
+  gwas <- read.table("${gwas_file}", header=TRUE, na.strings=c("", "NA", "N/A", "."))
+  gwas <- as.data.table(gwas)
   
   # Replace empty cells with NA
   cat("Replacing empty cells with NA\\n")
