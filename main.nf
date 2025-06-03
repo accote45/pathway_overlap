@@ -160,13 +160,3 @@ workflow {
 }
 
 
-
-
-
-
-
-
-    prset(trait_data)
-}
-
-
