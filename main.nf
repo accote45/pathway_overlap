@@ -126,11 +126,42 @@ workflow prset {
 ////////////////////////////////////////////////////////////////////
 
 workflow {
-    magma_results = magma(trait_data)
+    log.info "Pipeline configuration:"
+    log.info "  Run MAGMA: ${params.run_magma}"
+    log.info "  Run PRSet: ${params.run_prset}"
     
-    // Force collection of all MAGMA results before PRSet
-    all_magma_done = magma_results.gene_results.collect()
-    
+    if (params.run_magma) {
+        log.info "Running MAGMA analysis"
+        magma_results = magma(trait_data)
+
+        if (params.run_prset) {
+            // Force collection of all MAGMA results before PRSet
+            all_magma_done = magma_results.gene_results.collect()
+        }
+
+    } else {
+        log.info "Skipping MAGMA analysis"
+    }
+
+    if (params.run_prset) {
+        log.info "Running PRSet analysis"
+        prset(trait_data)
+    } else {
+        log.info "Skipping PRSet analysis"
+    }
+        // If neither is enabled, show warning
+    if (!params.run_magma && !params.run_prset) {
+        log.warn "Neither MAGMA nor PRSet is enabled. Set --run_magma true or --run_prset true"
+    }
+}
+
+
+
+
+
+
+
+
     prset(trait_data)
 }
 
