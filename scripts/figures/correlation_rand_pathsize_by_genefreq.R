@@ -7,7 +7,7 @@ library(ggplot2)
 gene_pathway_summary <- fread("/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/gene_pathway_size_summary.csv")
 
 # magma gene level results
-magma_results <- fread("/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/height/height_real_set.gsa.genes.out")
+magma_results <- fread("/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/mdd/mdd_real_set.gsa.genes.out")
 
 gene_pathway_summary$GENE <- gene_pathway_summary$gene
 
@@ -24,11 +24,23 @@ ggplot(master, aes(x = mean_size, y = ZSTAT)) +
 dev.off()
 
 master$freq <- master$n/1000
-pdf('test.pdf',width=7,height=7)
-ggplot(master, aes(x = mean_size, y = freq)) +
+master$zstat_direction <- ifelse(master$ZSTAT > 0, "Positive", "Negative")
+
+pdf('test.pdf', width=7, height=7)
+ggplot(master, aes(x = mean_size, y = freq, color = zstat_direction)) +
   geom_point(alpha = 0.5) +
   xlab("Mean pathway size (random GMTs)") +
-  ylab("Gene frequency") + theme_classic() + ylim(-1, NA)
+  ylab("Gene frequency") + 
+  theme_classic() + 
+  ylim(-1, NA) +
+  scale_color_manual(
+    values = c("Positive" = "red", "Negative" = "black"),
+    name = "Z-statistic"
+  ) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 10)
+  )
 dev.off()
 
 # Correlation test
