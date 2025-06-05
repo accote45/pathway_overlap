@@ -73,13 +73,13 @@ calc_fpr <- function(background, random, output_name=NULL) {
 }
 
 # Run calculations with all traits from the specified directory
-calc_fpr("msigdbgenes", "birewire", output_name="df_msigdbgenes_birewire")
+calc_fpr("msigdbgenes", "keeppathsize", output_name="df_msigdbgenes_keeppathsize")
 
 ##### master boxplot
 
 # Create a list of data frames with associated labels
 dfs <- list(
-  df_msigdbgenes_birewire = list(rand = "Keep gene frequency and pathway size", background = "Pathway database genes")
+  df_msigdbgenes_keeppathsize = list(rand = "Keep pathway size", background = "Pathway database genes")
 )
 
 # Apply labels programmatically
