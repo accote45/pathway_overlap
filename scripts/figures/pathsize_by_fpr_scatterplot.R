@@ -72,14 +72,16 @@ calc_fpr <- function(background, random, output_name=NULL) {
   return(master)
 }
 
-# Run calculations with all traits from the specified directory
+# Load data for both randomization methods
 calc_fpr("msigdbgenes", "keeppathsize", output_name="df_msigdbgenes_keeppathsize")
+calc_fpr("msigdbgenes", "birewire", output_name="df_msigdbgenes_birewire")
 
 ##### master boxplot
 
 # Create a list of data frames with associated labels
 dfs <- list(
-  df_msigdbgenes_keeppathsize = list(rand = "Keep pathway size", background = "Pathway database genes")
+  df_msigdbgenes_keeppathsize = list(rand = "keeppathsize", background = "Pathway database genes"),
+  df_msigdbgenes_birewire = list(rand = "birewire", background = "Pathway database genes")
 )
 
 # Apply labels programmatically
@@ -99,40 +101,26 @@ datlist <- mget(ls(pattern = "^df_"))
 options(stringsAsFactors=FALSE)
 master <- rbindlist(datlist)
 
-# Optimize plot layout based on number of traits
-n_traits <- length(unique(master$dataset))
-height_factor <- max(10, n_traits * 0.5)  # Adjust height based on trait count
+# subset for desired traits
+master <- master[!(master$dataset %in% c("height", "adhd","crp","prostate")), ]
 
-# First, let's recreate the column distribution in a different way
-# Get unique datasets and distribute them into columns
-unique_datasets <- unique(master$dataset)
-n_datasets <- length(unique_datasets)
-n_columns <- 3
-n_per_column <- ceiling(n_datasets / n_columns)
-
-# Create a mapping - which column each dataset should appear in
-dataset_column <- data.frame(
-  dataset = unique_datasets,
-  column = rep(1:n_columns, each=n_per_column)[1:n_datasets]
-)
-
-# Merge this mapping back into master data
-master <- merge(master, dataset_column, by="dataset")
-
-# Now create the plot with facet_wrap
-pdf('trait_comparison_fixed.pdf', width=18, height=12)
-ggplot(master, aes(x=background, y=FPR, fill=rand)) + 
-  geom_boxplot() + 
+# Create grouped boxplot
+pdf('trait_comparison_grouped.pdf', width=15, height=8)
+ggplot(master, aes(x=dataset, y=FPR, fill=rand)) + 
+  geom_boxplot(position=position_dodge(0.8)) + 
   theme_bw() +
-  stat_summary(fun=mean, geom="point", shape=18, size=2.5, color="darkred", position=position_dodge(0.75)) +
-  geom_hline(yintercept=0.05, linetype="dashed") +
-  ylab("FPR") + 
-  xlab("Background") +
-  # Use facet_wrap with nested vars
-  facet_wrap(~ column + dataset, ncol=3, scales="free_y") +  
-  theme(strip.text = element_text(size=10),
-        strip.background = element_rect(fill="lightgray"),
-        panel.spacing = unit(1, "lines"))
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", 
+               position=position_dodge(0.8)) +
+  geom_hline(yintercept=0.05, linetype="dashed", color="red", alpha=0.7) +
+  ylab("False Positive Rate (FPR)") + 
+  xlab("GWAS trait") +
+  labs(fill = "Randomization\nMethod") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        legend.position = "top") +
+  # Replace underscores with newlines in x-axis labels
+  scale_x_discrete(labels = function(x) gsub("_", "\n", x)) +
+  # Custom colors for the two methods
+  scale_fill_manual(values = c("keeppathsize" = "#E69F00", "birewire" = "#0072B2"))
 dev.off()
 
 ###### correlation btw pathway size and FPR
