@@ -103,14 +103,52 @@ library(tidyverse)
 library(ggrepel)
 
 dat <- read.table('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/pathsizecorr_genefreqcorr_compare.txt', header=TRUE)
+dat <- dat[!(dat$trait %in% c('height', 'adhd','crp','prostate')),]
 
-cor.test(temp$pathsize_fpr_corr,temp$genefreq_zstat_corr)
+cor.test(dat$pathsize_fpr_corr,dat$genefreq_zstat_corr)
 
 pdf('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/pathsize_fpr_corr_genefreq_zstat_corr.pdf')
-ggplot(temp, aes(x=pathsize_fpr_corr, y=genefreq_zstat_corr,label=trait)) +
+
+# Fit exponential model
+exp_fit <- nls(genefreq_zstat_corr ~ a * exp(b * pathsize_fpr_corr), 
+               data = dat, 
+               start = list(a = 0.1, b = 1))
+
+# Extract parameters
+a_param <- coef(exp_fit)[1]
+b_param <- coef(exp_fit)[2]
+r_squared <- 1 - sum(residuals(exp_fit)^2) / sum((dat$genefreq_zstat_corr - mean(dat$genefreq_zstat_corr))^2)
+
+ggplot(dat, aes(x=pathsize_fpr_corr, y=genefreq_zstat_corr, label=trait)) +
   geom_point() +
   theme_classic() +
   geom_text_repel(size=3) +
+  geom_smooth(method = "nls",
+              formula = y ~ a * exp(b * x),
+              method.args = list(start = list(a = 0.1, b = 1)),
+              se = TRUE, color = "red") +
+  annotate("text", x = Inf, y = Inf, 
+           label = paste0("y = ", round(a_param, 3), " * exp(", round(b_param, 3), " * x)\n",
+                         "R² = ", round(r_squared, 3)),
+           hjust = 1.1, vjust = 1.1, color = "red", size = 4) +
   xlab('Pathway size x FPR correlation') +
   ylab('Gene frequency x z-statistic correlation')
+
+dev.off()
+
+
+
+
+
+
+pdf('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/explore/pathsize_fpr_corr_genefreq_zstat_corr.pdf')
+
+ggplot(dat, aes(x=pathsize_fpr_corr, y=genefreq_zstat_corr, label=trait)) +
+  geom_point() +
+  theme_classic() +
+  geom_text_repel(size=3) +
+geom_smooth(mehtod="lm") +
+  xlab('Pathway size x FPR correlation') +
+  ylab('Gene frequency x z-statistic correlation')
+
 dev.off()
