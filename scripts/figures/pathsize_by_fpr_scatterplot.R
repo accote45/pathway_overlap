@@ -128,33 +128,40 @@ dat <- read.table("/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results
 dat <- dat %>% rownames_to_column('Var1')
 master <- merge(master,dat,by="Var1")
 
-
-
 library(ggpubr)
 library(patchwork)
 
-# Create correlation plot with stat_cor
-pdf('pathway_correlation.pdf', height=20, width=20)
-ggplot(master, aes(x=pathway_size, y=FPR)) + 
-  geom_point(shape=1) + 
-  geom_smooth(method="lm", se=FALSE, linetype="dashed", alpha=0.3) +
+# Create grouped correlation plot with stat_cor
+pdf('pathway_correlation_grouped.pdf', height=20, width=20)
+ggplot(master, aes(x=pathway_size, y=FPR, color=rand)) +
+  geom_point(shape=1, alpha=0.7) +
+  geom_smooth(method="lm", se=FALSE, linetype="dashed", alpha=0.8) +
   theme_classic() +
-  geom_hline(yintercept=0.05, linetype="dashed") + 
-  ylab("FPR") + 
+  geom_hline(yintercept=0.05, linetype="dashed", color="gray", alpha=0.7) +
+  ylab("FPR") +
   xlab("Pathway size") +
-  # Add correlation statistics
+  # Add correlation statistics with white background - BOTTOM RIGHT
   stat_cor(
+    aes(color = rand),
     method = "pearson",
-    label.x.npc = 0.85,  # Position at right side
-    label.y.npc = 0.3,    # Position at top
-    size = 5,               # Text size
-    cor.coef.name = "r",    # Label for coefficient
-    p.accuracy = 0.001,     # P-value decimal places
+    label.x.npc = 0.8,  # Move to right side (0.70 = 70% from left)
+    label.y.npc = c(0.30, 0.20),  # Bottom positions (0.25 = 25% from bottom)
+    size = 3.5,
+    cor.coef.name = "r",
+    p.accuracy = 0.001,
     r.accuracy = 0.01,
-    label.sep = "\n"       # Correlation decimal places
+    show.legend = FALSE,
+    geom = "label",
+    fill = "white",
+    alpha = 0.8,
+    label.padding = unit(0.15, "lines")
   ) +
-  facet_wrap(~ dataset, ncol=3, scales="free_y") +  
+  facet_wrap(~ dataset, ncol=3, scales="free_y",
+             labeller = labeller(dataset = function(x) gsub("_", "\n", x))) +
   theme(strip.text = element_text(size=15),
         strip.background = element_rect(fill="lightgray"),
-        panel.spacing = unit(1, "lines"))
+        panel.spacing = unit(1, "lines"),
+        legend.position = "top") +
+  labs(color = "Randomization\nMethod") +
+  scale_color_manual(values = c("keeppathsize" = "#E69F00", "birewire" = "#0072B2"))
 dev.off()
