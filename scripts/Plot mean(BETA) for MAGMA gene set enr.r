@@ -9,20 +9,56 @@ paths <- readRDS('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/ran
 # Function to read MAGMA results for all traits
 read_all_traits <- function(base_path, method_name) {
   # Get all trait directories
-  trait_dirs <- list.dirs(base_path, recursive = FALSE, full.names = FALSE)
+  trait_dirs <- list.dirs(base_path, recursive = FALSE, full.names = TRUE)
+  
+  # Define traits to exclude
+  excluded_traits <- c('adhd', 'crp', 'height','prostate')
+  
+  # Filter out excluded traits
+  trait_dirs <- trait_dirs[!grepl(paste(excluded_traits, collapse="|"), trait_dirs)][1:5]
+  
+  # Extract trait names
+  trait_names <- basename(trait_dirs)
   
   all_results <- list()
   
-  for (trait in trait_dirs) {
-    files <- list.files(base_path, pattern = 'gsa.out', full.names = TRUE)
+  for (i in seq_along(trait_dirs)) {
+    trait_path <- trait_dirs[i]
+    trait_name <- trait_names[i]
+    
+    # Find all .gsa.out files in this trait directory
+    files <- list.files(trait_path, pattern = 'gsa.out$', full.names = TRUE)
     
     if (length(files) > 0) {
-      trait_results <- lapply(files, fread)
-      trait_combined <- do.call(rbind, trait_results) %>%
-        mutate(method = method_name,
-               trait = trait)
-      all_results[[trait]] <- trait_combined
+      cat("Reading", length(files), "files for trait:", trait_name, "\n")
+      
+      # Read all files for this trait
+      trait_results <- lapply(files, function(f) {
+        res <- read.table(f,header=T)
+        if (nrow(res) > 0) return(res)
+        else return(NULL)
+      })
+      
+      # Filter out NULL results
+      trait_results <- trait_results[!sapply(trait_results, is.null)]
+      
+      if (length(trait_results) > 0) {
+        # Combine all results for this trait
+        trait_combined <- do.call(rbind, trait_results) %>%
+          mutate(method = method_name,
+                 trait = trait_name)
+        
+        all_results[[trait_name]] <- trait_combined
+      }
+    } else {
+      cat("No gsa.out files found for trait:", trait_name, "\n")
     }
+  }
+  
+  # Check if we have any results before combining
+  if (length(all_results) == 0) {
+    warning("No results found in ", base_path)
+    return(data.frame())
   }
   
   return(do.call(rbind, all_results))
@@ -30,11 +66,13 @@ read_all_traits <- function(base_path, method_name) {
 
 # Read in all MAGMA results for both methods
 magma_results_birewire <- read_all_traits(
-  '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/'
+  '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/',
+  'birewire'
 )
 
 magma_results_keeppath <- read_all_traits(
-  '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/keeppathsize/msigdbgenes/'
+  '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/keeppathsize/msigdbgenes/',
+  'keeppathsize'
 )
 
 # Combine both methods
@@ -123,6 +161,39 @@ print(p1)
 print(p2)
 dev.off()
 
+
+# Create forest plot data with traits included
+forest_dat_grouped_by_trait <- magma_all_methods %>%
+  filter(NGENES %in% target_sizes) %>%
+  group_by(NGENES, method, trait) %>%
+  summarise(
+    mean_beta = mean(BETA, na.rm = TRUE),
+    sd_beta = sd(BETA, na.rm = TRUE),
+    se_beta = sd(BETA, na.rm = TRUE) / sqrt(n()),  # Standard error
+    n_pathways = n(),
+    .groups = 'drop'
+  )
+
+# Create grouped forest plot faceted by trait
+pdf('forest_plot_grouped_methods_by_trait.pdf', width = 14, height = 10)
+
+# Side-by-side with error bars, faceted by trait
+ggplot(forest_dat_grouped_by_trait, aes(x = factor(NGENES), y = mean_beta, color = method)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3) +
+  geom_errorbar(aes(ymin = mean_beta - sd_beta, ymax = mean_beta + sd_beta), 
+                position = position_dodge(width = 0.5), width = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  facet_wrap(~ trait, scales = "free_y", ncol = 2) +
+  labs(x = 'Number of Genes in Pathway',
+       y = 'Mean BETA (± SD)',
+       title = 'Forest Plot: Mean BETA by Pathway Size and Method',
+       subtitle = 'Error bars show ± 1 SD',
+       color = 'Randomization Method') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("birewire" = "#E69F00", "keeppathsize" = "#0072B2"))
+
+dev.off()
 
 # Explore relationship between effect size and significance
 pdf('effect_size_analysis.pdf', width = 12, height = 8)
@@ -400,21 +471,56 @@ paths <- readRDS('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/ran
 # Function to read MAGMA results for all traits
 read_all_traits <- function(base_path, method_name) {
   # Get all trait directories
-  trait_dirs <- list.dirs(base_path, recursive = FALSE, full.names = FALSE)
+  trait_dirs <- list.dirs(base_path, recursive = FALSE, full.names = TRUE)
+  
+  # Define traits to exclude
+  excluded_traits <- c('adhd', 'crp', 'height')
+  
+  # Filter out excluded traits
+  trait_dirs <- trait_dirs[!grepl(paste(excluded_traits, collapse="|"), trait_dirs)][1:5]
+  
+  # Extract trait names
+  trait_names <- basename(trait_dirs)
   
   all_results <- list()
   
-  for (trait in trait_dirs) {
-    trait_path <- file.path(base_path, trait)
-    files <- list.files(trait_path, pattern = 'gsa.out', full.names = TRUE)
+  for (i in seq_along(trait_dirs)) {
+    trait_path <- trait_dirs[i]
+    trait_name <- trait_names[i]
+    
+    # Find all .gsa.out files in this trait directory
+    files <- list.files(trait_path, pattern = 'gsa.out$', full.names = TRUE)
     
     if (length(files) > 0) {
-      trait_results <- lapply(files, fread)
-      trait_combined <- do.call(rbind, trait_results) %>%
-        mutate(method = method_name,
-               trait = trait)
-      all_results[[trait]] <- trait_combined
+      cat("Reading", length(files), "files for trait:", trait_name, "\n")
+      
+      # Read all files for this trait
+      trait_results <- lapply(files, function(f) {
+        res <- fread(f)
+        if (nrow(res) > 0) return(res)
+        else return(NULL)
+      })
+      
+      # Filter out NULL results
+      trait_results <- trait_results[!sapply(trait_results, is.null)]
+      
+      if (length(trait_results) > 0) {
+        # Combine all results for this trait
+        trait_combined <- do.call(rbind, trait_results) %>%
+          mutate(method = method_name,
+                 trait = trait_name)
+        
+        all_results[[trait_name]] <- trait_combined
+      }
+    } else {
+      cat("No gsa.out files found for trait:", trait_name, "\n")
     }
+  }
+  
+  # Check if we have any results before combining
+  if (length(all_results) == 0) {
+    warning("No results found in ", base_path)
+    return(data.frame())
   }
   
   return(do.call(rbind, all_results))
@@ -538,6 +644,104 @@ summary_stats <- magma_all_methods %>%
   )
 
 print(summary_stats)
+
+# Create forest plot data with additional smaller pathway sizes
+target_sizes <- c(10, 20, 30, 40, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
+
+forest_dat_grouped_by_trait <- magma_all_methods %>%
+  # Use pathway sizes near the target sizes to get enough data points
+  mutate(size_bin = case_when(
+    NGENES <= 15 ~ 10,
+    NGENES > 15 & NGENES <= 25 ~ 20,
+    NGENES > 25 & NGENES <= 35 ~ 30,
+    NGENES > 35 & NGENES <= 45 ~ 40,
+    NGENES > 45 & NGENES <= 75 ~ 50,
+    NGENES > 75 & NGENES <= 150 ~ 100,
+    NGENES > 150 & NGENES <= 250 ~ 200,
+    NGENES > 250 & NGENES <= 350 ~ 300,
+    NGENES > 350 & NGENES <= 450 ~ 400,
+    NGENES > 450 & NGENES <= 550 ~ 500,
+    NGENES > 550 & NGENES <= 650 ~ 600,
+    NGENES > 650 & NGENES <= 750 ~ 700,
+    NGENES > 750 & NGENES <= 850 ~ 800,
+    NGENES > 850 & NGENES <= 950 ~ 900,
+    NGENES > 950 ~ 1000
+  )) %>%
+  filter(!is.na(size_bin)) %>%  # Remove pathways that don't fit into bins
+  group_by(size_bin, method, trait) %>%
+  summarise(
+    mean_beta = mean(BETA, na.rm = TRUE),
+    sd_beta = sd(BETA, na.rm = TRUE),
+    se_beta = sd(BETA, na.rm = TRUE) / sqrt(n()),
+    mean_p = mean(-log10(P), na.rm = TRUE),
+    sd_p = sd(-log10(P), na.rm = TRUE),
+    n_pathways = n(),
+    .groups = 'drop'
+  )
+
+# Create grouped forest plot faceted by trait
+pdf('forest_plot_grouped_methods_by_trait_all_sizes.pdf', width = 16, height = 12)
+
+# Side-by-side with error bars, faceted by trait
+ggplot(forest_dat_grouped_by_trait, aes(x = factor(size_bin), y = mean_beta, color = method)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3, 
+             aes(size = log10(n_pathways))) +  # Size points by number of pathways
+  geom_errorbar(aes(ymin = mean_beta - sd_beta, ymax = mean_beta + sd_beta), 
+                position = position_dodge(width = 0.5), width = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  facet_wrap(~ trait, scales = "free_y", ncol = 2) +
+  labs(x = 'Number of Genes in Pathway',
+       y = 'Mean BETA (± SD)',
+       title = 'Forest Plot: Mean BETA by Pathway Size and Method',
+       subtitle = 'Error bars show ± 1 SD; point size indicates sample size',
+       color = 'Randomization Method',
+       size = 'log10(Number of\nPathways)') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("birewire" = "#E69F00", "keeppathsize" = "#0072B2"))
+
+dev.off()
+
+# repeat for distribution of pvalues by pathway size categories
+pdf('forest_plot_grouped_methods_by_trait_all_sizes.pdf', width = 16, height = 12)
+
+# Side-by-side with error bars, faceted by trait
+ggplot(forest_dat_grouped_by_trait, aes(x = factor(size_bin), y = mean_p, color = method)) +
+  geom_point(position = position_dodge(width = 0.5), size = 3, 
+             aes(size = log10(n_pathways))) +  # Size points by number of pathways
+  geom_errorbar(aes(ymin = mean_p - sd_p, ymax = mean_p + sd_p), 
+                position = position_dodge(width = 0.5), width = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  facet_wrap(~ trait, scales = "free_y", ncol = 2) +
+  labs(x = 'Number of Genes in Pathway',
+       y = 'Mean -log10(Pvalue) (± SD)',
+       title = 'Forest Plot: Mean BETA by Pathway Size and Method',
+       subtitle = 'Error bars show ± 1 SD; point size indicates sample size',
+       color = 'Randomization Method',
+       size = 'log10(Number of\nPathways)') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("birewire" = "#E69F00", "keeppathsize" = "#0072B2"))
+
+dev.off()
+
+
+
+
+
+
+
+# Optional: Print the number of pathways in each bin to check data availability
+pathway_counts <- forest_dat_grouped_by_trait %>%
+  group_by(size_bin, method) %>%
+  summarise(
+    total_pathways = sum(n_pathways),
+    .groups = 'drop'
+  ) %>%
+  pivot_wider(names_from = method, values_from = total_pathways)
+
+print("Number of pathways in each size bin:")
+print(pathway_counts)
 
 
 
