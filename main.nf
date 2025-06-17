@@ -19,6 +19,12 @@ include {
     run_random_sets_prset;
 } from './modules/prset/prset.nf'
 
+include {
+    calc_empirical_pvalues;
+    combine_empirical_results;
+} from './modules/empirical_pval/empirical_pval.nf'
+
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
