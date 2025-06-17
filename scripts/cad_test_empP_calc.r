@@ -1,3 +1,5 @@
+## calculate empP, Zscore/n, Zscore/sqrt(n)
+
 library(data.table)
 library(GSA)
 library(tidyverse)
@@ -12,77 +14,6 @@ read_files <- function(path) {
   ldf <- ldf[!sapply(ldf, is.null)]  # Remove any NULL entries
   return(ldf)
 }
-
-calc_fpr <- function(background, random, output_name=NULL) {
-  # Base path for all traits
-  base_path <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/',random,'/',background)
-  
-  # Get trait directories directly from specified path
-  trait_dirs <- list.dirs(base_path, full.names=FALSE, recursive=FALSE)
-  trait_dirs <- trait_dirs[trait_dirs != ""] # Filter out empty names
-  trait_dirs <- trait_dirs[trait_dirs %like% "cad"]
-
-  # Create paths list from available directories
-  paths <- setNames(
-    lapply(trait_dirs, function(trait_dir) {
-      paste0(base_path, '/', trait_dir)
-    }),
-    trait_dirs
-  )
-  
-  message(paste("Processing", length(paths), "traits"))
-  
-  # Process each path
-  results <- lapply(names(paths), function(name) {
-    tryCatch({
-      message(paste("Processing", name, "at", paths[[name]]))
-      if(dir.exists(paths[[name]])) {
-        ldf <- read_files(paths[[name]])
-        if(length(ldf) > 0) {
-          all.ldf <- as.data.frame(do.call(rbind, ldf))
-          nom <- as.data.frame(table(all.ldf[all.ldf$P < 0.05, ]$FULL_NAME))
-          nom$FPR <- nom$Freq/length(ldf)
-          nom$dataset <- name
-          return(nom)
-        } else {
-          message(paste("No .gsa.out files found in:", paths[[name]]))
-          return(NULL)
-        }
-      } else {
-        message(paste("Directory does not exist:", paths[[name]]))
-        return(NULL)
-      }
-    }, error = function(e) {
-      message(paste("Error processing", name, ":", e$message))
-      return(NULL)
-    })
-  })
-  
-  # Filter out NULL results
-  results <- results[!sapply(results, is.null)]
-  
-  if(length(results) == 0) {
-    message("No valid results found. Check paths and file availability.")
-    return(NULL)
-  }
-  
-  master <- bind_rows(results)
-
-  if (!is.null(output_name)) {
-    assign(output_name, master, envir = .GlobalEnv)
-  }
-  
-  return(master)
-}
-
-# Load data for both randomization methods
-calc_fpr("msigdbgenes", "keeppathsize", output_name="df_msigdbgenes_keeppathsize")
-calc_fpr("msigdbgenes", "birewire", output_name="df_msigdbgenes_birewire")
-
-# Combine results
-df_msigdbgenes_keeppathsize$randomization <- "keeppathsize"
-df_msigdbgenes_birewire$randomization <- "birewire"
-df_combined <- rbind(df_msigdbgenes_keeppathsize, df_msigdbgenes_birewire)
 
 calc_empirical_pvalues_fast <- function(real_results, background, random_method) {
   # Convert real results to data.table
@@ -120,14 +51,20 @@ calc_empirical_pvalues_fast <- function(real_results, background, random_method)
     use.names = TRUE
   )
   
-  # Keep only necessary columns from real data
-  real_pathways_dt <- real_dt[, .(FULL_NAME, P)]
-  
   # Step 2: Calculate empirical p-values directly
   message("Calculating empirical p-values...")
   
+  results <- real_dt %>% group_by(FULL_NAME) %>% mutate(
+        n_more_extreme = sum(random_data$P <= P, na.rm = TRUE),
+        empirical_pval = (n_more_extreme + 1) / (nrow(random_data) + 1),
+        dataset = trait,
+        rand = rand
+      ) %>%
+      ungroup()
+    
+
   # Count occurrences per pathway where random P ≤ real P
-  counts <- real_pathways_dt[, {
+  counts <- real_dt[, {
     pathway <- FULL_NAME
     real_p <- P
     
@@ -168,6 +105,125 @@ empirical_combined <- rbind(empirical_keeppathsize, empirical_birewire)
 
 # Save results
 write.csv(empirical_combined, "cad_empirical_pvalues.csv", row.names = FALSE)
+
+
+
+
+
+
+
+
+calc_empP <- function(background, rand, trait, output_name = NULL) {
+  
+  cat("Processing", trait, "...\n")
+  
+  # Read real data - KEEP ALL COLUMNS
+  real_file <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/',trait,'/',trait,'_real_set.gsa.out')
+    
+  if (!file.exists(real_file)) {
+    cat("Warning: Real data file not found for", trait, "\n")
+    return(NULL)
+  }
+  
+  real_data <- read.table(real_file, header = TRUE)
+  
+  # Read random data - NEED BOTH P and FULL_NAME for pathway matching
+  random_files <- list.files(
+    path = paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/',rand,'/',background,'/',trait),
+    pattern = "\\.gsa\\.out$", 
+    full.names = TRUE
+  )
+  
+  if (length(random_files) == 0) {
+    cat("Warning: No random files found for", trait, "\n")
+    return(NULL)
+  }
+  
+  # Read and combine random data - keep FULL_NAME and P for pathway matching
+  random_data_list <- list()
+  for (i in seq_along(random_files)) {
+    tryCatch({
+      temp_data <- read.table(random_files[i], header = TRUE)
+      if (all(c("P", "FULL_NAME") %in% colnames(temp_data))) {
+        temp_data$random_iter <- i  # Track which random iteration
+        random_data_list[[i]] <- temp_data[, c("FULL_NAME", "P", "random_iter")]
+      }
+    }, error = function(e) {
+      cat("Warning: Could not read", random_files[i], "\n")
+    })
+  }
+  
+  if (length(random_data_list) == 0) {
+    cat("Warning: No valid random data for", trait, "\n")
+    return(NULL)
+  }
+  
+  # Combine all random data
+  random_data <- do.call(rbind, random_data_list)
+  
+  # Calculate empirical p-values PER PATHWAY
+  trait_results <- real_data %>%
+    rowwise() %>%
+    mutate(
+      # For each pathway, count how many random iterations had P <= real P
+      n_more_extreme = sum(random_data$P[random_data$FULL_NAME == FULL_NAME] <= P, na.rm = TRUE),
+      n_total_random = sum(random_data$FULL_NAME == FULL_NAME, na.rm = TRUE),
+      empirical_pval = ifelse(n_total_random > 0, 
+                             (n_more_extreme + 1) / (n_total_random + 1), 
+                             NA)
+    ) %>%
+    ungroup() %>%
+    # Add metadata columns
+    mutate(
+      dataset = trait,
+      rand = rand,
+      FPR = empirical_pval  # For backward compatibility
+    ) %>%
+    # Rename FULL_NAME to Var1 for compatibility with existing code
+    rename(Var1 = FULL_NAME) %>%
+    # Remove pathways where empirical p-value couldn't be calculated
+    filter(!is.na(empirical_pval)) %>%
+    # Sort by empirical p-value
+    arrange(empirical_pval)
+  
+  # Assign to global environment if output_name is provided
+  if (!is.null(output_name)) {
+    assign(output_name, trait_results, envir = .GlobalEnv)
+    cat("Results assigned to", output_name, "with", nrow(trait_results), "rows\n")
+  }
+  
+  # Print summary
+  cat("Completed", trait, "- found", nrow(trait_results), "pathways with empirical p-values\n")
+  cat("Columns in output:\n")
+  print(colnames(trait_results))
+  
+  # Print pathway matching summary
+  cat("Random tests per pathway: mean =", round(mean(trait_results$n_total_random, na.rm = TRUE), 1),
+      ", range =", range(trait_results$n_total_random, na.rm = TRUE), "\n")
+  
+  return(trait_results)
+}
+
+# Process individual traits
+df_cad_birewire <- calc_empP("msigdbgenes", "birewire", "cad", 
+                           output_name = "df_cad_birewire")
+
+df_cad_keeppathsize <- calc_empP("msigdbgenes", "keeppathsize", "cad", 
+                           output_name = "df_cad_keeppathsize")
+
+
+# Combine results from both methods
+df_cad_birewire$method <- "birewire"
+df_cad_keeppathsize$method <- "keeppathsize"
+df_cad_combined <- rbind(df_cad_birewire, df_cad_keeppathsize)
+
+# calculate Zscore/n, Zscore/sqrt(n)
+df_cad_combined$Zscore <- df_cad_combined$BETA/df_cad_combined$SE
+df_cad_combined$Zscore_n <- df_cad_combined$Zscore / df_cad_combined$NGENES
+df_cad_combined$Zscore_sqrt_n <- df_cad_combined$Zscore / sqrt(df_cad_combined$NGENES)
+
+# Save combined results
+write.csv(df_cad_combined, "cad_empirical_pvalues_combined.csv", row.names = FALSE)
 
 
 
