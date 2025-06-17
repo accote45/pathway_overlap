@@ -132,34 +132,86 @@ workflow prset {
 }
 
 ////////////////////////////////////////////////////////////////////
-//                  Main workflow
+//                  Empirical P-value Subworkflow
+////////////////////////////////////////////////////////////////////
+
+workflow empirical_pvalues {
+    take:
+    tool_results  // Channel: [trait, tool, real_results_file, random_results_dir]
+    
+    main:
+    // Group random results by trait and tool
+    grouped_results = tool_results
+        .map { trait, tool, real_file, random_dir ->
+            // Collect all random files for this trait/tool combination
+            def random_files = file("${random_dir}").listFiles()
+                .findAll { it.name.contains('random') }
+            [trait, tool, real_file, random_files]
+        }
+    
+    // Calculate empirical p-values
+    empirical_results = calc_empirical_pvalues(grouped_results)
+    
+    // Combine all results
+    all_results = empirical_results.map { it[2] }.collect()
+    combined = combine_empirical_results(all_results)
+    
+    emit:
+    individual_results = empirical_results
+    combined_results = combined
+}
+
+////////////////////////////////////////////////////////////////////
+//                  Updated Main Workflow
 ////////////////////////////////////////////////////////////////////
 
 workflow {
     log.info "Pipeline configuration:"
     log.info "  Run MAGMA: ${params.run_magma}"
     log.info "  Run PRSet: ${params.run_prset}"
+    log.info "  Calculate Empirical P-values: ${params.run_empirical}"
+    
+    // Store all tool results for empirical p-value calculation
+    all_tool_results = Channel.empty()
     
     if (params.run_magma) {
         log.info "Running MAGMA analysis"
         magma_results = magma(trait_data)
-
-        if (params.run_prset) {
-            // Force collection of all MAGMA results before PRSet
-            all_magma_done = magma_results.gene_results.collect()
-        }
-
-    } else {
-        log.info "Skipping MAGMA analysis"
+        
+        // Prepare MAGMA results for empirical p-value calculation
+        magma_for_empirical = magma_results.gene_results
+            .map { trait, gene_result ->
+                def real_file = "${params.outdir}/magma_real/${trait}/setreal.empP.${params.randomization_method}.gsa.out"
+                def random_dir = "${params.outdir}/magma_random/${params.randomization_method}/${params.background}/${trait}"
+                [trait, "magma", file(real_file), file(random_dir)]
+            }
+        
+        all_tool_results = all_tool_results.mix(magma_for_empirical)
     }
-
+    
     if (params.run_prset) {
-        log.info "Running PRSet analysis"
-        prset(trait_data)
-    } else {
-        log.info "Skipping PRSet analysis"
+        log.info "Running PRSet analysis" 
+        prset_results = prset(trait_data)
+        
+        // Prepare PRSet results for empirical p-value calculation
+        prset_for_empirical = trait_data
+            .map { fullData ->
+                def trait = fullData[0]
+                def real_file = "${params.outdir}/prset_real/${trait}/${trait}_real.summary"
+                def random_dir = "${params.outdir}/prset_random/${params.randomization_method}/${params.background}/${trait}"
+                [trait, "prset", file(real_file), file(random_dir)]
+            }
+        
+        all_tool_results = all_tool_results.mix(prset_for_empirical)
     }
-        // If neither is enabled, show warning
+    
+    // Calculate empirical p-values if requested
+    if (params.run_empirical && (params.run_magma || params.run_prset)) {
+        log.info "Calculating empirical p-values"
+        empirical_pvalues(all_tool_results)
+    }
+    
+    // If neither is enabled, show warning
     if (!params.run_magma && !params.run_prset) {
         log.warn "Neither MAGMA nor PRSet is enabled. Set --run_magma true or --run_prset true"
     }
