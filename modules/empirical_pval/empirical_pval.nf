@@ -20,7 +20,7 @@ process calc_empirical_pvalues {
     #!/bin/bash
     module load R
     
-    # Create R script without problematic escaping
+    # Create R script
     cat > calc_empirical.R << 'RSCRIPT'
     library(tidyverse)
     library(data.table)
@@ -108,10 +108,8 @@ process calc_empirical_pvalues {
         
         if (is_magma_rand) {
           temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-        } else if (is_prset_rand) {
+        } else (is_prset_rand) {
           temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-        } else {
-          temp_data <- fread(current_file, header = TRUE)
         }
         
         if (all(c(pathway_col, pval_col) %in% colnames(temp_data))) {
