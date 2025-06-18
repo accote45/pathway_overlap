@@ -50,8 +50,7 @@ process calc_empirical_pvalues {
     trait <- args[2]
     real_results_file <- args[3]
     random_dir <- args[4]
-    
-    cat("Processing empirical p-values for", tool, "results from", trait, "\\n")
+        cat("Processing empirical p-values for", tool, "results from", trait, "\\n")
     
     # Get tool configuration
     if (!tool %in% names(tool_config)) {
@@ -99,6 +98,8 @@ process calc_empirical_pvalues {
     
     # Read and combine random data
     random_data_list <- list()
+    valid_file_count <- 0
+
     for (i in seq_along(random_files)) {
       tryCatch({
         # Determine file type
@@ -106,20 +107,26 @@ process calc_empirical_pvalues {
         is_magma_rand <- endsWith(current_file, ".gsa.out")
         is_prset_rand <- endsWith(current_file, ".summary")
         
-        if (is_magma_rand) {
-          temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-        } else if (is_prset_rand) {
-          temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-        }
-        
-        if (all(c(pathway_col, pval_col) %in% colnames(temp_data))) {
-          temp_data[["random_iter"]] <- i
-          random_data_list[[i]] <- temp_data[, c(pathway_col, pval_col, "random_iter")]
+        # Only process files that match our criteria
+        if (is_magma_rand || is_prset_rand) {
+          if (is_magma_rand) {
+            temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
+          } else if (is_prset_rand) {
+            temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
+          }
+          
+          if (all(c(pathway_col, pval_col) %in% colnames(temp_data))) {
+            valid_file_count <- valid_file_count + 1
+            temp_data[["random_iter"]] <- valid_file_count  # Use sequential numbering for valid files
+            random_data_list[[valid_file_count]] <- temp_data[, c(pathway_col, pval_col, "random_iter")]
+          }
         }
       }, error = function(e) {
         cat("Warning: Could not read", current_file, "\\n")
       })
     }
+
+    cat("Successfully read", length(random_data_list), "valid random files")
     
     if (length(random_data_list) == 0) {
       stop("No valid random data files found")
