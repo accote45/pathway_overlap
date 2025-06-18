@@ -74,7 +74,7 @@ process calc_empirical_pvalues {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else if (is_prset) {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
-    } else if {
+    } else {
       real_data <- fread(real_results_file, header = TRUE)
     }
     
@@ -108,7 +108,7 @@ process calc_empirical_pvalues {
         
         if (is_magma_rand) {
           temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-        } else (is_prset_rand) {
+        } else if (is_prset_rand) {
           temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
         }
         
