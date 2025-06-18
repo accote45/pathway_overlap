@@ -156,9 +156,9 @@ workflow {
     
     // Combine trait data with randomization methods
     trait_randomization = trait_data.combine(randomization_channel)
-        .map { trait_tuple, rand_method ->
-            // trait_tuple contains all 12 elements, append rand_method as 13th
-            trait_tuple + [rand_method]
+        .map { trait_data_tuple, rand_method ->
+            // Append rand_method to the existing tuple
+            trait_data_tuple + rand_method
         }
     
     // Store all tool results for empirical p-value calculation
