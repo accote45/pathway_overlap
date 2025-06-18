@@ -20,6 +20,7 @@ process calc_empirical_pvalues {
     #!/bin/bash
     module load R
     
+    # Create R script without problematic escaping
     cat > calc_empirical.R << 'RSCRIPT'
     library(tidyverse)
     library(data.table)
@@ -61,18 +62,18 @@ process calc_empirical_pvalues {
     pval_col <- config[["pval_col"]]
     required_cols <- config[["required_cols"]]
     
-    # Read real results
+    # Read real results - determine file type by extension
     cat("Reading real results file:", real_results_file, "\\n")
     
-    # Handle different file formats
-    if (grepl("\\\\.gsa\\\\.out$", real_results_file)) {
-      # MAGMA format - tab separated, has header
+    # Check file extension
+    is_magma <- endsWith(real_results_file, ".gsa.out")
+    is_prset <- endsWith(real_results_file, ".summary")
+    
+    if (is_magma) {
       real_data <- read.table(real_results_file, header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-    } else if (grepl("\\\\.summary$", real_results_file)) {
-      # PRSet format - space separated
+    } else if (is_prset) {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else {
-      # Generic format - try to auto-detect
       real_data <- fread(real_results_file, header = TRUE)
     }
     
@@ -93,16 +94,21 @@ process calc_empirical_pvalues {
       stop("No random result files found")
     }
     
-    # Read and combine random data - only need pathway and p-value columns
+    # Read and combine random data
     random_data_list <- list()
     for (i in seq_along(random_files)) {
       tryCatch({
-        if (grepl("\\\\.gsa\\\\.out$", random_files[i])) {
-          temp_data <- read.table(random_files[i], header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-        } else if (grepl("\\\\.summary$", random_files[i])) {
-          temp_data <- read.table(random_files[i], header = TRUE, stringsAsFactors = FALSE)
+        # Determine file type
+        current_file <- random_files[i]
+        is_magma_rand <- endsWith(current_file, ".gsa.out")
+        is_prset_rand <- endsWith(current_file, ".summary")
+        
+        if (is_magma_rand) {
+          temp_data <- read.table(current_file, header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
+        } else if (is_prset_rand) {
+          temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
         } else {
-          temp_data <- fread(random_files[i], header = TRUE)
+          temp_data <- fread(current_file, header = TRUE)
         }
         
         if (all(c(pathway_col, pval_col) %in% colnames(temp_data))) {
@@ -110,7 +116,7 @@ process calc_empirical_pvalues {
           random_data_list[[i]] <- temp_data[, c(pathway_col, pval_col, "random_iter")]
         }
       }, error = function(e) {
-        cat("Warning: Could not read", random_files[i], "\\n")
+        cat("Warning: Could not read", current_file, "\\n")
       })
     }
     
@@ -122,7 +128,7 @@ process calc_empirical_pvalues {
     random_data <- do.call(rbind, random_data_list)
     colnames(random_data)[1:2] <- c("pathway_name", "p_value")
     
-    cat("Combined random data:", nrow(random_data), "rows from", length(unique(random_data[["random_iter"]])), "iterations\\n")
+    cat("Combined random data:", nrow(random_data), "rows\\n")
     
     # Calculate empirical p-values per pathway
     real_data[["pathway_name_std"]] <- real_data[[pathway_col]]
