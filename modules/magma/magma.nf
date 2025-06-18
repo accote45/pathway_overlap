@@ -7,8 +7,7 @@ process prepare_input {
         val(chr_col),
         val(pos_col),
         val(pval_col),
-        val(n_col),
-        val(rand_method)
+        val(n_col)
 
   output:
   tuple val(trait),
@@ -16,8 +15,7 @@ process prepare_input {
         val(rsid_col),
         val(pval_col),
         val(n_col),
-        path("snp_loc.txt"),
-        val(rand_method), emit: snp_loc_data
+        path("snp_loc.txt"), emit: snp_loc_data
 
   script:
   """
@@ -34,7 +32,6 @@ process annotate_genes {
         val(pval_col),
         val(n_col),
         path(snp_file),
-        val(rand_method),
         path(gene_file)
 
   output:
@@ -43,8 +40,7 @@ process annotate_genes {
         val(rsid_col),
         val(pval_col),
         val(n_col),
-        path("*.genes.annot"),
-        val(rand_method), emit: gene_annot_data
+        path("*.genes.annot"), emit: gene_annot_data
 
   script:
   """
@@ -64,15 +60,13 @@ process run_gene_analysis {
         val(rsid_col),
         val(pval_col),
         val(n_col),
-        path(gene_annot),
-        val(rand_method)
+        path(gene_annot)
 
   output:
   tuple val(trait),
-        path("${trait}_case.control_genebased.genes.raw"),
-        val(rand_method), emit: gene_results
+        path("${trait}_case.control_genebased.genes.raw"), emit: gene_results
 
-  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/magma_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
@@ -93,9 +87,11 @@ process run_real_geneset {
         val(rand_method)
 
   output:
-  path("${trait}_real_set.*")
+  tuple val(trait),
+        path("${trait}_real_set.${rand_method}.gsa.out"),
+        val(rand_method)
 
-  publishDir { "${params.outdir}/magma_real/${trait}" }, mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/magma_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
@@ -104,13 +100,14 @@ process run_real_geneset {
   magma \\
     --gene-results ${gene_results_file} \\
     --set-annot ${params.geneset_real} \\
-    --out ${trait}_real_set
+    --out ${trait}_real_set.${rand_method}
   """
 }
 
 process run_random_sets {
   executor 'lsf'
   tag "${trait}_set_random${perm}_${rand_method}"
+  
   input:
   tuple val(trait),
         path(gene_results_file),
@@ -118,14 +115,15 @@ process run_random_sets {
         val(perm)
         
   output:
-  path("${trait}_set_random${perm}*")
+  tuple val(trait),
+        path("${trait}_set_random${perm}.${rand_method}.gsa.out"),
+        val(rand_method)
 
   publishDir "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
   // Determine the correct GMT directory based on randomization method
-  def gmt_base_dir = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/randomized_gene_sets"
-  def gmt_dir = rand_method == "birewire" ? "${gmt_base_dir}/random_birewire" : "${gmt_base_dir}/random_keeppathsize"
+  def gmt_dir = params.gmt_dirs[rand_method]
   
   """
   module load magma_gwas/1.10
@@ -133,7 +131,7 @@ process run_random_sets {
   magma \\
     --gene-results ${gene_results_file} \\
     --set-annot ${gmt_dir}/GeneSet.random${perm}.gmt \\
-    --out ${trait}_set_random${perm}
+    --out ${trait}_set_random${perm}.${rand_method}
   """
 }
 

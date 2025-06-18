@@ -1,6 +1,6 @@
 process gwas_remove_dup_snps {
   executor 'lsf'
-  tag "${trait}_deduplicate_${rand_method}"
+  tag "${trait}_deduplicate"
   
   input:
   tuple val(trait),
@@ -12,7 +12,7 @@ process gwas_remove_dup_snps {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method)
+        val(rand_method)  // Only used for tagging
   
   output:
   tuple val(trait),
@@ -24,7 +24,7 @@ process gwas_remove_dup_snps {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method)
+        val(rand_method)  // Pass through for consistency
 
   script:
   """
@@ -127,14 +127,15 @@ process run_random_sets_prset {
         val(perm)
   
   output:
-  path("${trait}_set_random${perm}*")
+  tuple val(trait),
+        path("${trait}_set_random${perm}.${rand_method}.*"),
+        val(rand_method)
 
   publishDir "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
   // Determine the correct GMT directory based on randomization method
-  def gmt_base_dir = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/randomized_gene_sets"
-  def gmt_dir = rand_method == "birewire" ? "${gmt_base_dir}/random_birewire" : "${gmt_base_dir}/random_keeppathsize"
+  def gmt_dir = params.gmt_dirs[rand_method]
   
   """
   /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
@@ -153,7 +154,7 @@ process run_random_sets_prset {
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${gmt_dir}/GeneSet.random${perm}.gmt \\
     --num-auto 22 \\
-    --out ${trait}_set_random${perm} \\
+    --out ${trait}_set_random${perm}.${rand_method} \\
     --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
     --pheno-col ${trait}_resid \\
     --print-snp \\
@@ -168,7 +169,7 @@ process run_random_sets_prset {
     --wind-3 35kb \\
     --wind-5 35kb
 
-  rm ${trait}_set_random${perm}.best
+  rm ${trait}_set_random${perm}.${rand_method}.best
   """
 }
 
