@@ -74,7 +74,7 @@ process calc_empirical_pvalues {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else if (is_prset) {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
-    } else {
+    } else if {
       real_data <- fread(real_results_file, header = TRUE)
     }
     
