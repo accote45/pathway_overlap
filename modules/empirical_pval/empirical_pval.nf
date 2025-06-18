@@ -88,9 +88,9 @@ process calc_empirical_pvalues {
     cat("Found", nrow(real_data), "pathways in real results\\n")
     
     # Read random results
-q    cat("Reading random results from directory:", random_dir, "\\n")
+    cat("Reading random results from directory:", random_dir, "\\n")
 
-    random_files <- list.files(random_dir,full.names = TRUE)
+    random_files <- list.files(random_dir, full.names = TRUE)
     cat("Found", length(random_files), "random result files\\n")
     
     if (length(random_files) == 0) {
@@ -169,10 +169,10 @@ q    cat("Reading random results from directory:", random_dir, "\\n")
     cat("Median empirical p-value:", round(median(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
     cat("FPR < 0.05:", sum(empirical_results[["FPR"]] < 0.05, na.rm = TRUE), "pathways\\n")
     
-    RSCRIPT
+RSCRIPT
     
     # Run the R script
-    Rscript calc_empirical.R "${tool}" "${trait}" "${real_results}"
+    Rscript calc_empirical.R "${tool}" "${trait}" "${real_results}" "${random_dir}"
     """
 }
 
