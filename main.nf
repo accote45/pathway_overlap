@@ -226,9 +226,12 @@ workflow {
     //////////////////////////////////////////
     // COMBINE ALL EMPIRICAL RESULTS
     //////////////////////////////////////////
-    if (params.run_empirical && !all_empirical_inputs.empty) {
+    if (params.run_empirical) {
+        log.info "Setting up empirical results combination"
+        
+        // Collect all empirical inputs and handle empty case
         combined_empirical = combine_empirical_results(
-            all_empirical_inputs.collect()
+            all_empirical_inputs.collect().ifEmpty([])
         )
     }
 }
