@@ -140,17 +140,8 @@ workflow empirical_pvalues {
     tool_results  // Channel: [trait, tool, real_results_file, random_results_dir]
     
     main:
-    // Group random results by trait and tool
-    grouped_results = tool_results
-        .map { trait, tool, real_file, random_dir ->
-            // Collect all random files for this trait/tool combination
-            def random_files = file("${random_dir}").listFiles()
-                .findAll { it.name.contains('random') }
-            [trait, tool, real_file, random_files]
-        }
-    
-    // Calculate empirical p-values
-    empirical_results = calc_empirical_pvalues(grouped_results)
+    // pass the data directly to the empirical p-value calculation
+    empirical_results = calc_empirical_pvalues(tool_results)
     
     // Combine all results
     all_results = empirical_results.map { it[2] }.collect()
@@ -199,7 +190,7 @@ workflow {
                 def trait = fullData[0]
                 def real_file = "${params.outdir}/prset_real/${trait}/${trait}_real.summary"
                 def random_dir = "${params.outdir}/prset_random/${params.randomization_method}/${params.background}/${trait}"
-                [trait, "prset", file(real_file), file(random_dir)]
+                [trait, "prset", file(real_file), random_dir]
             }
         
         all_tool_results = all_tool_results.mix(prset_for_empirical)
