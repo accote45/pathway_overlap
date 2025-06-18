@@ -20,7 +20,7 @@ process calc_empirical_pvalues {
     #!/bin/bash
     module load R
     
-    Rscript - <<'EOF'
+    cat > calc_empirical.R << 'RSCRIPT'
     library(tidyverse)
     library(data.table)
     
@@ -40,21 +40,14 @@ process calc_empirical_pvalues {
         pathway_col = "pathway",
         pval_col = "pval", 
         required_cols = c("pathway", "pval", "ES", "NES", "size")
-      ),
-      fuma = list(
-        pathway_col = "GeneSets",
-        pval_col = "P",
-        required_cols = c("GeneSets", "P", "N_genes", "Beta")
-      ),
-      pascal = list(
-        pathway_col = "pathway_name",
-        pval_col = "empirical_pvalue",
-        required_cols = c("pathway_name", "empirical_pvalue", "chi2", "nsnps")
       )
     )
     
-    tool <- "${tool}"
-    trait <- "${trait}"
+    # Get command line arguments
+    args <- commandArgs(trailingOnly = TRUE)
+    tool <- args[1]
+    trait <- args[2]
+    real_results_file <- args[3]
     
     cat("Processing empirical p-values for", tool, "results from", trait, "\\n")
     
@@ -69,18 +62,18 @@ process calc_empirical_pvalues {
     required_cols <- config[["required_cols"]]
     
     # Read real results
-    cat("Reading real results file: ${real_results}\\n")
+    cat("Reading real results file:", real_results_file, "\\n")
     
     # Handle different file formats
-    if (grepl("\\\\.gsa\\\\.out$$", "${real_results}")) {
+    if (grepl("\\\\.gsa\\\\.out$", real_results_file)) {
       # MAGMA format - tab separated, has header
-      real_data <- read.table("${real_results}", header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-    } else if (grepl("\\\\.summary$$", "${real_results}")) {
+      real_data <- read.table(real_results_file, header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
+    } else if (grepl("\\\\.summary$", real_results_file)) {
       # PRSet format - space separated
-      real_data <- read.table("${real_results}", header = TRUE, stringsAsFactors = FALSE)
+      real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else {
       # Generic format - try to auto-detect
-      real_data <- fread("${real_results}", header = TRUE)
+      real_data <- fread(real_results_file, header = TRUE)
     }
     
     # Check required columns exist
@@ -104,9 +97,9 @@ process calc_empirical_pvalues {
     random_data_list <- list()
     for (i in seq_along(random_files)) {
       tryCatch({
-        if (grepl("\\\\.gsa\\\\.out$$", random_files[i])) {
+        if (grepl("\\\\.gsa\\\\.out$", random_files[i])) {
           temp_data <- read.table(random_files[i], header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-        } else if (grepl("\\\\.summary$$", random_files[i])) {
+        } else if (grepl("\\\\.summary$", random_files[i])) {
           temp_data <- read.table(random_files[i], header = TRUE, stringsAsFactors = FALSE)
         } else {
           temp_data <- fread(random_files[i], header = TRUE)
@@ -127,7 +120,7 @@ process calc_empirical_pvalues {
     
     # Combine random data
     random_data <- do.call(rbind, random_data_list)
-    colnames(random_data)[1:2] <- c("pathway_name", "p_value")  # Standardize column names
+    colnames(random_data)[1:2] <- c("pathway_name", "p_value")
     
     cat("Combined random data:", nrow(random_data), "rows from", length(unique(random_data[["random_iter"]])), "iterations\\n")
     
@@ -143,7 +136,7 @@ process calc_empirical_pvalues {
         empirical_pval = ifelse(n_total_random > 0, 
                                (n_more_extreme + 1) / (n_total_random + 1), 
                                NA),
-        FPR = empirical_pval  # For backward compatibility
+        FPR = empirical_pval
       ) %>%
       ungroup() %>%
       filter(!is.na(empirical_pval)) %>%
@@ -152,20 +145,25 @@ process calc_empirical_pvalues {
         trait = trait,
         tool = tool
       ) %>%
-      select(-pathway_name_std, -p_value_std)  # Remove temporary columns
+      select(-pathway_name_std, -p_value_std)
     
     # Write results
-    fwrite(empirical_results, "${trait}_${tool}_empirical_pvalues.txt", sep = "\\t")
+    output_file <- paste0(trait, "_", tool, "_empirical_pvalues.txt")
+    fwrite(empirical_results, output_file, sep = "\\t")
     
     cat("Calculated empirical p-values for", nrow(empirical_results), "pathways\\n")
-    cat("Results written to ${trait}_${tool}_empirical_pvalues.txt\\n")
+    cat("Results written to", output_file, "\\n")
     
     # Print summary
     cat("Summary statistics:\\n")
     cat("Mean empirical p-value:", round(mean(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
     cat("Median empirical p-value:", round(median(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
     cat("FPR < 0.05:", sum(empirical_results[["FPR"]] < 0.05, na.rm = TRUE), "pathways\\n")
-    EOF
+    
+    RSCRIPT
+    
+    # Run the R script
+    Rscript calc_empirical.R "${tool}" "${trait}" "${real_results}"
     """
 }
 
