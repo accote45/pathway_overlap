@@ -6,7 +6,7 @@ process calc_empirical_pvalues {
     tuple val(trait),
           val(tool),
           path(real_results),
-          path(random_dir)
+          val(random_dir)
     
     output:
     tuple val(trait),
