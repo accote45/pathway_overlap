@@ -1,28 +1,30 @@
 process gwas_remove_dup_snps {
   executor 'lsf'
-  tag "${trait}_deduplicate"
+  tag "${trait}_deduplicate_${rand_method}"
   
   input:
-    tuple val(trait),
-          path(gwas_file),
-          val(binary_target),
-          val(effect_allele),
-          val(other_allele),
-          val(rsid_col),
-          val(pval_col),
-          val(summary_statistic_name),
-          val(summary_statistic_type)
+  tuple val(trait),
+        path(gwas_file),
+        val(binary_target),
+        val(effect_allele),
+        val(other_allele),
+        val(rsid_col),
+        val(pval_col),
+        val(summary_statistic_name),
+        val(summary_statistic_type),
+        val(rand_method)
   
   output:
-    tuple val(trait),
-          path("${trait}_deduplicated.txt"),
-          val(binary_target),
-          val(effect_allele),
-          val(other_allele),
-          val(rsid_col),
-          val(pval_col),
-          val(summary_statistic_name),
-          val(summary_statistic_type)
+  tuple val(trait),
+        path("${trait}_deduplicated.txt"),
+        val(binary_target),
+        val(effect_allele),
+        val(other_allele),
+        val(rsid_col),
+        val(pval_col),
+        val(summary_statistic_name),
+        val(summary_statistic_type),
+        val(rand_method)
 
   script:
   """
@@ -107,29 +109,33 @@ process gwas_remove_dup_snps {
   """
 }
 
-
-
 process run_random_sets_prset {
   executor 'lsf'
-  tag "${trait}_set_random${perm}"
-    input:
-    tuple val(trait),
-          path(gwas_file),
-          val(binary_target),
-          val(effect_allele),
-          val(other_allele),
-          val(rsid_col),
-          val(pval_col),
-          val(summary_statistic_name),
-          val(summary_statistic_type),
-          val(perm)
+  tag "${trait}_set_random${perm}_${rand_method}"
+  
+  input:
+  tuple val(trait),
+        path(gwas_file),
+        val(binary_target),
+        val(effect_allele),
+        val(other_allele),
+        val(rsid_col),
+        val(pval_col),
+        val(summary_statistic_name),
+        val(summary_statistic_type),
+        val(rand_method),
+        val(perm)
   
   output:
-    path("${trait}_set_random${perm}*")
+  path("${trait}_set_random${perm}*")
 
-  publishDir "${params.outdir}/prset_random/${params.randomization_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
+  // Determine the correct GMT directory based on randomization method
+  def gmt_base_dir = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/randomized_gene_sets"
+  def gmt_dir = rand_method == "birewire" ? "${gmt_base_dir}/random_birewire" : "${gmt_base_dir}/random_keeppathsize"
+  
   """
   /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
     --a1 ${effect_allele} \\
@@ -145,7 +151,7 @@ process run_random_sets_prset {
     --fastscore \\
     --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
-    --msigdb ${params.gmt_dir}/GeneSet.random${perm}.gmt \\
+    --msigdb ${gmt_dir}/GeneSet.random${perm}.gmt \\
     --num-auto 22 \\
     --out ${trait}_set_random${perm} \\
     --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
@@ -162,7 +168,7 @@ process run_random_sets_prset {
     --wind-3 35kb \\
     --wind-5 35kb
 
-rm ${trait}_set_random${perm}.best
+  rm ${trait}_set_random${perm}.best
   """
 }
 
