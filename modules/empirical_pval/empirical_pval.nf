@@ -16,6 +16,9 @@ process calc_empirical_pvalues {
     publishDir "${params.outdir}/empirical_pvalues/${tool}/${trait}", mode: 'copy', overwrite: true
     
     script:
+    // Extract base tool name (remove randomization method suffix)
+    def base_tool = tool.contains('_') ? tool.split('_')[0] : tool
+    
     """
     #!/bin/bash
     module load R
@@ -24,7 +27,7 @@ process calc_empirical_pvalues {
     cat > calc_empirical.R << 'RSCRIPT'
     library(tidyverse)
     library(data.table)
-    
+
     # Tool-specific column mapping
     tool_config <- list(
       magma = list(
@@ -43,32 +46,34 @@ process calc_empirical_pvalues {
         required_cols = c("pathway", "pval", "ES", "NES", "size")
       )
     )
-    
+
     # Get command line arguments
     args <- commandArgs(trailingOnly = TRUE)
-    tool <- args[1]
-    trait <- args[2]
-    real_results_file <- args[3]
-    random_dir <- args[4]
-        cat("Processing empirical p-values for", tool, "results from", trait, "\\n")
-    
-    # Get tool configuration
-    if (!tool %in% names(tool_config)) {
-      stop("Unsupported tool: ", tool)
+    full_tool <- args[1]  # Full tool name with randomization method
+    base_tool <- args[2]  # Base tool name without randomization
+    trait <- args[3]
+    real_results_file <- args[4]
+    random_dir <- args[5]
+
+    cat("Processing empirical p-values for", full_tool, "results from", trait, "\\n")
+
+    # Get tool configuration using base tool name
+    if (!base_tool %in% names(tool_config)) {
+      stop("Unsupported base tool: ", base_tool)
     }
-    
-    config <- tool_config[[tool]]
+
+    config <- tool_config[[base_tool]]
     pathway_col <- config[["pathway_col"]]
     pval_col <- config[["pval_col"]]
     required_cols <- config[["required_cols"]]
-    
+
     # Read real results - determine file type by extension
     cat("Reading real results file:", real_results_file, "\\n")
-    
+
     # Check file extension
     is_magma <- endsWith(real_results_file, ".gsa.out")
     is_prset <- endsWith(real_results_file, ".summary")
-    
+
     if (is_magma) {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else if (is_prset) {
@@ -76,26 +81,26 @@ process calc_empirical_pvalues {
     } else {
       real_data <- fread(real_results_file, header = TRUE)
     }
-    
+
     # Check required columns exist
     missing_cols <- required_cols[!required_cols %in% colnames(real_data)]
     if (length(missing_cols) > 0) {
       cat("Warning: Missing columns in real data:", paste(missing_cols, collapse = ", "), "\\n")
       required_cols <- required_cols[required_cols %in% colnames(real_data)]
     }
-    
+
     cat("Found", nrow(real_data), "pathways in real results\\n")
-    
+
     # Read random results
     cat("Reading random results from directory:", random_dir, "\\n")
 
     random_files <- list.files(random_dir, full.names = TRUE)
     cat("Found", length(random_files), "random result files\\n")
-    
+
     if (length(random_files) == 0) {
       stop("No random result files found")
     }
-    
+
     # Read and combine random data
     random_data_list <- list()
     valid_file_count <- 0
@@ -126,22 +131,22 @@ process calc_empirical_pvalues {
       })
     }
 
-    cat("Successfully read", length(random_data_list), "valid random files")
-    
+    cat("Successfully read", length(random_data_list), "valid random files\\n")
+
     if (length(random_data_list) == 0) {
       stop("No valid random data files found")
     }
-    
+
     # Combine random data
     random_data <- do.call(rbind, random_data_list)
     colnames(random_data)[1:2] <- c("pathway_name", "p_value")
-    
+
     cat("Combined random data:", nrow(random_data), "rows\\n")
-    
+
     # Calculate empirical p-values per pathway
     real_data[["pathway_name_std"]] <- real_data[[pathway_col]]
     real_data[["p_value_std"]] <- real_data[[pval_col]]
-    
+
     empirical_results <- real_data %>%
       rowwise() %>%
       mutate(
@@ -157,27 +162,26 @@ process calc_empirical_pvalues {
       arrange(empirical_pval) %>%
       mutate(
         trait = trait,
-        tool = tool
+        tool = full_tool  # Use the full tool name (with randomization method) in output
       ) %>%
       select(-pathway_name_std, -p_value_std)
-    
+
     # Write results
-    output_file <- paste0(trait, "_", tool, "_empirical_pvalues.txt")
+    output_file <- paste0(trait, "_", full_tool, "_empirical_pvalues.txt")
     fwrite(empirical_results, output_file, sep = "\\t")
-    
+
     cat("Calculated empirical p-values for", nrow(empirical_results), "pathways\\n")
     cat("Results written to", output_file, "\\n")
-    
+
     # Print summary
     cat("Summary statistics:\\n")
     cat("Mean empirical p-value:", round(mean(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
     cat("Median empirical p-value:", round(median(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
     cat("FPR < 0.05:", sum(empirical_results[["FPR"]] < 0.05, na.rm = TRUE), "pathways\\n")
-    
-RSCRIPT
-    
-    # Run the R script
-    Rscript calc_empirical.R "${tool}" "${trait}" "${real_results}" "${random_dir}"
+    RSCRIPT
+
+    # Run the R script with both the full tool name and base tool name
+    Rscript calc_empirical.R "${tool}" "${base_tool}" "${trait}" "${real_results}" "${random_dir}"
     """
 }
 

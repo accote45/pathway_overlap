@@ -105,16 +105,23 @@ workflow {
                 [trait, gene_result, rand_method, perm]
             }
             
-        run_random_sets(random_sets_inputs)
+        random_sets_results = run_random_sets(random_sets_inputs)
         
-        // Calculate empirical p-values
+        // Group random results by trait and randomization method
+        random_results_grouped = random_sets_results
+            .groupTuple(by: [0, 2])  // Group by trait and rand_method
+
+        // Calculate empirical p-values - now with explicit dependency on ALL random results
         if (params.run_empirical) {
             log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
             
-            magma_for_empirical = real_geneset_results.map { trait, real_file, rand_method ->
-                def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                [trait, "magma_${rand_method}", real_file, random_dir]
-            }
+            // Combine real results with grouped random results
+            magma_for_empirical = real_geneset_results
+                .join(random_results_grouped)  // Join on trait and rand_method
+                .map { trait, real_file, rand_method, random_files ->
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    [trait, "magma_${rand_method}", real_file, random_dir]
+                }
             
             magma_empirical = calc_empirical_pvalues(magma_for_empirical)
             
@@ -169,15 +176,25 @@ workflow {
             }
         
         // Run PRSet for random sets
-        run_random_sets_prset(prset_random_inputs)
+        random_prset_results = run_random_sets_prset(prset_random_inputs)
         
-        // Calculate empirical p-values
+        // Group random results by trait and randomization method
+        random_prset_grouped = random_prset_results
+            .groupTuple(by: [0, 2])  // Group by trait and rand_method
+
+        // Calculate empirical p-values with explicit dependency
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
             prset_for_empirical = prset_rand_inputs
-                .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                      summary_statistic_name, summary_statistic_type, rand_method ->
+                .combine(Channel.fromList(params.randomization_methods))  // Add rand_method
+                .map { tuple -> 
+                    def trait = tuple[0]
+                    def rand_method = tuple[9]  // Last element added
+                    [trait, rand_method]  // Create key for joining
+                }
+                .join(random_prset_grouped)  // Join with random results
+                .map { trait, rand_method, random_files ->
                     def real_file = "${params.outdir}/prset_real/${trait}/${trait}_real.summary"
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
                     [trait, "prset_${rand_method}", file(real_file), random_dir]
