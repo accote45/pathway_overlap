@@ -6,7 +6,7 @@ process calc_empirical_pvalues {
     tuple val(trait),
           val(tool),
           path(real_results),
-          path("random_results/*")
+          path(random_dir)
     
     output:
     tuple val(trait),
@@ -49,6 +49,7 @@ process calc_empirical_pvalues {
     tool <- args[1]
     trait <- args[2]
     real_results_file <- args[3]
+    random_dir <- args[4]
     
     cat("Processing empirical p-values for", tool, "results from", trait, "\\n")
     
@@ -70,7 +71,7 @@ process calc_empirical_pvalues {
     is_prset <- endsWith(real_results_file, ".summary")
     
     if (is_magma) {
-      real_data <- read.table(real_results_file, header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
+      real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else if (is_prset) {
       real_data <- read.table(real_results_file, header = TRUE, stringsAsFactors = FALSE)
     } else {
@@ -87,7 +88,9 @@ process calc_empirical_pvalues {
     cat("Found", nrow(real_data), "pathways in real results\\n")
     
     # Read random results
-    random_files <- list.files("random_results", full.names = TRUE)
+q    cat("Reading random results from directory:", random_dir, "\\n")
+
+    random_files <- list.files(random_dir,full.names = TRUE)
     cat("Found", length(random_files), "random result files\\n")
     
     if (length(random_files) == 0) {
@@ -104,7 +107,7 @@ process calc_empirical_pvalues {
         is_prset_rand <- endsWith(current_file, ".summary")
         
         if (is_magma_rand) {
-          temp_data <- read.table(current_file, header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
+          temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
         } else if (is_prset_rand) {
           temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
         } else {
