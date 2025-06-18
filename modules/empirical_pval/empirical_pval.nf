@@ -188,7 +188,8 @@ process combine_empirical_results {
     path("results/*")
     
     output:
-    path("all_empirical_pvalues_combined.txt")
+    path("*_all_traits_empirical.txt")
+    path("summary_by_tool.txt")
     
     publishDir "${params.outdir}/empirical_pvalues/combined", mode: 'copy', overwrite: true
     
@@ -199,6 +200,7 @@ process combine_empirical_results {
     
     Rscript - <<EOF
     library(data.table)
+    library(dplyr)
     
     # Find all empirical p-value files
     files <- list.files("results", pattern = "*_empirical_pvalues.txt", full.names = TRUE, recursive = TRUE)
@@ -212,12 +214,54 @@ process combine_empirical_results {
     all_results <- lapply(files, fread)
     combined <- rbindlist(all_results, fill = TRUE)
     
-    # Write combined results
-    fwrite(combined, "all_empirical_pvalues_combined.txt", sep = "\\t")
+    cat("Total results:", nrow(combined), "rows\\n")
     
-    cat("Combined results:", nrow(combined), "rows\\n")
-    cat("Traits:", length(unique(combined\$trait)), "\\n")
-    cat("Tools:", paste(unique(combined\$tool), collapse = ", "), "\\n")
+    # Get unique tools
+    tools <- unique(combined\$tool)
+    cat("Tools found:", paste(tools, collapse = ", "), "\\n")
+    
+    # Create separate combined file for each tool
+    for (tool in tools) {
+      tool_data <- combined[combined\$tool == tool, ]
+      output_file <- paste0(tool, "_all_traits_empirical.txt")
+      
+      # Sort by empirical p-value within each trait
+      tool_data <- tool_data[order(tool_data\$trait, tool_data\$empirical_pval), ]
+      
+      fwrite(tool_data, output_file, sep = "\\t")
+      
+      cat("Created", output_file, "with", nrow(tool_data), "results from", 
+          length(unique(tool_data\$trait)), "traits\\n")
+    }
+    
+    # Create summary statistics by tool
+    summary_stats <- combined %>%
+      group_by(tool, trait) %>%
+      summarise(
+        n_pathways = n(),
+        mean_emp_pval = mean(empirical_pval, na.rm = TRUE),
+        median_emp_pval = median(empirical_pval, na.rm = TRUE),
+        n_significant = sum(empirical_pval < 0.05, na.rm = TRUE),
+        fpr_rate = n_significant / n_pathways,
+        min_emp_pval = min(empirical_pval, na.rm = TRUE),
+        max_emp_pval = max(empirical_pval, na.rm = TRUE),
+        .groups = 'drop'
+      ) %>%
+      arrange(tool, trait)
+    
+    fwrite(summary_stats, "summary_by_tool.txt", sep = "\\t")
+    
+    cat("\\nSummary by tool:\\n")
+    tool_summary <- combined %>%
+      group_by(tool) %>%
+      summarise(
+        total_pathways = n(),
+        total_traits = n_distinct(trait),
+        overall_significant = sum(empirical_pval < 0.05, na.rm = TRUE),
+        .groups = 'drop'
+      )
+    
+    print(tool_summary)
     EOF
     """
 }
