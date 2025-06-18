@@ -151,15 +151,19 @@ workflow {
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     log.info "  Randomization methods: ${params.randomization_methods}"
     
-    // Create randomization method channel
-    randomization_channel = Channel.fromList(params.randomization_methods)
-    
-    // Combine trait data with randomization methods
-    trait_randomization = trait_data.combine(randomization_channel)
-        .map { trait_data_tuple, rand_method ->
-            // Append rand_method to the existing tuple
-            trait_data_tuple + rand_method
-        }
+// Create trait_randomization channel with a safer approach
+Channel
+    .fromList(params.randomization_methods)
+    .set { randomization_channel }
+
+trait_data.combine(randomization_channel)
+    .map { combined ->
+        def trait_tuple = combined[0..-2]  // All elements except last one
+        def rand_method = combined[-1]     // Last element is randomization method
+        
+        return trait_tuple + [rand_method] // Add randomization method as new element
+    }
+    .set { trait_randomization }
     
     // Store all tool results for empirical p-value calculation
     all_empirical_inputs = Channel.empty()
