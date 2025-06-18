@@ -181,7 +181,7 @@ workflow {
         // Prepare MAGMA results for empirical p-value calculation
         magma_for_empirical = magma_results.gene_results
             .map { trait, gene_result ->
-                def real_file = "${params.outdir}/magma_real/${trait}/setreal.empP.${params.randomization_method}.gsa.out"
+                def real_file = "${params.outdir}/magma_real/${trait}/${trait}_real_set.gsa.out"
                 def random_dir = "${params.outdir}/magma_random/${params.randomization_method}/${params.background}/${trait}"
                 [trait, "magma", file(real_file), file(random_dir)]
             }
