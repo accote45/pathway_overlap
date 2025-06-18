@@ -20,7 +20,7 @@ process calc_empirical_pvalues {
     #!/bin/bash
     module load R
     
-    Rscript - <<EOF
+    Rscript - <<'EOF'
     library(tidyverse)
     library(data.table)
     
@@ -35,6 +35,21 @@ process calc_empirical_pvalues {
         pathway_col = "Set",
         pval_col = "P",
         required_cols = c("Set", "P", "Coefficient", "R2", "P.adj")
+      ),
+      gsea = list(
+        pathway_col = "pathway",
+        pval_col = "pval", 
+        required_cols = c("pathway", "pval", "ES", "NES", "size")
+      ),
+      fuma = list(
+        pathway_col = "GeneSets",
+        pval_col = "P",
+        required_cols = c("GeneSets", "P", "N_genes", "Beta")
+      ),
+      pascal = list(
+        pathway_col = "pathway_name",
+        pval_col = "empirical_pvalue",
+        required_cols = c("pathway_name", "empirical_pvalue", "chi2", "nsnps")
       )
     )
     
@@ -49,18 +64,18 @@ process calc_empirical_pvalues {
     }
     
     config <- tool_config[[tool]]
-    pathway_col <- config\$pathway_col
-    pval_col <- config\$pval_col
-    required_cols <- config\$required_cols
+    pathway_col <- config[["pathway_col"]]
+    pval_col <- config[["pval_col"]]
+    required_cols <- config[["required_cols"]]
     
     # Read real results
     cat("Reading real results file: ${real_results}\\n")
     
     # Handle different file formats
-    if (grepl("\\\\.gsa\\\\.out\$", "${real_results}")) {
+    if (grepl("\\\\.gsa\\\\.out$$", "${real_results}")) {
       # MAGMA format - tab separated, has header
       real_data <- read.table("${real_results}", header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-    } else if (grepl("\\\\.summary\$", "${real_results}")) {
+    } else if (grepl("\\\\.summary$$", "${real_results}")) {
       # PRSet format - space separated
       real_data <- read.table("${real_results}", header = TRUE, stringsAsFactors = FALSE)
     } else {
@@ -89,16 +104,16 @@ process calc_empirical_pvalues {
     random_data_list <- list()
     for (i in seq_along(random_files)) {
       tryCatch({
-        if (grepl("\\\\.gsa\\\\.out\$", random_files[i])) {
+        if (grepl("\\\\.gsa\\\\.out$$", random_files[i])) {
           temp_data <- read.table(random_files[i], header = TRUE, sep = "\\t", stringsAsFactors = FALSE)
-        } else if (grepl("\\\\.summary\$", random_files[i])) {
+        } else if (grepl("\\\\.summary$$", random_files[i])) {
           temp_data <- read.table(random_files[i], header = TRUE, stringsAsFactors = FALSE)
         } else {
           temp_data <- fread(random_files[i], header = TRUE)
         }
         
         if (all(c(pathway_col, pval_col) %in% colnames(temp_data))) {
-          temp_data\$random_iter <- i
+          temp_data[["random_iter"]] <- i
           random_data_list[[i]] <- temp_data[, c(pathway_col, pval_col, "random_iter")]
         }
       }, error = function(e) {
@@ -114,17 +129,17 @@ process calc_empirical_pvalues {
     random_data <- do.call(rbind, random_data_list)
     colnames(random_data)[1:2] <- c("pathway_name", "p_value")  # Standardize column names
     
-    cat("Combined random data:", nrow(random_data), "rows from", length(unique(random_data\$random_iter)), "iterations\\n")
+    cat("Combined random data:", nrow(random_data), "rows from", length(unique(random_data[["random_iter"]])), "iterations\\n")
     
     # Calculate empirical p-values per pathway
-    real_data\$pathway_name_std <- real_data[[pathway_col]]
-    real_data\$p_value_std <- real_data[[pval_col]]
+    real_data[["pathway_name_std"]] <- real_data[[pathway_col]]
+    real_data[["p_value_std"]] <- real_data[[pval_col]]
     
     empirical_results <- real_data %>%
       rowwise() %>%
       mutate(
-        n_more_extreme = sum(random_data\$p_value[random_data\$pathway_name == pathway_name_std] <= p_value_std, na.rm = TRUE),
-        n_total_random = sum(random_data\$pathway_name == pathway_name_std, na.rm = TRUE),
+        n_more_extreme = sum(random_data[["p_value"]][random_data[["pathway_name"]] == pathway_name_std] <= p_value_std, na.rm = TRUE),
+        n_total_random = sum(random_data[["pathway_name"]] == pathway_name_std, na.rm = TRUE),
         empirical_pval = ifelse(n_total_random > 0, 
                                (n_more_extreme + 1) / (n_total_random + 1), 
                                NA),
@@ -147,9 +162,9 @@ process calc_empirical_pvalues {
     
     # Print summary
     cat("Summary statistics:\\n")
-    cat("Mean empirical p-value:", round(mean(empirical_results\$empirical_pval, na.rm = TRUE), 4), "\\n")
-    cat("Median empirical p-value:", round(median(empirical_results\$empirical_pval, na.rm = TRUE), 4), "\\n")
-    cat("FPR < 0.05:", sum(empirical_results\$FPR < 0.05, na.rm = TRUE), "pathways\\n")
+    cat("Mean empirical p-value:", round(mean(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
+    cat("Median empirical p-value:", round(median(empirical_results[["empirical_pval"]], na.rm = TRUE), 4), "\\n")
+    cat("FPR < 0.05:", sum(empirical_results[["FPR"]] < 0.05, na.rm = TRUE), "pathways\\n")
     EOF
     """
 }
