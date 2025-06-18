@@ -183,7 +183,7 @@ workflow {
             .map { trait, gene_result ->
                 def real_file = "${params.outdir}/magma_real/${trait}/${trait}_real_set.gsa.out"
                 def random_dir = "${params.outdir}/magma_random/${params.randomization_method}/${params.background}/${trait}"
-                [trait, "magma", file(real_file), file(random_dir)]
+                [trait, "magma", file(real_file), random_dir]
             }
         
         all_tool_results = all_tool_results.mix(magma_for_empirical)
