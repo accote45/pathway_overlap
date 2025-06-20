@@ -22,6 +22,10 @@ include {
     combine_empirical_results;
 } from './modules/empirical_pval/empirical_pval.nf'
 
+include {
+    opentargets_comparison;
+} from './modules/opentargets/opentargets.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -62,11 +66,13 @@ workflow {
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     log.info "  Randomization methods: ${params.randomization_methods}"
     
-    // Store all tool results for empirical p-value calculation
+    // Initialize empty channels
     all_empirical_inputs = Channel.empty()
+    magma_empirical_results = Channel.empty()
+    prset_empirical_results = Channel.empty()
     
     //////////////////////////////////////////
-    // MAGMA WORKFLOW (OPTIMIZED)
+    // MAGMA WORKFLOW
     //////////////////////////////////////////
     if (params.run_magma) {
         log.info "Running MAGMA analysis for all traits"
@@ -86,8 +92,7 @@ workflow {
         annotated = annotate_genes(snp_loc_with_gene_file)
         gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
         
-        // Now we have gene results for each trait
-        // Combine them with randomization methods for pathway analysis
+        // Combine gene results with randomization methods for pathway analysis
         gene_results_with_methods = gene_analysis_results.gene_results
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gene_result, rand_method -> 
@@ -111,7 +116,7 @@ workflow {
         random_results_grouped = random_sets_results
             .groupTuple(by: [0, 2])  // Group by trait and rand_method
 
-        // Calculate empirical p-values - now with explicit dependency on ALL random results
+        // Calculate empirical p-values - with explicit dependency on ALL random results
         if (params.run_empirical) {
             log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
             
@@ -119,7 +124,6 @@ workflow {
             magma_for_empirical = real_geneset_results
                 .join(random_results_grouped)
                 .map { tuple -> 
-                    // Explicitly extract each element to avoid issues with destructuring
                     def trait = tuple[0]
                     def real_file = tuple[1]
                     def rand_method = tuple[2]
@@ -129,16 +133,18 @@ workflow {
                     [trait, "magma_${rand_method}", real_file, random_dir]
                 }
             
-            magma_empirical = calc_empirical_pvalues(magma_for_empirical)
+            // Calculate empirical p-values for MAGMA
+            magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
             
+            // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(
-                magma_empirical.map { trait, tool, result_file -> result_file }
+                magma_empirical_results.map { trait, tool, result_file -> result_file }
             )
         }
     }
     
     //////////////////////////////////////////
-    // PRSET WORKFLOW (OPTIMIZED)
+    // PRSET WORKFLOW
     //////////////////////////////////////////
     if (params.run_prset) {
         log.info "Running PRSet analysis for all traits"
@@ -209,24 +215,94 @@ workflow {
                     [trait, "prset_${rand_method}", file(real_file), random_dir]
                 }
             
-            prset_empirical = calc_empirical_pvalues(prset_for_empirical)
+            // Calculate empirical p-values for PRSet
+            prset_empirical_results = calc_empirical_pvalues(prset_for_empirical)
             
+            // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(
-                prset_empirical.map { trait, tool, result_file -> result_file }
+                prset_empirical_results.map { trait, tool, result_file -> result_file }
             )
         }
     }
     
     //////////////////////////////////////////
-    // COMBINE ALL EMPIRICAL RESULTS
+    // OPENTARGETS COMPARISON WORKFLOW
     //////////////////////////////////////////
     if (params.run_empirical) {
-        log.info "Setting up empirical results combination"
-        
-        // Collect all empirical inputs and handle empty case
+        // First combine all empirical results
         combined_empirical = combine_empirical_results(
             all_empirical_inputs.collect().ifEmpty([])
         )
+        
+        // Run OpenTargets comparison for MAGMA
+        if (params.run_magma) {
+            log.info "Setting up OpenTargets comparison for MAGMA"
+            
+            // Process results for OpenTargets comparison
+            magma_by_trait_method = magma_empirical_results
+                .map { trait, tool, result_file ->
+                    def parts = tool.split('_')
+                    def base_tool = parts[0]  // 'magma'
+                    def rand_method = parts[1]  // 'birewire' or 'keeppathsize'
+                    [trait, base_tool, rand_method, result_file]
+                }
+            
+            // Group by trait and tool, then prepare for OpenTargets
+            magma_for_opentargets = magma_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            // Run OpenTargets comparison for MAGMA
+            opentargets_comparison(magma_for_opentargets)
+        }
+        
+        // Run OpenTargets comparison for PRSet
+        if (params.run_prset) {
+            log.info "Setting up OpenTargets comparison for PRSet"
+            
+            // Process results for OpenTargets comparison
+            prset_by_trait_method = prset_empirical_results
+                .map { trait, tool, result_file ->
+                    def parts = tool.split('_')
+                    def base_tool = parts[0]  // 'prset'
+                    def rand_method = parts[1]  // 'birewire' or 'keeppathsize'
+                    [trait, base_tool, rand_method, result_file]
+                }
+            
+            // Group by trait and tool, then prepare for OpenTargets
+            prset_for_opentargets = prset_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            // Run OpenTargets comparison for PRSet
+            opentargets_comparison(prset_for_opentargets)
+        }
     }
 }
 
