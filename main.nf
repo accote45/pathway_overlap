@@ -19,7 +19,6 @@ include {
 
 include {
     calc_empirical_pvalues;
-    combine_empirical_results;
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
@@ -229,10 +228,6 @@ workflow {
     // OPENTARGETS COMPARISON WORKFLOW
     //////////////////////////////////////////
     if (params.run_empirical) {
-        // First combine all empirical results
-        combined_empirical = combine_empirical_results(
-            all_empirical_inputs.collect().ifEmpty([])
-        )
         
         // Run OpenTargets comparison for MAGMA
         if (params.run_magma) {
