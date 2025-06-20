@@ -117,8 +117,14 @@ workflow {
             
             // Combine real results with grouped random results
             magma_for_empirical = real_geneset_results
-                .join(random_results_grouped)  // Join on trait and rand_method
-                .map { trait, real_file, rand_method, random_files ->
+                .join(random_results_grouped)
+                .map { tuple -> 
+                    // Explicitly extract each element to avoid issues with destructuring
+                    def trait = tuple[0]
+                    def real_file = tuple[1]
+                    def rand_method = tuple[2]
+                    def random_files = tuple[3]  // List of random files
+                    
                     def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
                     [trait, "magma_${rand_method}", real_file, random_dir]
                 }
@@ -187,14 +193,17 @@ workflow {
             log.info "Setting up PRSet empirical p-value calculation"
             
             prset_for_empirical = prset_rand_inputs
-                .combine(Channel.fromList(params.randomization_methods))  // Add rand_method
                 .map { tuple -> 
                     def trait = tuple[0]
-                    def rand_method = tuple[9]  // Last element added
+                    def rand_method = tuple[9]
                     [trait, rand_method]  // Create key for joining
                 }
-                .join(random_prset_grouped)  // Join with random results
-                .map { trait, rand_method, random_files ->
+                .join(random_prset_grouped)
+                .map { tuple ->
+                    def trait = tuple[0]
+                    def rand_method = tuple[1]
+                    def random_files = tuple[2]  // List of random files
+                    
                     def real_file = "${params.outdir}/prset_real/${trait}/${trait}_real.summary"
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
                     [trait, "prset_${rand_method}", file(real_file), random_dir]
