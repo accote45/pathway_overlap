@@ -154,9 +154,7 @@ process calc_empirical_pvalues {
         n_total_random = sum(random_data[["pathway_name"]] == pathway_name_std, na.rm = TRUE),
         empirical_pval = ifelse(n_total_random > 0, 
                                (n_more_extreme + 1) / (n_total_random + 1), 
-                               NA),
-        FPR = empirical_pval
-      ) %>%
+                               NA)) %>%
       ungroup() %>%
       filter(!is.na(empirical_pval)) %>%
       arrange(empirical_pval) %>%
