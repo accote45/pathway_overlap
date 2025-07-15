@@ -2,6 +2,7 @@
 # This script compares the biological relevance of top-ranked pathways 
 # identified by different randomization methods
 
+library(plyr)
 library(tidyverse)
 library(ggplot2)
 library(patchwork)
@@ -662,4 +663,18 @@ create_combined_plots <- function(bw_combined, kp_combined, disease_name) {
 }
 
 
+# Execute the size-matched analysis with the loaded data
+cat("Starting size-matched analysis...\n")
 
+# Define the N values you want to analyze
+n_values <- c(10, 20, 50, 100)  # you can adjust this list
+
+# Execute the analysis
+results <- perform_enhanced_matching(
+  birewire_results, 
+  keeppath_results, 
+  pathway_scores, 
+  n_values
+)
+
+cat("Analysis complete.\n")
