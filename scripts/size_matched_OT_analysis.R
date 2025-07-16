@@ -33,7 +33,6 @@ if(length(args) >= 6) {
 trait_mapping <- list(
   "t2d" = "MONDO_0005148",
   "cad" = "EFO_0001645", 
-  "bmi" = "EFO_0004340",
   "ad" = "MONDO_0004975",
   "mdd" = "MONDO_0002050",
   "scz" = "MONDO_0005090",
