@@ -22,7 +22,7 @@ include {
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
-    opentargets_comparison;
+    opentargets_comparison as size_matched_analysis;
 } from './modules/opentargets/opentargets.nf'
 
 ////////////////////////////////////////////////////////////////////
@@ -261,7 +261,7 @@ workflow {
                 .filter { it != null }
             
             // Run OpenTargets comparison for MAGMA
-            opentargets_comparison(magma_for_opentargets)
+            size_matched_analysis(magma_for_opentargets)
         }
         
         // Run OpenTargets comparison for PRSet
@@ -296,7 +296,7 @@ workflow {
                 .filter { it != null }
             
             // Run OpenTargets comparison for PRSet
-            opentargets_comparison(prset_for_opentargets)
+            size_matched_analysis(prset_for_opentargets)
         }
     }
 }

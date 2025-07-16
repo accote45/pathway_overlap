@@ -11,6 +11,40 @@ library(jsonlite)
 library(GSA)
 library(MatchIt)
 
+# Process command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+if(length(args) < 5) {
+  stop("Usage: Rscript size_matched_OT_analysis.R <trait> <tool_base> <birewire_results_file> <keeppathsize_results_file> <gmt_file> [top_n_values]")
+}
+
+trait <- args[1]
+tool_base <- args[2]
+birewire_results_file <- args[3]
+keeppathsize_results_file <- args[4]
+gmt_file <- args[5]
+
+# Optional: parse comma-separated n_values or use default
+n_values <- c(10, 20, 50, 100)  # Default
+if(length(args) >= 6) {
+  n_values <- as.numeric(unlist(strsplit(args[6], ",")))
+}
+
+# Define trait mapping
+trait_mapping <- list(
+  "t2d" = "MONDO_0005148",
+  "cad" = "EFO_0001645", 
+  "bmi" = "EFO_0004340",
+  "ad" = "MONDO_0004975",
+  "mdd" = "MONDO_0002050",
+  "scz" = "MONDO_0005090",
+  "ibd" = "EFO_0000555",
+  "breast" = "MONDO_0007254",
+  "HDL_cholesterol" = "EFO_0004612",
+  "Lymphocyte_count" = "EFO_0004587",
+  "Platelet_crit" = "EFO_0007985",
+  "Alkaline_phosphatase" = "EFO_0004533"
+)
+
 # === 1. Data Loading Functions ===
 
 load_pathway_data <- function(gmt_file) {
@@ -331,7 +365,7 @@ analyze_method_at_n <- function(birewire_results, keeppath_results, pathway_scor
   }
   
   # 7. Create individual plots for this N value
-  pdf(paste0(tolower(disease_name), "_matching_plots_n", n, ".pdf"), width=10, height=8)
+  pdf(paste0(disease_name, "_matching_plots_n", n, ".pdf"), width=10, height=8)
   
   # Create BireWire plots
   bw_plot_data <- bw_matched %>%
@@ -471,7 +505,7 @@ create_combined_visualizations <- function(advantage_data, disease_name) {
   advantage_data$evidence_density_sig <- ifelse(advantage_data$p_value_density < 0.05, "*", "")
   
   # Create combined PDF with all advantage plots
-  pdf(paste0(tolower(disease_name), "_combined_advantage_plots.pdf"), width=10, height=8)
+  pdf(paste0(disease_name, "_combined_advantage_plots.pdf"), width=10, height=8)
   
   # Mean score advantage
   p1 <- create_advantage_plot(
@@ -505,10 +539,10 @@ create_combined_visualizations <- function(advantage_data, disease_name) {
     )
   
   # Write summary data to CSV
-  write.csv(summary_data, paste0(tolower(disease_name), "_advantage_summary.csv"), row.names=FALSE)
+  write.csv(summary_data, paste0(disease_name, "_advantage_summary.csv"), row.names=FALSE)
   
   # Write detailed advantage data to CSV
-  write.csv(advantage_data, paste0(tolower(disease_name), "_detailed_advantage.csv"), row.names=FALSE)
+  write.csv(advantage_data, paste0(disease_name, "_detailed_advantage.csv"), row.names=FALSE)
   
   return(list(summary = summary_data, detailed = advantage_data))
 }
@@ -552,7 +586,7 @@ create_combined_boxplots <- function(all_results, disease_name, method_labels) {
   legend_text_size <- 14
   
   # Create BireWire plots
-  pdf(paste0(tolower(disease_name), "_combined_boxplots.pdf"), width=12, height=10)
+  pdf(paste0(disease_name, "_combined_boxplots.pdf"), width=12, height=10)
   
   # BireWire Mean Score
   p1 <- ggplot(combined_bw_data, aes(x=N, y=mean_score, fill=Group)) +
@@ -715,8 +749,8 @@ run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 2
     ungroup()
   
   # Load MAGMA results
-  real_results_path <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/', tolower(disease_name), '/', tolower(disease_name), '_real_set.gsa.out')
-  emp_p_file <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/', tolower(disease_name), '/', tolower(disease_name), '_empirical_pvalues.csv')
+  real_results_path <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/', disease_name, '/',disease_name, '_real_set.gsa.out')
+  emp_p_file <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/', disease_name, '/', disease_name, '_empirical_pvalues.csv')
   
   magma_results <- load_magma_results(real_results_path, emp_p_file)
   birewire_results <- magma_results$birewire
