@@ -513,6 +513,189 @@ create_combined_visualizations <- function(advantage_data, disease_name) {
   return(list(summary = summary_data, detailed = advantage_data))
 }
 
+create_combined_boxplots <- function(all_results, disease_name, method_labels) {
+  # Extract and combine data from all N values
+  combined_bw_data <- data.frame()
+  combined_kp_data <- data.frame()
+  
+  for(result_name in names(all_results)) {
+    if(!is.null(all_results[[result_name]])) {
+      n <- as.numeric(gsub("n_", "", result_name))
+      
+      # Process BireWire data
+      bw_data <- all_results[[result_name]]$birewire_matched
+      bw_data$N <- paste0("Top ", n)
+      bw_data$Group <- factor(bw_data$in_birewire_top, 
+                             labels = c("Control", "BireWire"))
+      combined_bw_data <- rbind(combined_bw_data, bw_data)
+      
+      # Process KeepPathSize data
+      kp_data <- all_results[[result_name]]$keeppath_matched
+      kp_data$N <- paste0("Top ", n)
+      kp_data$Group <- factor(kp_data$in_keeppath_top, 
+                             labels = c("Control", "KeepPathSize"))
+      combined_kp_data <- rbind(combined_kp_data, kp_data)
+    }
+  }
+  
+  # Order N factor correctly
+  combined_bw_data$N <- factor(combined_bw_data$N, 
+                              levels = paste0("Top ", c(10, 20, 50, 100)))
+  combined_kp_data$N <- factor(combined_kp_data$N, 
+                              levels = paste0("Top ", c(10, 20, 50, 100)))
+  
+  # Increase text sizes for all plots
+  title_size <- 18
+  axis_title_size <- 16
+  axis_text_size <- 14
+  legend_title_size <- 14
+  legend_text_size <- 14
+  
+  # Create BireWire plots
+  pdf(paste0(tolower(disease_name), "_combined_boxplots.pdf"), width=12, height=10)
+  
+  # BireWire Mean Score
+  p1 <- ggplot(combined_bw_data, aes(x=N, y=mean_score, fill=Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("Control"="gray80", "BireWire"="lightblue")) +
+    labs(title=paste(method_labels$birewire, ": OpenTargets Mean Score Across Different N Values"),
+         x="", y="Mean OpenTargets Score") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_blank(),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    )
+  print(p1)
+  
+  # BireWire Evidence Density
+  p2 <- ggplot(combined_bw_data, aes(x=N, y=evidence_density, fill=Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("Control"="gray80", "BireWire"="lightblue")) +
+    labs(title=paste(method_labels$birewire, ": Evidence Density Across Different N Values"),
+         x="", y="Evidence Density") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_blank(),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    )
+  print(p2)
+  
+  # KeepPathSize Mean Score
+  p3 <- ggplot(combined_kp_data, aes(x=N, y=mean_score, fill=Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("Control"="gray80", "KeepPathSize"="lightpink")) +
+    labs(title=paste(method_labels$keeppath, ": OpenTargets Mean Score Across Different N Values"),
+         x="", y="Mean OpenTargets Score") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_blank(),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    )
+  print(p3)
+  
+  # KeepPathSize Evidence Density
+  p4 <- ggplot(combined_kp_data, aes(x=N, y=evidence_density, fill=Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("Control"="gray80", "KeepPathSize"="lightpink")) +
+    labs(title=paste(method_labels$keeppath, ": Evidence Density Across Different N Values"),
+         x="", y="Evidence Density") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_blank(),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    )
+  print(p4)
+  
+  # Now create a combined plot with both methods for direct comparison
+  # First, rename the groups to include method name
+  combined_bw_data$Method_Group <- "BireWire"
+  combined_kp_data$Method_Group <- "KeepPathSize"
+  
+  # Filter only the top pathways (not controls)
+  top_bw <- combined_bw_data[combined_bw_data$Group == "BireWire", ]
+  top_kp <- combined_kp_data[combined_kp_data$Group == "KeepPathSize", ]
+  
+  # Combine the datasets
+  top_combined <- rbind(top_bw, top_kp)
+  
+  # Direct comparison of methods
+  p5 <- ggplot(top_combined, aes(x=N, y=mean_score, fill=Method_Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("BireWire"="lightblue", "KeepPathSize"="lightpink")) +
+    labs(title="Direct Comparison: OpenTargets Mean Score by Method",
+         x="", y="Mean OpenTargets Score") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_text(face="bold", size=legend_title_size),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    ) +
+    guides(fill=guide_legend(title="Null Model"))
+  print(p5)
+  
+  p6 <- ggplot(top_combined, aes(x=N, y=evidence_density, fill=Method_Group)) +
+    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+              alpha=0.4, size=1) +
+    scale_fill_manual(values=c("BireWire"="lightblue", "KeepPathSize"="lightpink")) +
+    labs(title="Direct Comparison: Evidence Density by Method",
+         x="", y="Evidence Density") +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+      axis.text.y = element_text(size=axis_text_size),
+      legend.title = element_text(face="bold", size=legend_title_size),
+      axis.title = element_text(size=axis_title_size, face="bold"),
+      plot.title = element_text(size=title_size, face="bold"),
+      legend.text = element_text(size=legend_text_size)
+    ) +
+    guides(fill=guide_legend(title="Null Model"))
+  print(p6)
+  
+  dev.off()
+  
+  return(list(
+    birewire_plots = list(mean_score=p1, evidence_density=p2),
+    keeppath_plots = list(mean_score=p3, evidence_density=p4),
+    comparison_plots = list(mean_score=p5, evidence_density=p6)
+  ))
+}
+
 # === 5. Main Analysis Function ===
 
 run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 20, 50, 100)) {
@@ -564,6 +747,7 @@ run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 2
   
   advantage_data <- calculate_method_advantages(all_results, n_values, method_labels)
   visualization_results <- create_combined_visualizations(advantage_data, disease_name)
+  combined_boxplot_results <- create_combined_boxplots(all_results, disease_name, method_labels)
   
   # 4. Return compiled results
   cat("======= Analysis Complete =======\n")
@@ -579,12 +763,3 @@ run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 2
 setwd('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect')
 
 results <- run_size_matched_analysis("CAD", "EFO_0001645", c(10, 20, 50, 100))
-
-
-
-
-
-
-
-
-
