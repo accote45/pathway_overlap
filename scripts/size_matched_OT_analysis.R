@@ -158,7 +158,7 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
   cat(paste("\nPreparing data for top", n, "pathways...\n"))
   
   # First, identify all unique pathways from both methods
-  all_pathways <- unique(c(birewire_results$name, keeppath_results$name))
+  all_pathways <- unique(c(birewire_results$FULL_NAME, keeppath_results$FULL_NAME))
   
   # Create a dataset with method assignment and pathway size
   matching_data <- data.frame(
@@ -170,11 +170,11 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
   # Add pathway size information
   matching_data$size <- NA
   for(i in 1:nrow(matching_data)) {
-    idx <- which(birewire_results$name == matching_data$name[i])
+    idx <- which(birewire_results$FULL_NAME == matching_data$name[i])
     if(length(idx) > 0) {
       matching_data$size[i] <- birewire_results$NGENES[idx[1]]
     } else {
-      idx <- which(keeppath_results$name == matching_data$name[i])
+      idx <- which(keeppath_results$FULL_NAME == matching_data$name[i])
       if(length(idx) > 0) {
         matching_data$size[i] <- keeppath_results$NGENES[idx[1]]
       }
