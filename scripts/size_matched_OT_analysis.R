@@ -746,7 +746,8 @@ main <- function() {
   genes_long <- load_pathway_data(gmt_file)
   
   # Process OpenTargets JSON files for disease
-  files <- list.files(path = ".", pattern = "*.json")
+  files.temp <- list.files(path = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect", pattern = "*.json",full.names=TRUE)
+  files <- c(files.temp,list.files(path = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect", pattern = "*.json",full.names = TRUE))
   if(length(files) == 0) {
     stop("No JSON files found in current directory")
   }
