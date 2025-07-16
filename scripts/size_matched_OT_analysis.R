@@ -760,8 +760,8 @@ main <- function() {
     ungroup()
   
   # Load results files based on tool type
-  birewire_data <- read.csv(paste0('./results/empirical_pvalues/magma_birewire/cad',birewire_results_file))
-  keeppath_data <- read.csv(paste0('./results/empirical_pvalues/magma_keeppath/cad',keeppathsize_results_file))
+  birewire_data <- read.csv(paste0('./results/empirical_pvalues/magma_birewire/cad/',birewire_results_file))
+  keeppath_data <- read.csv(paste0('./results/empirical_pvalues/magma_keeppath/cad/',keeppathsize_results_file))
 
   cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
   cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
