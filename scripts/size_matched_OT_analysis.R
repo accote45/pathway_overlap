@@ -730,31 +730,41 @@ create_combined_boxplots <- function(all_results, disease_name, method_labels) {
   ))
 }
 
-# === 5. Main Analysis Function ===
 
-run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 20, 50, 100)) {
-  cat("======= Starting Size-Matched Analysis for", disease_name, "=======\n")
+# === Main Execution ===
+main <- function() {
+  # Get disease ID from mapping
+  disease_id <- trait_mapping[[trait]]
+  if(is.null(disease_id)) {
+    stop(paste("No mapping found for trait:", trait))
+  }
+  
+  cat("======= Starting Size-Matched Analysis for", trait, "=======\n")
+  cat("Using disease ID:", disease_id, "\n")
   
   # 1. Load data
-  genes_long <- load_pathway_data('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt')
+  genes_long <- load_pathway_data(gmt_file)
   
   # Process OpenTargets JSON files for disease
-  files <- list.files(pattern="*.json")
+  files <- list.files(path = ".", pattern = "*.json")
+  if(length(files) == 0) {
+    stop("No JSON files found in current directory")
+  }
+  
   disease_data <- process_disease_data(files, disease_id)
   
   # Select max evidence count for each target
   disease_targets <- disease_data %>%
     group_by(targetId) %>%
-    slice_max(evidenceCount, with_ties=FALSE) %>%
+    slice_max(evidenceCount, with_ties = FALSE) %>%
     ungroup()
   
-  # Load MAGMA results
-  real_results_path <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/', disease_name, '/',disease_name, '_real_set.gsa.out')
-  emp_p_file <- paste0('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/', disease_name, '/', disease_name, '_empirical_pvalues.csv')
+  # Load results files based on tool type
+  birewire_data <- read.csv(birewire_results_file)
+  keeppath_data <- read.csv(keeppathsize_results_file)
   
-  magma_results <- load_magma_results(real_results_path, emp_p_file)
-  birewire_results <- magma_results$birewire
-  keeppath_results <- magma_results$keeppath
+  cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
+  cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
   
   # Calculate pathway scores
   pathway_scores <- calculate_pathway_scores(genes_long, disease_targets)
@@ -765,11 +775,11 @@ run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 2
   for(n in n_values) {
     result_key <- paste0("n_", n)
     all_results[[result_key]] <- analyze_method_at_n(
-      birewire_results, 
-      keeppath_results, 
+      birewire_data, 
+      keeppath_data, 
       pathway_scores, 
       n, 
-      disease_name
+      trait
     )
   }
   
@@ -780,20 +790,29 @@ run_size_matched_analysis <- function(disease_name, disease_id, n_values=c(10, 2
   )
   
   advantage_data <- calculate_method_advantages(all_results, n_values, method_labels)
-  visualization_results <- create_combined_visualizations(advantage_data, disease_name)
-  combined_boxplot_results <- create_combined_boxplots(all_results, disease_name, method_labels)
+  visualization_results <- create_combined_visualizations(advantage_data, trait)
+  combined_boxplot_results <- create_combined_boxplots(all_results, trait, method_labels)
   
-  # 4. Return compiled results
+  # 4. Create a summary file for Nextflow tracking
+  summary_file <- paste0(tolower(trait), "_", tolower(tool_base), "_size_matched_analysis_summary.tsv")
+  write.table(
+    data.frame(
+      trait = trait,
+      disease_id = disease_id,
+      tool_base = tool_base,
+      n_values = paste(n_values, collapse = ","),
+      num_birewire_pathways = nrow(birewire_data),
+      num_keeppath_pathways = nrow(keeppath_data)
+    ),
+    file = summary_file,
+    sep = "\t", 
+    row.names = FALSE, 
+    quote = FALSE
+  )
+  
+  cat("Summary written to", summary_file, "\n")
   cat("======= Analysis Complete =======\n")
-  
-  return(list(
-    all_results = all_results,
-    advantage_data = advantage_data,
-    summary = visualization_results$summary
-  ))
 }
 
-# === Execute the analysis ===
-setwd('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect')
-
-results <- run_size_matched_analysis("CAD", "EFO_0001645", c(10, 20, 50, 100))
+# Execute the main function
+main()
