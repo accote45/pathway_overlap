@@ -163,8 +163,8 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
   # Create a dataset with method assignment and pathway size
   matching_data <- data.frame(
     name = all_pathways,
-    in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pval),]$name, n),
-    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$name, n)
+    in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pval),]$FULL_NAME, n),
+    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$FULL_NAME, n)
   )
   
   # Add pathway size information
