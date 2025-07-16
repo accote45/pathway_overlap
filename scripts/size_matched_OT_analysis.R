@@ -84,51 +84,6 @@ process_disease_data <- function(files, disease_id) {
   return(combined_dat)
 }
 
-load_magma_results <- function(real_results, emp_p_file) {
-  cat("Reading MAGMA results...\n")
-  
-  # Read empirical p-values file
-  cat("Reading empirical p-values from:", emp_p_file, "\n")
-  emp_p_data <- read.csv(emp_p_file)
-  
-  # Extract results for each method
-  birewire_emp_p <- emp_p_data %>% filter(method == "birewire")
-  keeppath_emp_p <- emp_p_data %>% filter(method == "keeppathsize")
-  
-  # Check if we have data for both methods
-  if(nrow(birewire_emp_p) == 0) {
-    stop("No birewire results found in empirical p-values file")
-  }
-  if(nrow(keeppath_emp_p) == 0) {
-    stop("No keeppathsize results found in empirical p-values file")
-  }
-  
-  cat("Found", nrow(birewire_emp_p), "BireWire results and", 
-      nrow(keeppath_emp_p), "KeepPathSize results\n")
-  
-  # Read real MAGMA results
-  magma_results <- read.table(real_results, header = TRUE)
-  magma_results$name <- magma_results$FULL_NAME
-  
-  # Merge with empirical p-values
-  birewire_results <- merge(
-    magma_results, 
-    birewire_emp_p %>% select(-method),
-    by.x = "FULL_NAME", by.y = "FULL_NAME"
-  )
-  
-  keeppath_results <- merge(
-    magma_results, 
-    keeppath_emp_p %>% select(-method),
-    by.x = "FULL_NAME", by.y = "FULL_NAME"  
-  )
-  
-  return(list(
-    birewire = birewire_results,
-    keeppath = keeppath_results
-  ))
-}
-
 calculate_pathway_scores <- function(genes_long, disease_targets) {
   cat("Calculating pathway-level scores...\n")
   
