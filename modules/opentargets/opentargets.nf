@@ -15,7 +15,9 @@ process opentargets_comparison {
           path("${trait}_combined_advantage_plots.pdf"),
           path("${trait}_combined_boxplots.pdf"),
           path("${trait}_advantage_summary.csv"),
-          path("${trait}_detailed_advantage.csv")
+          path("${trait}_detailed_advantage.csv"),
+          path("${trait}_matching_plots_n*.pdf")
+
     
     publishDir "${params.outdir}/size_matched_analysis/${tool_base}/${trait}", mode: 'copy', overwrite: true
     

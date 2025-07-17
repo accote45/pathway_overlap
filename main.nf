@@ -259,6 +259,14 @@ workflow {
                     }
                 }
                 .filter { it != null }
+                // filter for OpenTargets supported traits
+                .filter { trait, base_tool, birewire_file, keeppathsize_file ->
+                    def supported = params.opentargets_supported_traits.contains(trait)
+                    if (!supported) {
+                        log.warn "Skipping OpenTargets analysis for ${trait}: No mapping available"
+                    }
+                    return supported
+                }
             
             // Run OpenTargets comparison for MAGMA
             size_matched_analysis(magma_for_opentargets)
