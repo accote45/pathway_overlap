@@ -25,6 +25,10 @@ include {
     opentargets_comparison as size_matched_analysis;
 } from './modules/opentargets/opentargets.nf'
 
+include {
+    tissue_specificity_analysis
+} from './modules/tissue_specificity/tissue_specificity.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -64,6 +68,7 @@ workflow {
     log.info "  Run PRSet: ${params.run_prset}"
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     log.info "  Randomization methods: ${params.randomization_methods}"
+    log.info "  Run Tissue Specificity Analysis: ${params.run_tissue_specificity}"
     
     // Initialize empty channels
     all_empirical_inputs = Channel.empty()
@@ -305,6 +310,27 @@ workflow {
             
             // Run OpenTargets comparison for PRSet
             size_matched_analysis(prset_for_opentargets)
+        }
+    }
+    //////////////////////////////////////////
+    // TISSUE SPECIFICITY WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_tissue_specificity) {
+        
+        // Run tissue specificity analysis for MAGMA
+        if (params.run_magma) {
+            log.info "Setting up Tissue Specificity analysis for MAGMA"
+            
+            // Use the same input channel as OpenTargets
+            tissue_specificity_analysis(magma_for_opentargets)
+        }
+        
+        // Run tissue specificity analysis for PRSet
+        if (params.run_prset) {
+            log.info "Setting up Tissue Specificity analysis for PRSet"
+            
+            // Use the same input channel as OpenTargets
+            tissue_specificity_analysis(prset_for_opentargets)
         }
     }
 }
