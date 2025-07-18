@@ -27,7 +27,7 @@ include {
 
 include {
     tissue_specificity_analysis
-} from './modules/tissue_specificity/tissue_specificity.nf'
+} from './modules/tissue_specificity/tissuespecificity.nf'
 
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
