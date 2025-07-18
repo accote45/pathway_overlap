@@ -20,7 +20,9 @@ tool_base <- args[2]
 birewire_results_file <- args[3]
 keeppathsize_results_file <- args[4]
 gmt_file <- args[5]
-n_values <- args[6]
+
+# Fix this parsing to ensure n_values becomes a numeric vector
+n_values <- as.numeric(unlist(strsplit(args[6], ",")))
 ts <- read.csv(args[7])
 
 # === 1. Data Loading Functions ===
