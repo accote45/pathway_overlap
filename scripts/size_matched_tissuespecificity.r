@@ -350,10 +350,7 @@ main <- function() {
   
   # 1. Load data
   genes_long <- load_pathway_data(gmt_file)
-  
-  # Load tissue expression specificity
-  ts <- read.csv('/sc/arion/projects/psychgen/cotea02_prset/judit_revisions/software/1kg_test/GeneExpressionLandscape/data/Exp_Spe_DataTables/specificity')
-  
+    
   # Load results files based on tool type
   birewire_data <- read.table(birewire_results_file,header=T)
   keeppath_data <- read.table(keeppathsize_results_file,header=T)
