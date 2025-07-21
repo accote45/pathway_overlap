@@ -26,7 +26,7 @@ include {
 } from './modules/tissue_specificity/tissuespecificity.nf'
 
 include {
-    opentargets_stats;
+    opentargets_statistics;
 } from './modules/opentargets/opentargets_stats.nf'
 
 include {
@@ -279,7 +279,7 @@ workflow {
                 }
             
             // Step 1: Run statistical analysis
-            magma_opentargets_stats = opentargets_stats(magma_for_opentargets)
+            magma_opentargets_stats = opentargets_statistics(magma_for_opentargets)
             
             // Step 2: Generate visualizations
             magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
@@ -297,7 +297,7 @@ workflow {
                 }
             
             // Step 1: Run statistical analysis
-            prset_opentargets_stats = opentargets_stats(prset_for_opentargets)
+            prset_opentargets_stats = opentargets_statistics(prset_for_opentargets)
             
             // Step 2: Generate visualizations
             prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
