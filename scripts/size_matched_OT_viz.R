@@ -257,16 +257,18 @@ find_significant_comparisons <- function(advantage_data, sig_threshold = 0.00625
 
 # Function to create boxplots for significant results
 create_significant_boxplots <- function(sig_results, data_dir, trait) {
+  # Create output directory - always create it
+  sig_dir <- paste0(trait, "_significant_visualizations")
+  dir.create(sig_dir, showWarnings = FALSE)
+  
   if (nrow(sig_results) == 0) {
     cat("No significant results found.\n")
-    return(NULL)
+    # Create an empty placeholder file
+    file.create(file.path(sig_dir, "no_significant_results.txt"))
+    return(sig_dir)
   }
   
   cat("Found", nrow(sig_results), "significant results\n")
-  
-  # Create output directory
-  sig_dir <- paste0(trait, "_significant_visualizations")
-  dir.create(sig_dir, showWarnings = FALSE)
   
   # Create a plot for each significant finding
   plots <- list()
