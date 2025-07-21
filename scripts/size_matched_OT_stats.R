@@ -445,6 +445,19 @@ main <- function() {
   
   disease_data <- process_disease_data(files, disease_id)
   
+    # Filter and format the gene-disease associations
+  gene_disease_associations <- disease_data %>%
+    select(targetId, targetSymbol, diseaseId, diseaseName, datatypeId, 
+           score, evidenceLevel, resourceScore, evidenceCount) %>%
+    arrange(desc(evidenceCount))
+  
+  # Create output file name
+  gene_disease_file <- paste0(trait, "_", tool_base, "_gene_disease_associations.csv")
+  
+  # Save to CSV
+  write.csv(gene_disease_associations, gene_disease_file, row.names = FALSE)
+  cat("Saved", nrow(gene_disease_associations), "gene-disease associations to", gene_disease_file, "\n")
+  
   # Select max evidence count for each target
   disease_targets <- disease_data %>%
     group_by(targetId) %>%

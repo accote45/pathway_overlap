@@ -13,7 +13,8 @@ process opentargets_statistics {
           val(tool_base),
           path("${trait}_detailed_advantage.csv"),  
           path("*_n*_birewire_matched.csv"),
-          path("*_n*_keeppath_matched.csv")
+          path("*_n*_keeppath_matched.csv"),
+          path("${trait}_${tool_base}_gene_disease_associations.csv")  // Add this line
 
     publishDir "${params.outdir}/size_matched_analysis/${tool_base}/${trait}/data", mode: 'copy', overwrite: true
     
