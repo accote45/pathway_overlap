@@ -11,7 +11,7 @@ process opentargets_statistics {
     output:
     tuple val(trait), 
           val(tool_base),
-          path("${trait}_${tool_base}_detailed_advantage.csv"),
+          path("${trait}_detailed_advantage.csv"),  
           path("*_n*_birewire_matched.csv"),
           path("*_n*_keeppath_matched.csv")
 
@@ -22,6 +22,6 @@ process opentargets_statistics {
     module load R
     
     # Run the modified Size-Matched OT statistics-only R script
-    Rscript ${params.scripts_dir}/size_matched_OT_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "10,20,50,100"
+    Rscript ${params.scripts_dir}/size_matched_OT_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.opentargets_n_values}"
     """
 }
