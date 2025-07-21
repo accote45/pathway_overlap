@@ -321,16 +321,54 @@ workflow {
         if (params.run_magma) {
             log.info "Setting up Tissue Specificity analysis for MAGMA"
             
-            // Use the same input channel as OpenTargets
-            tissue_specificity_analysis(magma_for_opentargets)
+            // Create a new channel for tissue specificity (similar to magma_for_opentargets but without trait filtering)
+            magma_for_tissue = magma_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+                // No OpenTargets trait filtering here
+            
+            // Run tissue specificity analysis for all MAGMA traits
+            tissue_specificity_analysis(magma_for_tissue)
         }
         
         // Run tissue specificity analysis for PRSet
         if (params.run_prset) {
             log.info "Setting up Tissue Specificity analysis for PRSet"
             
-            // Use the same input channel as OpenTargets
-            tissue_specificity_analysis(prset_for_opentargets)
+            // Create a new channel for tissue specificity (similar to prset_for_opentargets but without trait filtering)
+            prset_for_tissue = prset_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+                // No OpenTargets trait filtering here
+            
+            // Run tissue specificity analysis for PRSet
+            tissue_specificity_analysis(prset_for_tissue)
         }
     }
 }
