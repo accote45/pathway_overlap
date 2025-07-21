@@ -7,7 +7,8 @@ process opentargets_visualization {
           val(tool_base),
           path(detailed_advantage_file),
           path(birewire_matched),
-          path(keeppath_matched)
+          path(keeppath_matched),
+          path(gene_disease_associations)
     
     output:
     tuple val(trait), 
@@ -15,7 +16,7 @@ process opentargets_visualization {
           path("${trait}_combined_advantage_plots.pdf"),
           path("${trait}_combined_boxplots.pdf"),
           path("${trait}_matching_plots_n*.pdf"),
-          path("${trait}_significant_visualizations/*")
+          path("${trait}_significant_visualizations/*", optional: true)
     
     publishDir "${params.outdir}/opentargets_visualizations/${tool_base}/${trait}", mode: 'copy', overwrite: true
     
@@ -25,6 +26,9 @@ process opentargets_visualization {
     
     # Create a directory for the data files
     mkdir -p data_files
+    mkdir -p ${trait}_significant_visualizations
+    
+    # Copy matched data files to the data directory
     cp ${birewire_matched} ${keeppath_matched} data_files/
     
     # Run the visualization script
