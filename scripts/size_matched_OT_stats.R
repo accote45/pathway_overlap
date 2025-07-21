@@ -447,8 +447,7 @@ main <- function() {
   
     # Filter and format the gene-disease associations
   gene_disease_associations <- disease_data %>%
-    select(targetId, targetSymbol, diseaseId, diseaseName, datatypeId, 
-           score, evidenceLevel, resourceScore, evidenceCount) %>%
+    select(targetId, diseaseId, datatypeId, score, evidenceCount) %>%
     arrange(desc(evidenceCount))
   
   # Create output file name
