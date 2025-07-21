@@ -20,6 +20,6 @@ process tissue_specificity_analysis {
     """
     module load R
     
-    Rscript ${params.scripts_dir}/size_matched_tissuespecificity.r "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "10,20,50,100" "${params.tissue_expression_data}"
+    Rscript ${params.scripts_dir}/size_matched_tissuespecificity.r "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.opentargets_n_values}" "${params.tissue_expression_data}"
     """
 }
