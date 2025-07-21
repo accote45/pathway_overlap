@@ -5,7 +5,7 @@ process opentargets_visualization {
     input:
     tuple val(trait),
           val(tool_base),
-          path("${trait}_${tool_base}_detailed_advantage.csv"), // Match the pattern
+          path("${trait}_detailed_advantage.csv"),
           path(birewire_matched),
           path(keeppath_matched)
     
