@@ -117,6 +117,70 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
   cat("BireWire columns:", paste(colnames(birewire_results), collapse=", "), "\n")
   cat("KeepPath columns:", paste(colnames(keeppath_results), collapse=", "), "\n")
   
+  # First, identify all unique pathways from both methods
+  all_pathways <- unique(c(birewire_results$FULL_NAME, keeppath_results$FULL_NAME))
+  
+  # Check columns and normalize names - needed columns are:
+  # - FULL_NAME: pathway name
+  # - empirical_pval: empirical p-value (method-specific)
+  # - P: raw p-value (same for both methods)
+  # - BETA: effect size (same for both methods)
+  # - NGENES: gene count (same for both methods)
+  
+  # Check and normalize column names for empirical p-values
+  prepare_empirical_cols(birewire_results, keeppath_results)
+  
+  # Check and normalize column names for raw p-values and beta 
+  # (only need to check one file since these are identical)
+  prepare_raw_stats_cols(birewire_results)
+  
+  # Ensure empirical_pval is numeric
+  birewire_results$empirical_pval <- as.numeric(as.character(birewire_results$empirical_pval))
+  keeppath_results$empirical_pval <- as.numeric(as.character(keeppath_results$empirical_pval))
+  
+  # Create a dataset with method assignment and pathway size
+  matching_data <- data.frame(
+    name = all_pathways,
+    in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pval),]$FULL_NAME, n),
+    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$FULL_NAME, n)
+  )
+  
+  # Add rankings for raw P and beta (these are the same for both methods, so only need one column each)
+  matching_data$in_raw_p_top <- all_pathways %in% head(birewire_results[order(birewire_results$P),]$FULL_NAME, n)
+  
+  # Add rankings for significant beta
+  sig_results <- birewire_results[birewire_results$P < 0.05,]
+  if(nrow(sig_results) > 0) {
+    matching_data$in_sig_beta_top <- all_pathways %in% head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
+  } else {
+    matching_data$in_sig_beta_top <- FALSE
+  }
+  
+  # Add pathway size information
+  matching_data$size <- NA
+  for(i in 1:nrow(matching_data)) {
+    idx <- which(birewire_results$FULL_NAME == matching_data$name[i])
+    if(length(idx) > 0) {
+      matching_data$size[i] <- birewire_results$NGENES[idx[1]]
+    } else {
+      idx <- which(keeppath_results$FULL_NAME == matching_data$name[i])
+      if(length(idx) > 0) {
+        matching_data$size[i] <- keeppath_results$NGENES[idx[1]]
+      }
+    }
+  }
+  
+  # Remove pathways with missing size
+  matching_data <- matching_data[!is.na(matching_data$size),]
+  
+  # Add OpenTargets evidence information
+  matching_data <- merge(matching_data, pathway_scores, by="name", all.x=TRUE)
+  
+  return(matching_data)
+}
+
+# Helper functions to check and normalize column names
+prepare_empirical_cols <- function(birewire_results, keeppath_results) {
   # Check for empirical_pval column and normalize if needed
   if(!"empirical_pval" %in% colnames(birewire_results)) {
     possible_columns <- c("EMPIRICAL_P", "P", "P.value", "pvalue", "empirical_pvalue")
@@ -162,123 +226,32 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
       }
     }
   }
-  
+}
+
+prepare_raw_stats_cols <- function(results) {
   # Check for raw P-value column
-  if(!"P" %in% colnames(birewire_results)) {
+  if(!"P" %in% colnames(results)) {
     possible_columns <- c("P", "p", "p.value", "pval", "P.value")
     for(col in possible_columns) {
-      if(col %in% colnames(birewire_results)) {
-        cat("Using", col, "as raw p-value column for BireWire\n")
-        birewire_results$P <- birewire_results[[col]]
-        break
-      }
-    }
-  }
-  
-  if(!"P" %in% colnames(keeppath_results)) {
-    possible_columns <- c("P", "p", "p.value", "pval", "P.value")
-    for(col in possible_columns) {
-      if(col %in% colnames(keeppath_results)) {
-        cat("Using", col, "as raw p-value column for KeepPathSize\n")
-        keeppath_results$P <- keeppath_results[[col]]
+      if(col %in% colnames(results)) {
+        cat("Using", col, "as raw p-value column\n")
+        results$P <- results[[col]]
         break
       }
     }
   }
   
   # Check for BETA column
-  if(!"BETA" %in% colnames(birewire_results)) {
+  if(!"BETA" %in% colnames(results)) {
     possible_columns <- c("BETA", "beta", "effect", "EFFECT")
     for(col in possible_columns) {
-      if(col %in% colnames(birewire_results)) {
-        cat("Using", col, "as beta/effect size column for BireWire\n")
-        birewire_results$BETA <- birewire_results[[col]]
+      if(col %in% colnames(results)) {
+        cat("Using", col, "as beta/effect size column\n")
+        results$BETA <- results[[col]]
         break
       }
     }
   }
-  
-  if(!"BETA" %in% colnames(keeppath_results)) {
-    possible_columns <- c("BETA", "beta", "effect", "EFFECT")
-    for(col in possible_columns) {
-      if(col %in% colnames(keeppath_results)) {
-        cat("Using", col, "as beta/effect size column for KeepPathSize\n")
-        keeppath_results$BETA <- keeppath_results[[col]]
-        break
-      }
-    }
-  }
-  
-  # Ensure we have the necessary columns
-  if(!"empirical_pval" %in% colnames(birewire_results)) {
-    stop("Could not find empirical p-value column in BireWire results")
-  }
-  if(!"FULL_NAME" %in% colnames(birewire_results)) {
-    stop("Could not find pathway name column in BireWire results")
-  }
-  if(!"empirical_pval" %in% colnames(keeppath_results)) {
-    stop("Could not find empirical p-value column in KeepPathSize results")
-  }
-  if(!"FULL_NAME" %in% colnames(keeppath_results)) {
-    stop("Could not find pathway name column in KeepPathSize results")
-  }
-  
-  # Ensure empirical_pval is numeric
-  birewire_results$empirical_pval <- as.numeric(as.character(birewire_results$empirical_pval))
-  keeppath_results$empirical_pval <- as.numeric(as.character(keeppath_results$empirical_pval))
-  
-  # First, identify all unique pathways from both methods
-  all_pathways <- unique(c(birewire_results$FULL_NAME, keeppath_results$FULL_NAME))
-  
-  # Create a dataset with method assignment and pathway size
-  matching_data <- data.frame(
-    name = all_pathways,
-    in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pval),]$FULL_NAME, n),
-    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$FULL_NAME, n),
-    # Add new ranking methods:
-    in_birewire_raw_p_top = all_pathways %in% head(birewire_results[order(birewire_results$P),]$FULL_NAME, n),
-    in_keeppath_raw_p_top = all_pathways %in% head(keeppath_results[order(keeppath_results$P),]$FULL_NAME, n),
-    in_birewire_sig_beta_top = all_pathways %in% {
-      # Get significant hits with P < 0.05 sorted by decreasing BETA
-      sig_results <- birewire_results[birewire_results$P < 0.05,]
-      if(nrow(sig_results) > 0) {
-        head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
-      } else {
-        character(0)  # Return empty if no significant hits
-      }
-    },
-    in_keeppath_sig_beta_top = all_pathways %in% {
-      # Get significant hits with P < 0.05 sorted by decreasing BETA
-      sig_results <- keeppath_results[keeppath_results$P < 0.05,]
-      if(nrow(sig_results) > 0) {
-        head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
-      } else {
-        character(0)  # Return empty if no significant hits
-      }
-    }
-  )
-  
-  # Add pathway size information
-  matching_data$size <- NA
-  for(i in 1:nrow(matching_data)) {
-    idx <- which(birewire_results$FULL_NAME == matching_data$name[i])
-    if(length(idx) > 0) {
-      matching_data$size[i] <- birewire_results$NGENES[idx[1]]
-    } else {
-      idx <- which(keeppath_results$FULL_NAME == matching_data$name[i])
-      if(length(idx) > 0) {
-        matching_data$size[i] <- keeppath_results$NGENES[idx[1]]
-      }
-    }
-  }
-  
-  # Remove pathways with missing size
-  matching_data <- matching_data[!is.na(matching_data$size),]
-  
-  # Add OpenTargets evidence information
-  matching_data <- merge(matching_data, pathway_scores, by="name", all.x=TRUE)
-  
-  return(matching_data)
 }
 
 perform_matching <- function(matching_data, target_col) {
@@ -346,14 +319,12 @@ analyze_method_at_n <- function(birewire_results, keeppath_results, pathway_scor
   # 1. Prepare data for matching
   matching_data <- prepare_matching_data(birewire_results, keeppath_results, pathway_scores, n)
   
-  # List of ranking methods to analyze
+  # List of ranking methods to analyze (modified to reflect identical raw p-value and beta)
   ranking_methods <- list(
     list(method_name = "BireWire", target_col = "in_birewire_top", ranking_type = "empirical_p"),
     list(method_name = "KeepPathSize", target_col = "in_keeppath_top", ranking_type = "empirical_p"),
-    list(method_name = "BireWire_RawP", target_col = "in_birewire_raw_p_top", ranking_type = "raw_p"),
-    list(method_name = "KeepPathSize_RawP", target_col = "in_keeppath_raw_p_top", ranking_type = "raw_p"),
-    list(method_name = "BireWire_SigBeta", target_col = "in_birewire_sig_beta_top", ranking_type = "sig_beta"),
-    list(method_name = "KeepPathSize_SigBeta", target_col = "in_keeppath_sig_beta_top", ranking_type = "sig_beta")
+    list(method_name = "RawP", target_col = "in_raw_p_top", ranking_type = "raw_p"),
+    list(method_name = "SigBeta", target_col = "in_sig_beta_top", ranking_type = "sig_beta")
   )
   
   results_list <- list()
@@ -418,9 +389,14 @@ analyze_method_at_n <- function(birewire_results, keeppath_results, pathway_scor
                         "raw_p" = "_raw_p",
                         "sig_beta" = "_sig_beta")
     
+    method_suffix <- if(ranking_type == "empirical_p") {
+      tolower(gsub("PathSize", "pathsize", method_name))
+    } else {
+      tolower(method_name)
+    }
+    
     output_file <- paste0(disease_name, "_", tool_base, "_n", n, "_", 
-                         tolower(gsub("PathSize", "pathsize", method_name)), 
-                         file_suffix, "_matched.csv")
+                         method_suffix, file_suffix, "_matched.csv")
     write.csv(matched_data, file = output_file)
     
     # Store results
