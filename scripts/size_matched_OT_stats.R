@@ -598,15 +598,16 @@ main <- function() {
   write.csv(advantage_data, paste0(trait, "_detailed_advantage.csv"), row.names=FALSE)
   
   # Create summary table
-  summary_data <- advantage_data %>%
+    summary_data <- advantage_data %>%
     select(N, method, 
-           mean_score_advantage, t_statistic_score, df_score, mean_score_sig, 
-           evidence_density_advantage, t_statistic_density, df_density, evidence_density_sig) %>%
+           mean_score_advantage,  t_statistic_mean_score, df_mean_score, mean_score_sig, 
+           evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig) %>%
     pivot_wider(
       names_from = method,
-      values_from = c(mean_score_advantage, t_statistic_score, df_score, mean_score_sig, 
-                     evidence_density_advantage, t_statistic_density, df_density, evidence_density_sig)
+      values_from = c(mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
+                     evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
     )
+  
   
   # Write summary data to CSV
   write.csv(summary_data, paste0(trait, "_advantage_summary.csv"), row.names=FALSE)
