@@ -163,6 +163,52 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
     }
   }
   
+  # Check for raw P-value column
+  if(!"P" %in% colnames(birewire_results)) {
+    possible_columns <- c("P", "p", "p.value", "pval", "P.value")
+    for(col in possible_columns) {
+      if(col %in% colnames(birewire_results)) {
+        cat("Using", col, "as raw p-value column for BireWire\n")
+        birewire_results$P <- birewire_results[[col]]
+        break
+      }
+    }
+  }
+  
+  if(!"P" %in% colnames(keeppath_results)) {
+    possible_columns <- c("P", "p", "p.value", "pval", "P.value")
+    for(col in possible_columns) {
+      if(col %in% colnames(keeppath_results)) {
+        cat("Using", col, "as raw p-value column for KeepPathSize\n")
+        keeppath_results$P <- keeppath_results[[col]]
+        break
+      }
+    }
+  }
+  
+  # Check for BETA column
+  if(!"BETA" %in% colnames(birewire_results)) {
+    possible_columns <- c("BETA", "beta", "effect", "EFFECT")
+    for(col in possible_columns) {
+      if(col %in% colnames(birewire_results)) {
+        cat("Using", col, "as beta/effect size column for BireWire\n")
+        birewire_results$BETA <- birewire_results[[col]]
+        break
+      }
+    }
+  }
+  
+  if(!"BETA" %in% colnames(keeppath_results)) {
+    possible_columns <- c("BETA", "beta", "effect", "EFFECT")
+    for(col in possible_columns) {
+      if(col %in% colnames(keeppath_results)) {
+        cat("Using", col, "as beta/effect size column for KeepPathSize\n")
+        keeppath_results$BETA <- keeppath_results[[col]]
+        break
+      }
+    }
+  }
+  
   # Ensure we have the necessary columns
   if(!"empirical_pval" %in% colnames(birewire_results)) {
     stop("Could not find empirical p-value column in BireWire results")
@@ -188,7 +234,28 @@ prepare_matching_data <- function(birewire_results, keeppath_results, pathway_sc
   matching_data <- data.frame(
     name = all_pathways,
     in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pval),]$FULL_NAME, n),
-    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$FULL_NAME, n)
+    in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pval),]$FULL_NAME, n),
+    # Add new ranking methods:
+    in_birewire_raw_p_top = all_pathways %in% head(birewire_results[order(birewire_results$P),]$FULL_NAME, n),
+    in_keeppath_raw_p_top = all_pathways %in% head(keeppath_results[order(keeppath_results$P),]$FULL_NAME, n),
+    in_birewire_sig_beta_top = all_pathways %in% {
+      # Get significant hits with P < 0.05 sorted by decreasing BETA
+      sig_results <- birewire_results[birewire_results$P < 0.05,]
+      if(nrow(sig_results) > 0) {
+        head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
+      } else {
+        character(0)  # Return empty if no significant hits
+      }
+    },
+    in_keeppath_sig_beta_top = all_pathways %in% {
+      # Get significant hits with P < 0.05 sorted by decreasing BETA
+      sig_results <- keeppath_results[keeppath_results$P < 0.05,]
+      if(nrow(sig_results) > 0) {
+        head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
+      } else {
+        character(0)  # Return empty if no significant hits
+      }
+    }
   )
   
   # Add pathway size information
@@ -279,145 +346,149 @@ analyze_method_at_n <- function(birewire_results, keeppath_results, pathway_scor
   # 1. Prepare data for matching
   matching_data <- prepare_matching_data(birewire_results, keeppath_results, pathway_scores, n)
   
-  # 2. Perform matching for BireWire
-  bw_matched <- perform_matching(matching_data, "in_birewire_top")
-  if(is.null(bw_matched)) {
-    cat("Matching failed for BireWire top", n, "pathways\n")
-    return(NULL)
-  }
-  bw_matched$N <- n
-  bw_matched$method <- "BireWire"
+  # List of ranking methods to analyze
+  ranking_methods <- list(
+    list(method_name = "BireWire", target_col = "in_birewire_top", ranking_type = "empirical_p"),
+    list(method_name = "KeepPathSize", target_col = "in_keeppath_top", ranking_type = "empirical_p"),
+    list(method_name = "BireWire_RawP", target_col = "in_birewire_raw_p_top", ranking_type = "raw_p"),
+    list(method_name = "KeepPathSize_RawP", target_col = "in_keeppath_raw_p_top", ranking_type = "raw_p"),
+    list(method_name = "BireWire_SigBeta", target_col = "in_birewire_sig_beta_top", ranking_type = "sig_beta"),
+    list(method_name = "KeepPathSize_SigBeta", target_col = "in_keeppath_sig_beta_top", ranking_type = "sig_beta")
+  )
   
-  # 3. Calculate metrics for BireWire
-  bw_comparison <- calculate_comparison_metrics(bw_matched, "in_birewire_top")
-  size_balance_bw <- attr(bw_comparison, "size_balance")
+  results_list <- list()
   
-  # 4. Perform matching for KeepPathSize
-  kp_matched <- perform_matching(matching_data, "in_keeppath_top")
-  if(is.null(kp_matched)) {
-    cat("Matching failed for KeepPathSize top", n, "pathways\n")
-    return(NULL)
-  }
-  kp_matched$N <- n
-  kp_matched$method <- "KeepPathSize"
-  
-  # 5. Calculate metrics for KeepPathSize
-  kp_comparison <- calculate_comparison_metrics(kp_matched, "in_keeppath_top")
-  size_balance_kp <- attr(kp_comparison, "size_balance")
-  
-  # 6. Display results
-  cat("\nSize-matched comparison (BireWire top", n, "vs. size-matched pathways):\n")
-  cat("- Average size in BireWire top:", round(size_balance_bw$target_size, 1), 
-      "vs. matched pathways:", round(size_balance_bw$control_size, 1), 
-      "(", round(size_balance_bw$difference_pct, 1), "% diff)\n")
-  
-  for(i in 1:nrow(bw_comparison)) {
-    metric_name <- bw_comparison$metric[i]
-    target_val <- bw_comparison$target_value[i]
-    control_val <- bw_comparison$control_value[i]
-    diff <- bw_comparison$difference[i]
-    p_val <- bw_comparison$p_value[i]
+  # Process each ranking method
+  for(ranking in ranking_methods) {
+    method_name <- ranking$method_name
+    target_col <- ranking$target_col
+    ranking_type <- ranking$ranking_type
     
-    cat("- Average", metric_name, "in BireWire top", n, ":", round(target_val, 4), 
-        "vs. matched pathways:", round(control_val, 4), 
-        "(diff:", round(diff, 4), ",", 
-        ifelse(diff > 0, "BireWire better", "Control better"),
-        ", p =", format.pval(p_val, digits=3), ")\n")
-  }
-  
-  cat("\nSize-matched comparison (KeepPathSize top", n, "vs. size-matched pathways):\n")
-  cat("- Average size in KeepPathSize top:", round(size_balance_kp$target_size, 1), 
-      "vs. matched pathways:", round(size_balance_kp$control_size, 1),
-      "(", round(size_balance_kp$difference_pct, 1), "% diff)\n")
-  
-  for(i in 1:nrow(kp_comparison)) {
-    metric_name <- kp_comparison$metric[i]
-    target_val <- kp_comparison$target_value[i]
-    control_val <- kp_comparison$control_value[i]
-    diff <- kp_comparison$difference[i]
-    p_val <- kp_comparison$p_value[i]
+    cat(paste("\nProcessing", method_name, "ranking...\n"))
     
-    cat("- Average", metric_name, "in KeepPathSize top", n, ":", round(target_val, 4), 
-        "vs. matched pathways:", round(control_val, 4), 
-        "(diff:", round(diff, 4), ",", 
-        ifelse(diff > 0, "KeepPathSize better", "Control better"),
-        ", p =", format.pval(p_val, digits=3), ")\n")
+    # Count how many pathways match this ranking
+    top_count <- sum(matching_data[[target_col]], na.rm = TRUE)
+    if(top_count < n/2) {
+      cat("Warning: Only", top_count, "pathways found for", method_name, "ranking. Expected", n, "\n")
+      if(top_count < 5) {
+        cat("Skipping", method_name, "ranking due to insufficient pathways\n")
+        next
+      }
+    }
+    
+    # Perform matching
+    matched_data <- perform_matching(matching_data, target_col)
+    if(is.null(matched_data)) {
+      cat("Matching failed for", method_name, "top", n, "pathways\n")
+      next
+    }
+    
+    # Add metadata
+    matched_data$N <- n
+    matched_data$method <- method_name
+    matched_data$ranking_type <- ranking_type
+    
+    # Calculate metrics
+    comparison <- calculate_comparison_metrics(matched_data, target_col)
+    size_balance <- attr(comparison, "size_balance")
+    
+    # Display results
+    cat("\nSize-matched comparison (", method_name, " top", n, "vs. size-matched pathways):\n")
+    cat("- Average size in", method_name, "top:", round(size_balance$target_size, 1), 
+        "vs. matched pathways:", round(size_balance$control_size, 1), 
+        "(", round(size_balance$difference_pct, 1), "% diff)\n")
+    
+    for(i in 1:nrow(comparison)) {
+      metric_name <- comparison$metric[i]
+      target_val <- comparison$target_value[i]
+      control_val <- comparison$control_value[i]
+      diff <- comparison$difference[i]
+      p_val <- comparison$p_value[i]
+      
+      cat("- Average", metric_name, "in", method_name, "top", n, ":", round(target_val, 4), 
+          "vs. matched pathways:", round(control_val, 4), 
+          "(diff:", round(diff, 4), ",", 
+          ifelse(diff > 0, method_name, "Control"), "better", 
+          ", p =", format.pval(p_val, digits=3), ")\n")
+    }
+    
+    # Save matched data files
+    file_suffix <- switch(ranking_type,
+                        "empirical_p" = "",
+                        "raw_p" = "_raw_p",
+                        "sig_beta" = "_sig_beta")
+    
+    output_file <- paste0(disease_name, "_", tool_base, "_n", n, "_", 
+                         tolower(gsub("PathSize", "pathsize", method_name)), 
+                         file_suffix, "_matched.csv")
+    write.csv(matched_data, file = output_file)
+    
+    # Store results
+    results_list[[method_name]] <- list(
+      matched_data = matched_data,
+      metrics = comparison,
+      size_balance = size_balance
+    )
   }
   
-  # 7. Save matched data files
-  write.csv(bw_matched, file = paste0(disease_name, "_", tool_base, "_n", n, "_birewire_matched.csv"))
-  write.csv(kp_matched, file = paste0(disease_name, "_", tool_base, "_n", n, "_keeppath_matched.csv"))
-  
-  # 8. Return results for this N value
-  return(list(
-    birewire_matched = bw_matched,
-    keeppath_matched = kp_matched,
-    birewire_metrics = bw_comparison,
-    keeppath_metrics = kp_comparison
-  ))
+  return(results_list)
 }
 
 calculate_method_advantages <- function(all_results, n_values, new_labels) {
-  # Convert method names
-  new_bw_label <- new_labels$birewire
-  new_kp_label <- new_labels$keeppath
-  
   advantage_data <- data.frame()
   
   for(n in n_values) {
     result_name <- paste0("n_", n)
     
     if(!is.null(all_results[[result_name]])) {
-      bw_data <- all_results[[result_name]]$birewire_matched
-      kp_data <- all_results[[result_name]]$keeppath_matched
+      n_results <- all_results[[result_name]]
       
-      # Calculate BireWire advantage
-      bw_top <- bw_data[bw_data$in_birewire_top == TRUE, ]
-      bw_control <- bw_data[bw_data$in_birewire_top == FALSE, ]
-      bw_advantage <- data.frame(
-        N = factor(n, levels=n_values),
-        method = new_bw_label,
-        mean_score_top = mean(bw_top$mean_score, na.rm=TRUE),
-        mean_score_control = mean(bw_control$mean_score, na.rm=TRUE),
-        mean_score_advantage = mean(bw_top$mean_score, na.rm=TRUE) - mean(bw_control$mean_score, na.rm=TRUE),
-        evidence_density_top = mean(bw_top$evidence_density, na.rm=TRUE),
-        evidence_density_control = mean(bw_control$evidence_density, na.rm=TRUE),
-        evidence_density_advantage = mean(bw_top$evidence_density, na.rm=TRUE) - mean(bw_control$evidence_density, na.rm=TRUE),
-        p_value_score = all_results[[result_name]]$birewire_metrics$p_value[all_results[[result_name]]$birewire_metrics$metric == "mean_score"],
-        t_statistic_score = all_results[[result_name]]$birewire_metrics$t_statistic[all_results[[result_name]]$birewire_metrics$metric == "mean_score"],
-        df_score = all_results[[result_name]]$birewire_metrics$df[all_results[[result_name]]$birewire_metrics$metric == "mean_score"],
-        p_value_density = all_results[[result_name]]$birewire_metrics$p_value[all_results[[result_name]]$birewire_metrics$metric == "evidence_density"],
-        t_statistic_density = all_results[[result_name]]$birewire_metrics$t_statistic[all_results[[result_name]]$birewire_metrics$metric == "evidence_density"],
-        df_density = all_results[[result_name]]$birewire_metrics$df[all_results[[result_name]]$birewire_metrics$metric == "evidence_density"]
-      )
-      
-      # Calculate KeepPathSize advantage
-      kp_top <- kp_data[kp_data$in_keeppath_top == TRUE, ]
-      kp_control <- kp_data[kp_data$in_keeppath_top == FALSE, ]
-      kp_advantage <- data.frame(
-        N = factor(n, levels=n_values),
-        method = new_kp_label,
-        mean_score_top = mean(kp_top$mean_score, na.rm=TRUE),
-        mean_score_control = mean(kp_control$mean_score, na.rm=TRUE),
-        mean_score_advantage = mean(kp_top$mean_score, na.rm=TRUE) - mean(kp_control$mean_score, na.rm=TRUE),
-        evidence_density_top = mean(kp_top$evidence_density, na.rm=TRUE),
-        evidence_density_control = mean(kp_control$evidence_density, na.rm=TRUE),
-        evidence_density_advantage = mean(kp_top$evidence_density, na.rm=TRUE) - mean(kp_control$evidence_density, na.rm=TRUE),
-        p_value_score = all_results[[result_name]]$keeppath_metrics$p_value[all_results[[result_name]]$keeppath_metrics$metric == "mean_score"],
-        t_statistic_score = all_results[[result_name]]$keeppath_metrics$t_statistic[all_results[[result_name]]$keeppath_metrics$metric == "mean_score"],
-        df_score = all_results[[result_name]]$keeppath_metrics$df[all_results[[result_name]]$keeppath_metrics$metric == "mean_score"],
-        p_value_density = all_results[[result_name]]$keeppath_metrics$p_value[all_results[[result_name]]$keeppath_metrics$metric == "evidence_density"],
-        t_statistic_density = all_results[[result_name]]$keeppath_metrics$t_statistic[all_results[[result_name]]$keeppath_metrics$metric == "evidence_density"],
-        df_density = all_results[[result_name]]$keeppath_metrics$df[all_results[[result_name]]$keeppath_metrics$metric == "evidence_density"]
-      )
-      
-      advantage_data <- rbind(advantage_data, bw_advantage, kp_advantage)
+      # Process each method's results
+      for(method_name in names(n_results)) {
+        if(!is.null(n_results[[method_name]])) {
+          method_data <- n_results[[method_name]]
+          matched_data <- method_data$matched_data
+          metrics <- method_data$metrics
+          
+          # Determine target column name
+          target_col <- names(matched_data)[grep("^in_", names(matched_data))][1]
+          
+          # Extract method-specific data
+          top_data <- matched_data[matched_data[[target_col]] == TRUE, ]
+          control_data <- matched_data[matched_data[[target_col]] == FALSE, ]
+          
+          # Create advantage data
+          method_advantage <- data.frame(
+            N = factor(n, levels=n_values),
+            method = method_name,
+            ranking_type = matched_data$ranking_type[1],
+            mean_score_top = mean(top_data$mean_score, na.rm=TRUE),
+            mean_score_control = mean(control_data$mean_score, na.rm=TRUE),
+            mean_score_advantage = mean(top_data$mean_score, na.rm=TRUE) - mean(control_data$mean_score, na.rm=TRUE),
+            evidence_density_top = mean(top_data$evidence_density, na.rm=TRUE),
+            evidence_density_control = mean(control_data$evidence_density, na.rm=TRUE),
+            evidence_density_advantage = mean(top_data$evidence_density, na.rm=TRUE) - mean(control_data$evidence_density, na.rm=TRUE)
+          )
+          
+          # Add p-values and statistics
+          for(metric_name in c("mean_score", "evidence_density")) {
+            metric_idx <- which(metrics$metric == metric_name)
+            if(length(metric_idx) > 0) {
+              method_advantage[[paste0("p_value_", metric_name)]] <- metrics$p_value[metric_idx]
+              method_advantage[[paste0("t_statistic_", metric_name)]] <- metrics$t_statistic[metric_idx]
+              method_advantage[[paste0("df_", metric_name)]] <- metrics$df[metric_idx]
+            }
+          }
+          
+          advantage_data <- rbind(advantage_data, method_advantage)
+        }
+      }
     }
   }
   
   # Add significance indicators
-  advantage_data$mean_score_sig <- ifelse(advantage_data$p_value_score < 0.05, "*", "")
-  advantage_data$evidence_density_sig <- ifelse(advantage_data$p_value_density < 0.05, "*", "")
+  advantage_data$mean_score_sig <- ifelse(advantage_data$p_value_mean_score < 0.05, "*", "")
+  advantage_data$evidence_density_sig <- ifelse(advantage_data$p_value_evidence_density < 0.05, "*", "")
   
   return(advantage_data)
 }
@@ -494,6 +565,34 @@ main <- function() {
   )
   
   advantage_data <- calculate_method_advantages(all_results, n_values, method_labels)
+  
+  # Write detailed advantage data
+  write.csv(advantage_data, paste0(trait, "_detailed_advantage.csv"), row.names=FALSE)
+  
+  # Create summary tables by ranking type
+  for(ranking_type in unique(advantage_data$ranking_type)) {
+    type_data <- advantage_data[advantage_data$ranking_type == ranking_type,]
+    
+    # Get suffix for filename
+    file_suffix <- switch(ranking_type,
+                         "empirical_p" = "",
+                         "raw_p" = "_raw_p",
+                         "sig_beta" = "_sig_beta")
+    
+    # Create and save summary for this ranking type
+    summary_data <- type_data %>%
+      select(N, method, 
+             mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
+             evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig) %>%
+      pivot_wider(
+        names_from = method,
+        values_from = c(mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
+                       evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
+      )
+    
+    # Write summary data to CSV
+    write.csv(summary_data, paste0(trait, "_advantage_summary", file_suffix, ".csv"), row.names=FALSE)
+  }
   
   # 4. Write out the advantage data files (no visualization)
   write.csv(advantage_data, paste0(trait, "_detailed_advantage.csv"), row.names=FALSE)
