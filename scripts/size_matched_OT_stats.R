@@ -571,6 +571,7 @@ main <- function() {
   
   # Create summary tables by ranking type
   for(ranking_type in unique(advantage_data$ranking_type)) {
+    # Filter data for this ranking type
     type_data <- advantage_data[advantage_data$ranking_type == ranking_type,]
     
     # Get suffix for filename
@@ -579,19 +580,47 @@ main <- function() {
                          "raw_p" = "_raw_p",
                          "sig_beta" = "_sig_beta")
     
-    # Create and save summary for this ranking type
-    summary_data <- type_data %>%
-      select(N, method, 
-             mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
-             evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig) %>%
-      pivot_wider(
-        names_from = method,
-        values_from = c(mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
-                       evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
-      )
-    
-    # Write summary data to CSV
-    write.csv(summary_data, paste0(trait, "_advantage_summary", file_suffix, ".csv"), row.names=FALSE)
+    # Check if we have enough data for this ranking type
+    if(nrow(type_data) > 0) {
+      tryCatch({
+        # Create and save summary for this ranking type
+        summary_data <- type_data %>%
+          select(N, method, 
+                 mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
+                 evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
+        
+        # Check if we have multiple methods before using pivot_wider
+        unique_methods <- unique(summary_data$method)
+        
+        if(length(unique_methods) > 1) {
+          # We can use pivot_wider when we have multiple methods
+          summary_data <- summary_data %>%
+            pivot_wider(
+              names_from = method,
+              values_from = c(mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
+                             evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
+            )
+        }
+        
+        # Write summary data to CSV
+        write.csv(summary_data, paste0(trait, "_advantage_summary", file_suffix, ".csv"), row.names=FALSE)
+        cat("Created summary file for ranking type:", ranking_type, "\n")
+        
+      }, error = function(e) {
+        cat("Error creating summary for ranking type", ranking_type, ":", e$message, "\n")
+        
+        # Create a simple summary without pivot_wider
+        simple_summary <- type_data %>%
+          select(N, method, ranking_type, 
+                 mean_score_advantage, mean_score_sig, 
+                 evidence_density_advantage, evidence_density_sig)
+        
+        write.csv(simple_summary, paste0(trait, "_advantage_summary", file_suffix, "_simple.csv"), row.names=FALSE)
+        cat("Created simplified summary file for ranking type:", ranking_type, "\n")
+      })
+    } else {
+      cat("No data for ranking type:", ranking_type, "- skipping summary file\n")
+    }
   }
   
   # 4. Write out the advantage data files (no visualization)
