@@ -253,7 +253,7 @@ workflow {
     // OPENTARGETS COMPARISON WORKFLOW
     //////////////////////////////////////////
     if (params.run_empirical && params.run_opentargets) {
-        log.info "Setting up OpenTargets comparison for supported traits"
+        log.info "Setting up OpenTargets comparison with multiple ranking methods"
         
         // Run OpenTargets comparison for MAGMA (if enabled)
         if (params.run_magma) {
