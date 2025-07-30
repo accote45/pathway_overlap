@@ -215,7 +215,7 @@ cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
 # 5. Normalize column names - using the helper function
 column_mappings <- list(
   # Target column name and possible source columns
-  list(target="empirical_pval", sources=c("EMPIRICAL_P", "P", "P.value", "pvalue", "empirical_pvalue")),
+  list(target="empirical_pval", sources=c("EMPIRICAL_P", "empirical_pvalue")),
   list(target="FULL_NAME", sources=c("PATHWAY", "name", "pathway", "SET")),
   list(target="P", sources=c("P", "p", "p.value", "pval", "P.value")),
   list(target="BETA", sources=c("BETA", "beta", "effect", "EFFECT")),
@@ -497,39 +497,4 @@ for(ranking_type in unique(advantage_data$ranking_type)) {
   }
 }
 
-# 10. Create overall summary table - only if needed, since we already created per-ranking-type summaries
-if(length(unique(advantage_data$ranking_type)) > 1) {
-  summary_data <- advantage_data %>%
-    select(N, method, ranking_type, 
-           mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
-           evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig) %>%
-    pivot_wider(
-      names_from = method,
-      values_from = c(mean_score_advantage, t_statistic_mean_score, df_mean_score, mean_score_sig, 
-                     evidence_density_advantage, t_statistic_evidence_density, df_evidence_density, evidence_density_sig)
-    )
-  
-  # Write summary data to CSV
-  write_results_csv(summary_data, trait, "_advantage_summary_all")
-}
-
-# 11. Create a summary file for Nextflow tracking
-summary_file <- paste0(tolower(trait), "_", tolower(tool_base), "_size_matched_analysis_summary.tsv")
-write.table(
-  data.frame(
-    trait = trait,
-    disease_id = disease_id,
-    tool_base = tool_base,
-    n_values = paste(n_values, collapse = ","),
-    num_birewire_pathways = nrow(birewire_data),
-    num_keeppath_pathways = nrow(keeppath_data),
-    num_advantage_records = nrow(advantage_data)
-  ),
-  file = summary_file,
-  sep = "\t", 
-  row.names = FALSE, 
-  quote = FALSE
-)
-
-cat("Summary written to", summary_file, "\n")
 cat("======= Analysis Complete =======\n")

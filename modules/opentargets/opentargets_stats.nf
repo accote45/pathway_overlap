@@ -26,6 +26,6 @@ process opentargets_statistics {
     module load R
     
     # Run the modified Size-Matched OT statistics R script
-    Rscript ${params.scripts_dir}/size_matched_OT_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.opentargets_n_values}"
+    Rscript ${params.scripts_dir}/size_matched_OT_stats_optimized.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.opentargets_n_values}"
     """
 }
