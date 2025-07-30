@@ -448,7 +448,7 @@ advantage_data$mean_score_sig <- ifelse(advantage_data$p_value_mean_score < 0.05
 advantage_data$evidence_density_sig <- ifelse(advantage_data$p_value_evidence_density < 0.05, "*", "")
 
 # 8. Write detailed advantage data
-write_results_csv(advantage_data, trait, "_detailed_advantage")
+write_results_csv(advantage_data, trait, tool_base, "_detailed_advantage")
 
 # 9. Create summary tables by ranking type
 for(ranking_type in unique(advantage_data$ranking_type)) {
@@ -479,7 +479,7 @@ for(ranking_type in unique(advantage_data$ranking_type)) {
       }
       
       # Write summary data to CSV
-      write_results_csv(summary_data, trait, "_advantage_summary", file_suffix)
+      write_results_csv(summary_data, trait, tool_base, "_advantage_summary", file_suffix)
       
     }, error = function(e) {
       cat("Error creating summary for ranking type", ranking_type, ":", e$message, "\n")
@@ -490,7 +490,7 @@ for(ranking_type in unique(advantage_data$ranking_type)) {
                mean_score_advantage, mean_score_sig, 
                evidence_density_advantage, evidence_density_sig)
       
-      write_results_csv(simple_summary, trait, "_advantage_summary", paste0(file_suffix, "_simple"))
+      write_results_csv(simple_summary, trait, tool_base, "_advantage_summary", paste0(file_suffix, "_simple"))
     })
   } else {
     cat("No data for ranking type:", ranking_type, "- skipping summary file\n")
