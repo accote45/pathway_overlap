@@ -24,8 +24,11 @@ process opentargets_visualization {
     
     # Create directories
     mkdir -p birewire_files keeppath_files rawp_files sigbeta_files summary_files ${trait}_significant_visualizations ${trait}_size_groups
+
+    # get directory where OT stats output is stored
+    DATA_DIR="${params.outdir}/size_matched_analysis/${tool_base}/${trait}/data/"
     
     # Run visualization script with support for all ranking methods
-    Rscript ${params.scripts_dir}/size_matched_OT_viz.R "${trait}" "${tool_base}" "${detailed_advantage}" "${params.opentargets_sig_threshold}" "."
+    Rscript ${params.scripts_dir}/size_matched_OT_viz.R "${trait}" "${tool_base}" "${detailed_advantage}" "${params.opentargets_sig_threshold}" "\$DATA_DIR"
     """
 }
