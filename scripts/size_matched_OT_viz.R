@@ -1,5 +1,5 @@
 # ===== Top Pathway Prioritization Analysis - Visualizations =====
-# This script creates visualizations for the results of pathway analysis
+# Enhanced to support all pathway ranking methods with default colors
 
 library(tidyverse)
 library(ggplot2)
@@ -19,86 +19,291 @@ detailed_advantage_file <- args[3]
 sig_threshold <- as.numeric(args[4])
 data_dir <- args[5]
 
-# === Plotting Functions ===
+# Load advantage data
+cat("Loading advantage data from:", detailed_advantage_file, "\n")
+advantage_data <- read.csv(detailed_advantage_file)
+advantage_data$N <- as.factor(as.numeric(advantage_data$N))
 
-create_boxplot <- function(data, x_col, y_col, fill_col, title, x_lab, y_lab, fill_values) {
-  p <- ggplot(data, aes_string(x=x_col, y=y_col, fill=fill_col)) +
-    geom_boxplot(position=position_dodge(width=0.8), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.2, dodge.width=0.8), alpha=0.6, size=1) +
-    scale_fill_manual(values=fill_values) +
-    labs(title=title, x=x_lab, y=y_lab) +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5),
-      legend.title = element_text(face="bold"),
-      axis.title = element_text(size=14, face="bold"),
-      axis.text = element_text(size=12),
-      plot.title = element_text(size=16, face="bold"),
-      legend.text = element_text(size=12)
-    )
-  
-  return(p)
-}
+# Extract n_values from advantage data
+n_values <- unique(as.numeric(as.character(advantage_data$N)))
+cat("Found N values:", paste(n_values, collapse=", "), "\n")
 
-create_advantage_plot <- function(advantage_data, y_col, title, y_lab) {
-  p <- ggplot(advantage_data, aes_string(x="N", y=y_col, fill="method")) +
-    geom_bar(stat="identity", position=position_dodge(), width=0.7) +
-    geom_text(aes(label=sprintf("%.3f", .data[[y_col]])), 
-            position=position_dodge(width=0.9), vjust=-0.5, size=4) +
-    scale_fill_manual(values=c("Fix gene frequency and pathway size"="blue", "Fix pathway size"="red")) +
-    labs(title=title, x="Top N Pathways", y=y_lab) +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      legend.title = element_text(face="bold"),
-      axis.title = element_text(size=14, face="bold"),
-      axis.text = element_text(size=12),
-      plot.title = element_text(size=16, face="bold"),
-      legend.text = element_text(size=12)
-    ) +
-    guides(fill=guide_legend(title="Null Model"))
-  
-  return(p)
-}
+# Set method labels
+method_labels <- list(
+  birewire = "Fix gene frequency and pathway size",
+  keeppath = "Fix pathway size",
+  rawp = "Raw p-value",
+  sigbeta = "Significant beta"
+)
 
-create_combined_boxplots <- function(n_values, trait, tool_base, data_dir, method_labels) {
-  # Load matched data files
-  all_bw_files <- list.files(path = data_dir, pattern = paste0(trait, "_", tool_base, "_n\\d+_birewire_matched.csv"), full.names = TRUE)
-  all_kp_files <- list.files(path = data_dir, pattern = paste0(trait, "_", tool_base, "_n\\d+_keeppath_matched.csv"), full.names = TRUE)
-  
-  if(length(all_bw_files) == 0 || length(all_kp_files) == 0) {
-    cat("Warning: No matched data files found\n")
-    return(NULL)
-  }
-  
-  # Extract and combine data from all N values
+# Update method names in advantage data to use descriptive labels
+cat("Original methods in advantage_data:", paste(unique(advantage_data$method), collapse=", "), "\n")
+
+# Transform method names to descriptive labels
+advantage_data <- advantage_data %>%
+  mutate(method = case_when(
+    method == "BireWire" ~ method_labels$birewire,
+    method == "KeepPathSize" ~ method_labels$keeppath,
+    method == "RawP" ~ method_labels$rawp,
+    method == "SigBeta" ~ method_labels$sigbeta,
+    TRUE ~ method
+  ))
+
+cat("Transformed methods in advantage_data:", paste(unique(advantage_data$method), collapse=", "), "\n")
+
+# === PART 1: CREATE ADVANTAGE PLOTS ===
+cat("\nCreating advantage plots...\n")
+
+# Add significance indicators with stricter threshold
+advantage_data <- advantage_data %>%
+  mutate(
+    # Create significance indicator for mean score - only if p < 0.00625
+    score_sig_label = ifelse(p_value_mean_score < 0.00625, "*", ""),
+    
+    # Create significance indicator for evidence density - only if p < 0.00625
+    density_sig_label = ifelse(p_value_evidence_density < 0.00625, "*", "")
+  )
+
+# Open PDF for advantage plots
+pdf(paste0(trait, "_combined_advantage_plots.pdf"), width=10, height=8)
+
+# === Create Mean Score Advantage Plot with significance markers ===
+p1 <- ggplot(advantage_data, aes(x=N, y=mean_score_advantage, fill=method)) +
+  geom_bar(stat="identity", position=position_dodge(), width=0.7) +
+  geom_text(aes(label=sprintf("%.3f", mean_score_advantage)), 
+            position=position_dodge2(width=0.9,padding=0.5), vjust=-0.5, size=4) +
+  # Add significance markers only where p<0.00625
+  geom_text(aes(label=score_sig_label, group=method),
+            position=position_dodge2(width=0.9,padding=0.5),
+            vjust=-1.8, size=6, fontface="bold") +
+  # Use default ggplot colors
+  labs(title="Mean Score Advantage (Top Pathways vs. Size-Matched Controls)", 
+       x="Top N Pathways", y="Score Difference",
+       subtitle="* p<0.00625 (Bonferroni corrected)") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face="bold"),
+    axis.title = element_text(size=14, face="bold"),
+    axis.text = element_text(size=12),
+    plot.title = element_text(size=16, face="bold"),
+    plot.subtitle = element_text(size=10, face="italic"),
+    legend.text = element_text(size=12)
+  ) +
+  guides(fill=guide_legend(title="Null Model"))
+print(p1)
+
+# === Create Evidence Density Advantage Plot with significance markers ===
+p2 <- ggplot(advantage_data, aes(x=N, y=evidence_density_advantage, fill=method)) +
+  geom_bar(stat="identity", position=position_dodge(), width=0.7) +
+  geom_text(aes(label=sprintf("%.3f", evidence_density_advantage)), 
+            position=position_dodge2(width=0.9,padding=0.5), vjust=-0.5, size=4) +
+  # Add significance markers only where p<0.00625
+  geom_text(aes(label=density_sig_label, group=method),
+            position=position_dodge2(width=0.9,padding=0.5),
+            vjust=-1.8, size=6, fontface="bold") +
+  # Use default ggplot colors
+  labs(title="Evidence Density Advantage (Top Pathways vs. Size-Matched Controls)", 
+       x="Top N Pathways", y="Density Difference",
+       subtitle="* p<0.00625 (Bonferroni corrected)") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face="bold"),
+    axis.title = element_text(size=14, face="bold"),
+    axis.text = element_text(size=12),
+    plot.title = element_text(size=16, face="bold"),
+    plot.subtitle = element_text(size=10, face="italic"),
+    legend.text = element_text(size=12)
+  ) +
+  guides(fill=guide_legend(title="Null Model"))
+print(p2)
+
+dev.off()
+cat("Created advantage plots:", trait, "_combined_advantage_plots.pdf\n")
+
+# === PART 2: CREATE COMBINED BOXPLOTS ===
+cat("\nCreating combined boxplots...\n")
+
+# Load matched data files for all methods
+all_bw_files <- list.files(path = data_dir, 
+                          pattern = paste0(trait, "_", tool_base, "_n\\d+_birewire.csv"), 
+                          full.names = TRUE)
+all_kp_files <- list.files(path = data_dir, 
+                          pattern = paste0(trait, "_", tool_base, "_n\\d+_keeppathsize.csv"), 
+                          full.names = TRUE)
+all_rawp_files <- list.files(path = data_dir, 
+                            pattern = paste0(trait, "_", tool_base, "_n\\d+_rawp_raw_p.csv"), 
+                            full.names = TRUE)
+all_sigbeta_files <- list.files(path = data_dir, 
+                               pattern = paste0(trait, "_", tool_base, "_n\\d+_sigbeta_sig_beta.csv"), 
+                               full.names = TRUE)
+
+# Print file counts
+cat("Files found for each method:\n")
+cat(" - BireWire:", length(all_bw_files), "\n")
+cat(" - KeepPathSize:", length(all_kp_files), "\n")
+cat(" - Raw P-value:", length(all_rawp_files), "\n")
+cat(" - Significant Beta:", length(all_sigbeta_files), "\n")
+
+# Check if we have any data files
+if(length(all_bw_files) + length(all_kp_files) + length(all_rawp_files) + length(all_sigbeta_files) == 0) {
+  cat("Warning: No matched data files found for any method\n")
+} else {
+  # Initialize combined data frames for each method
   combined_bw_data <- data.frame()
   combined_kp_data <- data.frame()
+  combined_rawp_data <- data.frame()
+  combined_sigbeta_data <- data.frame()
   
   for(n in n_values) {
-    # Find files for this n value
+    cat("\nProcessing data for N =", n, "...\n")
+    
+    # Find files for this n value across all methods
     bw_file <- grep(paste0("_n", n, "_birewire"), all_bw_files, value = TRUE)
     kp_file <- grep(paste0("_n", n, "_keeppath"), all_kp_files, value = TRUE)
+    rawp_file <- grep(paste0("_n", n, "_rawp"), all_rawp_files, value = TRUE)
+    sigbeta_file <- grep(paste0("_n", n, "_sigbeta"), all_sigbeta_files, value = TRUE)
     
-    if(length(bw_file) > 0 && length(kp_file) > 0) {
-      # Process BireWire data
+    # Process BireWire data if available
+    if(length(bw_file) > 0) {
+      cat("Processing BireWire data from", basename(bw_file[1]), "\n")
       bw_data <- read.csv(bw_file[1])
-      bw_data$N <- paste0("Top ", n)
-      bw_data$Group <- factor(bw_data$in_birewire_top, labels = c("Control", "BireWire"))
-      combined_bw_data <- rbind(combined_bw_data, bw_data)
       
-      # Process KeepPathSize data
+      # Check if in_birewire_top exists
+      if("in_birewire_top" %in% colnames(bw_data)) {
+        # Add N and Group columns
+        bw_data$N <- paste0("Top ", n)
+        bw_data$Group <- factor(bw_data$in_birewire_top, labels = c("Control", method_labels$birewire))
+        bw_data$Method_Short <- "BireWire"
+        combined_bw_data <- rbind(combined_bw_data, bw_data)
+        
+        # Calculate stats for debugging
+        random_scores_bw <- bw_data$mean_score[bw_data$in_birewire_top]
+        control_scores_bw <- bw_data$mean_score[!bw_data$in_birewire_top]
+        t_test_bw <- t.test(random_scores_bw, control_scores_bw)
+        cat(method_labels$birewire, "advantage:", 
+            mean(random_scores_bw, na.rm=TRUE) - mean(control_scores_bw, na.rm=TRUE), 
+            "(p =", t_test_bw$p.value, ")\n")
+      } else {
+        cat("Warning: in_birewire_top column not found in BireWire data\n")
+      }
+    }
+    
+    # Process KeepPathSize data if available
+    if(length(kp_file) > 0) {
+      cat("Processing KeepPathSize data from", basename(kp_file[1]), "\n")
       kp_data <- read.csv(kp_file[1])
-      kp_data$N <- paste0("Top ", n)
-      kp_data$Group <- factor(kp_data$in_keeppath_top, labels = c("Control", "KeepPathSize"))
-      combined_kp_data <- rbind(combined_kp_data, kp_data)
+      
+      # Check if in_keeppath_top exists
+      if("in_keeppath_top" %in% colnames(kp_data)) {
+        # Add N and Group columns
+        kp_data$N <- paste0("Top ", n)
+        kp_data$Group <- factor(kp_data$in_keeppath_top, labels = c("Control", method_labels$keeppath))
+        kp_data$Method_Short <- "KeepPathSize"
+        combined_kp_data <- rbind(combined_kp_data, kp_data)
+        
+        # Calculate stats for debugging
+        random_scores_kp <- kp_data$mean_score[kp_data$in_keeppath_top]
+        control_scores_kp <- kp_data$mean_score[!kp_data$in_keeppath_top]
+        t_test_kp <- t.test(random_scores_kp, control_scores_kp)
+        cat(method_labels$keeppath, "advantage:", 
+            mean(random_scores_kp, na.rm=TRUE) - mean(control_scores_kp, na.rm=TRUE), 
+            "(p =", t_test_kp$p.value, ")\n")
+      } else {
+        cat("Warning: in_keeppath_top column not found in KeepPathSize data\n")
+      }
+    }
+    
+    # Process Raw P-value data if available
+    if(length(rawp_file) > 0) {
+      cat("Processing Raw P-value data from", basename(rawp_file[1]), "\n")
+      rawp_data <- read.csv(rawp_file[1])
+      
+      # Check if in_raw_p_top exists
+      if("in_raw_p_top" %in% colnames(rawp_data)) {
+        # Add N and Group columns
+        rawp_data$N <- paste0("Top ", n)
+        rawp_data$Group <- factor(rawp_data$in_raw_p_top, labels = c("Control", method_labels$rawp))
+        rawp_data$Method_Short <- "RawP"
+        combined_rawp_data <- rbind(combined_rawp_data, rawp_data)
+        
+        # Calculate stats for debugging
+        random_scores_rawp <- rawp_data$mean_score[rawp_data$in_raw_p_top]
+        control_scores_rawp <- rawp_data$mean_score[!rawp_data$in_raw_p_top]
+        t_test_rawp <- t.test(random_scores_rawp, control_scores_rawp)
+        cat(method_labels$rawp, "advantage:", 
+            mean(random_scores_rawp, na.rm=TRUE) - mean(control_scores_rawp, na.rm=TRUE), 
+            "(p =", t_test_rawp$p.value, ")\n")
+      } else {
+        cat("Warning: in_raw_p_top column not found in Raw P-value data\n")
+      }
+    }
+    
+    # Process Significant Beta data if available
+    if(length(sigbeta_file) > 0) {
+      cat("Processing Significant Beta data from", basename(sigbeta_file[1]), "\n")
+      sigbeta_data <- read.csv(sigbeta_file[1])
+      
+      # Check if in_sig_beta_top exists
+      if("in_sig_beta_top" %in% colnames(sigbeta_data)) {
+        # Add N and Group columns
+        sigbeta_data$N <- paste0("Top ", n)
+        sigbeta_data$Group <- factor(sigbeta_data$in_sig_beta_top, labels = c("Control", method_labels$sigbeta))
+        sigbeta_data$Method_Short <- "SigBeta"
+        combined_sigbeta_data <- rbind(combined_sigbeta_data, sigbeta_data)
+        
+        # Calculate stats for debugging
+        random_scores_sigbeta <- sigbeta_data$mean_score[sigbeta_data$in_sig_beta_top]
+        control_scores_sigbeta <- sigbeta_data$mean_score[!sigbeta_data$in_sig_beta_top]
+        t_test_sigbeta <- t.test(random_scores_sigbeta, control_scores_sigbeta)
+        cat(method_labels$sigbeta, "advantage:", 
+            mean(random_scores_sigbeta, na.rm=TRUE) - mean(control_scores_sigbeta, na.rm=TRUE), 
+            "(p =", t_test_sigbeta$p.value, ")\n")
+      } else {
+        cat("Warning: in_sig_beta_top column not found in Significant Beta data\n")
+      }
     }
   }
   
-  # Order N factor correctly
-  combined_bw_data$N <- factor(combined_bw_data$N, levels = paste0("Top ", n_values))
-  combined_kp_data$N <- factor(combined_kp_data$N, levels = paste0("Top ", n_values))
+  # Order N factor correctly for all datasets
+  for(df_name in c("combined_bw_data", "combined_kp_data", "combined_rawp_data", "combined_sigbeta_data")) {
+    df <- get(df_name)
+    if(nrow(df) > 0) {
+      df$N <- factor(df$N, levels = paste0("Top ", n_values))
+      assign(df_name, df)
+    }
+  }
+  
+  # Combine all datasets for direct comparison plots
+  # Extract only top pathways (not controls) from each method
+  top_pathways_list <- list()
+  
+  if(nrow(combined_bw_data) > 0) {
+    top_bw <- combined_bw_data[combined_bw_data$Group == method_labels$birewire, ]
+    top_pathways_list[["BireWire"]] <- top_bw
+  }
+  
+  if(nrow(combined_kp_data) > 0) {
+    top_kp <- combined_kp_data[combined_kp_data$Group == method_labels$keeppath, ]
+    top_pathways_list[["KeepPathSize"]] <- top_kp
+  }
+  
+  if(nrow(combined_rawp_data) > 0) {
+    top_rawp <- combined_rawp_data[combined_rawp_data$Group == method_labels$rawp, ]
+    top_pathways_list[["RawP"]] <- top_rawp
+  }
+  
+  if(nrow(combined_sigbeta_data) > 0) {
+    top_sigbeta <- combined_sigbeta_data[combined_sigbeta_data$Group == method_labels$sigbeta, ]
+    top_pathways_list[["SigBeta"]] <- top_sigbeta
+  }
+  
+  # Combine all top pathways into one dataframe
+  top_combined <- do.call(rbind, top_pathways_list)
+  
+  # Create combined boxplots and save to PDF
+  pdf(paste0(trait, "_combined_boxplots.pdf"), width=12, height=10)
   
   # Increase text sizes for all plots
   title_size <- 18
@@ -107,490 +312,107 @@ create_combined_boxplots <- function(n_values, trait, tool_base, data_dir, metho
   legend_title_size <- 14
   legend_text_size <- 14
   
-  # Create boxplots and save to PDF
-  pdf(paste0(trait, "_combined_boxplots.pdf"), width=12, height=10)
-  
-  # BireWire Mean Score
-  p1 <- ggplot(combined_bw_data, aes(x=N, y=mean_score, fill=Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("Control"="gray80", "BireWire"="lightblue")) +
-    labs(title=paste(method_labels$birewire, ": OpenTargets Mean Score Across Different N Values"),
-         x="", y="Mean OpenTargets Score") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_blank(),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    )
-  print(p1)
-  
-  # BireWire Evidence Density
-  p2 <- ggplot(combined_bw_data, aes(x=N, y=evidence_density, fill=Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("Control"="gray80", "BireWire"="lightblue")) +
-    labs(title=paste(method_labels$birewire, ": Evidence Density Across Different N Values"),
-         x="", y="Evidence Density") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_blank(),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    )
-  print(p2)
-  
-  # KeepPathSize Mean Score
-  p3 <- ggplot(combined_kp_data, aes(x=N, y=mean_score, fill=Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("Control"="gray80", "KeepPathSize"="lightpink")) +
-    labs(title=paste(method_labels$keeppath, ": OpenTargets Mean Score Across Different N Values"),
-         x="", y="Mean OpenTargets Score") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_blank(),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    )
-  print(p3)
-  
-  # KeepPathSize Evidence Density
-  p4 <- ggplot(combined_kp_data, aes(x=N, y=evidence_density, fill=Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("Control"="gray80", "KeepPathSize"="lightpink")) +
-    labs(title=paste(method_labels$keeppath, ": Evidence Density Across Different N Values"),
-         x="", y="Evidence Density") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_blank(),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    )
-  print(p4)
-  
-  # Now create a combined plot with both methods for direct comparison
-  # First, rename the groups to include method name
-  combined_bw_data$Method_Group <- "BireWire"
-  combined_kp_data$Method_Group <- "KeepPathSize"
-  
-  # Filter only the top pathways (not controls)
-  top_bw <- combined_bw_data[combined_bw_data$Group == "BireWire", ]
-  top_kp <- combined_kp_data[combined_kp_data$Group == "KeepPathSize", ]
-  
-  # Combine the datasets
-  top_combined <- rbind(top_bw, top_kp)
-  
-  # Direct comparison of methods
-  p5 <- ggplot(top_combined, aes(x=N, y=mean_score, fill=Method_Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("BireWire"="lightblue", "KeepPathSize"="lightpink")) +
-    labs(title="Direct Comparison: OpenTargets Mean Score by Method",
-         x="", y="Mean OpenTargets Score") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_text(face="bold", size=legend_title_size),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    ) +
-    guides(fill=guide_legend(title="Null Model"))
-  print(p5)
-  
-  p6 <- ggplot(top_combined, aes(x=N, y=evidence_density, fill=Method_Group)) +
-    geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
-    geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
-              alpha=0.4, size=1) +
-    scale_fill_manual(values=c("BireWire"="lightblue", "KeepPathSize"="lightpink")) +
-    labs(title="Direct Comparison: Evidence Density by Method",
-         x="", y="Evidence Density") +
-    theme_minimal() +
-    theme(
-      legend.position = "bottom",
-      axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
-      axis.text.y = element_text(size=axis_text_size),
-      legend.title = element_text(face="bold", size=legend_title_size),
-      axis.title = element_text(size=axis_title_size, face="bold"),
-      plot.title = element_text(size=title_size, face="bold"),
-      legend.text = element_text(size=legend_text_size)
-    ) +
-    guides(fill=guide_legend(title="Null Model"))
-  print(p6)
-  
-  dev.off()
-}
-
-# Function to find and highlight significant results
-find_significant_comparisons <- function(advantage_data, sig_threshold = 0.00625) {
-  # Find significant results (p < threshold for either score or density)
-  sig_rows <- advantage_data %>%
-    filter(p_value_score < sig_threshold | p_value_density < sig_threshold)
-  
-  return(sig_rows)
-}
-
-# Function to create boxplots for significant results
-create_significant_boxplots <- function(sig_results, data_dir, trait) {
-  # Create output directory - always create it
-  sig_dir <- paste0(trait, "_significant_visualizations")
-  dir.create(sig_dir, showWarnings = FALSE)
-  
-  if (nrow(sig_results) == 0) {
-    cat("No significant results found.\n")
-    # Create an empty placeholder file
-    file.create(file.path(sig_dir, "no_significant_results.txt"))
-    return(sig_dir)
+  # 1. Create individual method plots
+  for(method_data in list(
+    list(data=combined_bw_data, name="BireWire", label=method_labels$birewire),
+    list(data=combined_kp_data, name="KeepPathSize", label=method_labels$keeppath),
+    list(data=combined_rawp_data, name="RawP", label=method_labels$rawp),
+    list(data=combined_sigbeta_data, name="SigBeta", label=method_labels$sigbeta)
+  )) {
+    
+    if(nrow(method_data$data) > 0) {
+      # Mean score plot
+      p <- ggplot(method_data$data, aes(x=N, y=mean_score, fill=Group)) +
+        geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+        geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+                  alpha=0.4, size=1) +
+        # Use default ggplot colors
+        labs(title=paste(method_data$label, ": OpenTargets Mean Score Across Different N Values"),
+             x="", y="Mean OpenTargets Score") +
+        theme_minimal() +
+        theme(
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+          axis.text.y = element_text(size=axis_text_size),
+          legend.title = element_blank(),
+          axis.title = element_text(size=axis_title_size, face="bold"),
+          plot.title = element_text(size=title_size, face="bold"),
+          legend.text = element_text(size=legend_text_size)
+        )
+      print(p)
+      
+      # Evidence density plot
+      p <- ggplot(method_data$data, aes(x=N, y=evidence_density, fill=Group)) +
+        geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+        geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+                  alpha=0.4, size=1) +
+        # Use default ggplot colors
+        labs(title=paste(method_data$label, ": Evidence Density Across Different N Values"),
+             x="", y="Evidence Density") +
+        theme_minimal() +
+        theme(
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+          axis.text.y = element_text(size=axis_text_size),
+          legend.title = element_blank(),
+          axis.title = element_text(size=axis_title_size, face="bold"),
+          plot.title = element_text(size=title_size, face="bold"),
+          legend.text = element_text(size=legend_text_size)
+        )
+      print(p)
+    }
   }
   
-  cat("Found", nrow(sig_results), "significant results\n")
-  
-  # Create a plot for each significant finding
-  plots <- list()
-  
-  for (i in 1:nrow(sig_results)) {
-    row <- sig_results[i, ]
-    n_value <- as.numeric(as.character(row$N))
-    method <- as.character(row$method)
+  # 2. Direct comparison of all methods (if we have more than one method with data)
+  if(length(top_pathways_list) > 1) {
+    cat("Creating direct method comparison plots with", length(top_pathways_list), "methods\n")
     
-    # Determine which method is significant
-    if (method == "Fix gene frequency and pathway size") {
-      method_short <- "birewire"
-    } else {
-      method_short <- "keeppath"
-    }
-    
-    # Try to find the matched data file
-    matched_file <- list.files(path = data_dir, 
-                              pattern = paste0(trait, ".*_n", n_value, "_", method_short, "_matched.csv"), 
-                              full.names = TRUE)
-    
-    if (length(matched_file) == 0) {
-      cat("Warning: Matched data file not found for", n_value, method_short, "\n")
-      next
-    }
-    
-    # Load matched data
-    matched_data <- read.csv(matched_file[1])
-    
-    # Prepare plot data
-    if (method_short == "birewire") {
-      plot_data <- data.frame(
-        group = ifelse(matched_data$in_birewire_top, "Random", "Control"),
-        ot_score = matched_data$mean_score,
-        method = "BireWire"
-      )
-      col_name <- "in_birewire_top"
-    } else {
-      plot_data <- data.frame(
-        group = ifelse(matched_data$in_keeppath_top, "Random", "Control"),
-        ot_score = matched_data$mean_score,
-        method = "KeepPathSize"
-      )
-      col_name <- "in_keeppath_top"
-    }
-    
-    # Calculate statistics for annotation
-    if (method_short == "birewire") {
-      random_scores <- matched_data$mean_score[matched_data$in_birewire_top]
-      control_scores <- matched_data$mean_score[!matched_data$in_birewire_top]
-    } else {
-      random_scores <- matched_data$mean_score[matched_data$in_keeppath_top]
-      control_scores <- matched_data$mean_score[!matched_data$in_keeppath_top]
-    }
-    
-    t_test <- t.test(random_scores, control_scores)
-    p_val <- t_test$p.value
-    mean_random <- mean(random_scores, na.rm = TRUE)
-    mean_control <- mean(control_scores, na.rm = TRUE)
-    percent_diff <- ((mean_random - mean_control) / mean_control) * 100
-    
-    # Create plot
-    p <- ggplot(plot_data, aes(x = group, y = ot_score, fill = group)) +
-      geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-      geom_jitter(width = 0.2, alpha = 0.4, size = 2) +
-      scale_fill_manual(values = c("Control" = "grey80", "Random" = "#377EB8")) +
-      labs(
-        title = paste(trait, "-", tool_base, "- Top", n_value, "Pathways"),
-        subtitle = paste0(
-          method, "\n",
-          "p = ", signif(p_val, 3), 
-          " | Diff: ", signif(percent_diff, 2), "%"
-        ),
-        x = "",
-        y = "OpenTargets Association Score"
-      ) +
+    # Direct comparison of methods - Mean Score
+    p <- ggplot(top_combined, aes(x=N, y=mean_score, fill=Method_Short)) +
+      geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+      geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+                alpha=0.4, size=1) +
+      # Use default ggplot colors
+      labs(title="Direct Comparison: OpenTargets Mean Score by Method",
+           x="", y="Mean OpenTargets Score") +
       theme_minimal() +
       theme(
-        legend.position = "none",
-        plot.title = element_text(face = "bold", size = 11),
-        plot.subtitle = element_text(size = 9),
-        axis.title.y = element_text(face = "bold")
-      )
-    
-    # Add significance annotation
-    sig_pval <- if(method_short == "birewire") row$p_value_score else row$p_value_density
-    if (sig_pval < 0.001) {
-      p <- p + annotate(
-        "text", x = 1.5, y = max(plot_data$ot_score, na.rm = TRUE) * 1.05,
-        label = "***", size = 8, fontface = "bold"
-      )
-    } else if (sig_pval < 0.01) {
-      p <- p + annotate(
-        "text", x = 1.5, y = max(plot_data$ot_score, na.rm = TRUE) * 1.05,
-        label = "**", size = 8, fontface = "bold"
-      )
-    } else {
-      p <- p + annotate(
-        "text", x = 1.5, y = max(plot_data$ot_score, na.rm = TRUE) * 1.05,
-        label = "*", size = 8, fontface = "bold"
-      )
-    }
-    
-    # Store the plot
-    plots[[i]] <- p
-    
-    # Save individual plot
-    file_name <- paste0(sig_dir, "/", trait, "_", tool_base, "_N", n_value, "_", method_short, "_boxplot.pdf")
-    ggsave(file_name, p, width = 7, height = 6)
-  }
-  
-  # Create combined figure with the most significant results (up to 6)
-  if (length(plots) > 1) {
-    # Sort by p-value and take up to 6
-    sorted_results <- sig_results %>%
-      arrange(pmin(p_value_score, p_value_density)) %>%
-      head(min(6, nrow(sig_results)))
-    
-    sorted_plots <- list()
-    for (i in 1:nrow(sorted_results)) {
-      row_match <- sig_results$N == sorted_results$N[i] & 
-                   sig_results$method == sorted_results$method[i]
-      
-      if (any(row_match)) {
-        sorted_plots[[i]] <- plots[[which(row_match)[1]]]
-      }
-    }
-    
-    # Determine grid layout
-    n_plots <- length(sorted_plots)
-    if (n_plots <= 3) {
-      ncols <- n_plots
-    } else {
-      ncols <- 3
-    }
-    
-    # Create combined figure
-    combined_file <- paste0(sig_dir, "/top_significant_results.pdf")
-    pdf(combined_file, width = min(ncols * 5, 15), height = ceiling(n_plots/ncols) * 5)
-    grid.arrange(grobs = sorted_plots, ncol = ncols)
-    dev.off()
-    cat("Created combined figure with top significant results:", combined_file, "\n")
-  }
-  
-  # Create heatmap of significant results
-  if (nrow(sig_results) > 0) {
-    heat_data <- sig_results %>%
-      mutate(
-        sig_type = case_when(
-          p_value_score < sig_threshold & p_value_density < sig_threshold ~ "Both",
-          p_value_score < sig_threshold ~ "Score",
-          p_value_density < sig_threshold ~ "Density",
-          TRUE ~ "None"
-        ),
-        min_p = pmin(p_value_score, p_value_density)
-      )
-    
-    p <- ggplot(heat_data, aes(
-      x = N, 
-      y = method,
-      fill = -log10(min_p)
-    )) +
-      geom_tile(color = "white", size = 0.5) +
-      scale_fill_gradient2(
-        low = "white", mid = "orange", high = "red",
-        midpoint = -log10(sig_threshold/2),
-        name = "-log10(p)"
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+        axis.text.y = element_text(size=axis_text_size),
+        legend.title = element_text(face="bold", size=legend_title_size),
+        axis.title = element_text(size=axis_title_size, face="bold"),
+        plot.title = element_text(size=title_size, face="bold"),
+        legend.text = element_text(size=legend_text_size)
       ) +
-      geom_text(
-        aes(label = sig_type),
-        size = 3
-      ) +
-      labs(
-        title = paste(trait, tool_base, "- Significant Results Summary"),
-        subtitle = paste("Threshold p <", sig_threshold),
-        x = "Top N Pathways",
-        y = "Method"
-      ) +
+      guides(fill=guide_legend(title="Null Model"))
+    print(p)
+    
+    # Direct comparison of methods - Evidence Density
+    p <- ggplot(top_combined, aes(x=N, y=evidence_density, fill=Method_Short)) +
+      geom_boxplot(position=position_dodge(), width=0.7, alpha=0.8, outlier.shape=NA) +
+      geom_point(position=position_jitterdodge(jitter.width=0.15, dodge.width=0.7), 
+                alpha=0.4, size=1) +
+      # Use default ggplot colors
+      labs(title="Direct Comparison: Evidence Density by Method",
+           x="", y="Evidence Density") +
       theme_minimal() +
       theme(
-        axis.text.y = element_text(hjust = 1),
-        panel.grid = element_blank()
-      )
-    
-    # Save the heatmap
-    ggsave(paste0(sig_dir, "/significant_results_heatmap.pdf"), p, width = 8, height = 4)
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 0, hjust = 0.5, size=axis_text_size),
+        axis.text.y = element_text(size=axis_text_size),
+        legend.title = element_text(face="bold", size=legend_title_size),
+        axis.title = element_text(size=axis_title_size, face="bold"),
+        plot.title = element_text(size=title_size, face="bold"),
+        legend.text = element_text(size=legend_text_size)
+      ) +
+      guides(fill=guide_legend(title="Null Model"))
+    print(p)
   }
-  
-  return(sig_dir)
-}
-
-# === Main Function ===
-main <- function() {
-  # Load advantage data
-  cat("Loading advantage data from:", detailed_advantage_file, "\n")
-  advantage_data <- read.csv(detailed_advantage_file)
-  
-  # Extract n_values from advantage data
-  n_values <- unique(as.numeric(as.character(advantage_data$N)))
-  cat("Found N values:", paste(n_values, collapse=", "), "\n")
-  
-  # Set method labels
-  method_labels <- list(
-    birewire = "Fix gene frequency and pathway size",
-    keeppath = "Fix pathway size"
-  )
-  
-  # 1. Create advantage plots
-  pdf(paste0(trait, "_combined_advantage_plots.pdf"), width=10, height=8)
-  
-  # Mean score advantage
-  p1 <- create_advantage_plot(
-    advantage_data,
-    y_col = "mean_score_advantage",
-    title = "Mean Score Advantage (Top Pathways vs. Size-Matched Controls)",
-    y_lab = "Score Difference"
-  )
-  print(p1)
-  
-  # Evidence density advantage
-  p2 <- create_advantage_plot(
-    advantage_data,
-    y_col = "evidence_density_advantage",
-    title = "Evidence Density Advantage (Top Pathways vs. Size-Matched Controls)",
-    y_lab = "Density Difference"
-  )
-  print(p2)
   
   dev.off()
-  
-  # 2. Create combined boxplots from matched data files
-  create_combined_boxplots(n_values, trait, tool_base, data_dir, method_labels)
-  
-  # 3. Find significant results and create special visualizations
-  sig_results <- find_significant_comparisons(advantage_data, sig_threshold)
-  if (!is.null(sig_results) && nrow(sig_results) > 0) {
-    create_significant_boxplots(sig_results, data_dir, trait)
+  cat("Created combined boxplots:", trait, "_combined_boxplots.pdf\n")
   }
-  
-  # 4. Create N-specific boxplots 
-  for (n in n_values) {
-    matched_files <- list.files(path = data_dir, 
-                               pattern = paste0(trait, "_", tool_base, "_n", n, "_.*_matched.csv"),
-                               full.names = TRUE)
-    
-    if (length(matched_files) >= 2) {
-      pdf(paste0(trait, "_matching_plots_n", n, ".pdf"), width=10, height=8)
-      
-      # BireWire file
-      bw_file <- grep("birewire", matched_files, value=TRUE)
-      if (length(bw_file) > 0) {
-        bw_data <- read.csv(bw_file[1])
-        bw_plot_data <- bw_data %>%
-          mutate(Group = factor(in_birewire_top, labels = c("Control", "BireWire")))
-        
-        # Mean score comparison
-        p1 <- create_boxplot(
-          bw_plot_data, 
-          x_col = "Group", 
-          y_col = "mean_score",
-          fill_col = "Group",
-          title = paste("OpenTargets Mean Score - BireWire Top", n, "vs Size-Matched Controls"),
-          x_lab = "Group", 
-          y_lab = "Mean OpenTargets Score",
-          fill_values = c("Control" = "gray80", "BireWire" = "lightblue")
-        )
-        print(p1)
-        
-        # Evidence density comparison
-        p2 <- create_boxplot(
-          bw_plot_data, 
-          x_col = "Group", 
-          y_col = "evidence_density",
-          fill_col = "Group",
-          title = paste("Evidence Density - BireWire Top", n, "vs Size-Matched Controls"),
-          x_lab = "Group", 
-          y_lab = "Evidence Density",
-          fill_values = c("Control" = "gray80", "BireWire" = "lightblue")
-        )
-        print(p2)
-      }
-      
-      # KeepPathSize file
-      kp_file <- grep("keeppath", matched_files, value=TRUE)
-      if (length(kp_file) > 0) {
-        kp_data <- read.csv(kp_file[1])
-        kp_plot_data <- kp_data %>%
-          mutate(Group = factor(in_keeppath_top, labels = c("Control", "KeepPathSize")))
-        
-        # Mean score comparison
-        p3 <- create_boxplot(
-          kp_plot_data, 
-          x_col = "Group", 
-          y_col = "mean_score",
-          fill_col = "Group",
-          title = paste("OpenTargets Mean Score - KeepPathSize Top", n, "vs Size-Matched Controls"),
-          x_lab = "Group", 
-          y_lab = "Mean OpenTargets Score",
-          fill_values = c("Control" = "gray80", "KeepPathSize" = "lightpink")
-        )
-        print(p3)
-        
-        # Evidence density comparison
-        p4 <- create_boxplot(
-          kp_plot_data, 
-          x_col = "Group", 
-          y_col = "evidence_density",
-          fill_col = "Group",
-          title = paste("Evidence Density - KeepPathSize Top", n, "vs Size-Matched Controls"),
-          x_lab = "Group", 
-          y_lab = "Evidence Density",
-          fill_values = c("Control" = "gray80", "KeepPathSize" = "lightpink")
-        )
-        print(p4)
-      }
-      
-      dev.off()
-    }
-  }
-  
-  cat("All visualizations complete.\n")
 }
 
-# Execute the main function
-main()
+cat("\n===== All visualizations complete =====\n")
