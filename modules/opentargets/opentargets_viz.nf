@@ -8,7 +8,7 @@ process opentargets_visualization {
     tuple val(trait), 
           val(tool_base),
           path(detailed_advantage),
-          path(gene_disease_associations),
+          path(gene_disease_associations)
     
     output:
     tuple val(trait), 
