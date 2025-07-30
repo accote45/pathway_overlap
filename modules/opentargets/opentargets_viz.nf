@@ -15,8 +15,6 @@ process opentargets_visualization {
           val(tool_base),
           path("${trait}_combined_advantage_plots.pdf"),
           path("${trait}_combined_boxplots.pdf"),
-          path("${trait}_significant_visualizations/*", optional: true),
-          path("*.csv", optional: true)
 
     script:
     """
