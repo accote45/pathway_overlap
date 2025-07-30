@@ -413,6 +413,5 @@ if(length(all_bw_files) + length(all_kp_files) + length(all_rawp_files) + length
   dev.off()
   cat("Created combined boxplots:", trait, "_combined_boxplots.pdf\n")
   }
-}
 
 cat("\n===== All visualizations complete =====\n")

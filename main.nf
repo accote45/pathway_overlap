@@ -282,7 +282,14 @@ workflow {
             magma_opentargets_stats = opentargets_statistics(magma_for_opentargets)
             
             // Step 2: Generate visualizations
-            magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
+            magma_opentargets_viz = opentargets_visualization(
+                magma_opentargets_stats.map { trait, tool_base, detailed_advantage, 
+                                            birewire_files, keeppath_files, rawp_files, sigbeta_files, 
+                                            gene_disease_associations, advantage_summary ->
+                    // Extract only the elements needed by the visualization process
+                    tuple(trait, tool_base, detailed_advantage, gene_disease_associations)
+                }
+            )
         }
         
         // Run OpenTargets comparison for PRSet (if enabled)
