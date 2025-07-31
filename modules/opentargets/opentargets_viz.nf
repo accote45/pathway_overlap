@@ -14,7 +14,7 @@ process opentargets_visualization {
     tuple val(trait), 
           val(tool_base),
           path("${trait}_combined_advantage_plots.pdf"),
-          path("${trait}_combined_boxplots.pdf"),
+          path("${trait}_combined_boxplots.pdf")
 
     script:
     """
