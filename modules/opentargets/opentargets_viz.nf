@@ -27,6 +27,8 @@ process opentargets_visualization {
     DATA_DIR="${params.outdir}/size_matched_analysis/${tool_base}/${trait}/data/"
     
     # Run visualization script with support for all ranking methods
-    Rscript ${params.scripts_dir}/size_matched_OT_viz.R "${trait}" "${tool_base}" "${detailed_advantage}" "${params.opentargets_sig_threshold}" "\$DATA_DIR"
+
+ml R    
+Rscript ${params.scripts_dir}/size_matched_OT_viz.R "${trait}" "${tool_base}" "${detailed_advantage}" "${params.opentargets_sig_threshold}" "\$DATA_DIR"
     """
 }
