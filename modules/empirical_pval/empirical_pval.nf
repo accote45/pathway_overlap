@@ -363,7 +363,6 @@ beta_stats <- random_dt[, .(
     cat("Mean empirical p-value:", round(mean(empirical_results$empirical_pval, na.rm = TRUE), 4), "\\n")
     cat("Median empirical p-value:", round(median(empirical_results$empirical_pval, na.rm = TRUE), 4), "\\n")
     cat("Mean standardized effect size:", round(mean(empirical_results$std_effect_size, na.rm = TRUE), 4), "\\n")
-    cat("Significant pathways (FDR < 0.05):", sum(empirical_results$FPR < 0.05, na.rm = TRUE), "\\n")
     
     # Print top 10 pathways by standardized effect size
     cat("\\nTop 10 pathways by standardized effect size:\\n")
