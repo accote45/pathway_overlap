@@ -47,11 +47,11 @@ process calc_empirical_pvalues {
 
     # Get command line arguments
     args <- commandArgs(trailingOnly = TRUE)
-    full_tool <- "magma_birewire"
-    base_tool <- "magma"
-    trait <- "cad"
-    real_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_real/cad/cad_real_set.gsa.out"
-    random_dir <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/magma_random/birewire/msigdbgenes/cad"
+    full_tool <- args[1]
+    base_tool <- args[2]
+    trait <- args[3]
+    real_results_file <- args[4]
+    random_dir <- args[5]
 
     cat("Processing empirical p-values and standardized effect sizes for", full_tool, "results from", trait, "\\n")
 
