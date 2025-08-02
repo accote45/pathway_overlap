@@ -302,11 +302,11 @@ process calc_empirical_pvalues {
     setnames(pathway_counts, c("pathway_name", "n_total_random"))
 
     # Calculate beta statistics in one go
-beta_stats <- random_dt[, .(
-  mean_beta_perm = mean(beta_value, na.rm = TRUE),
-  sd_beta_perm = sd(beta_value, na.rm = TRUE),
-  n_perms = .N  # Add number of permutations per pathway
-), by = pathway_name]
+    beta_stats <- random_dt[, .(
+      mean_beta_perm = mean(beta_value, na.rm = TRUE),
+      sd_beta_perm = sd(beta_value, na.rm = TRUE),
+      n_perms = .N  # Add number of permutations per pathway
+    ), by = pathway_name]
 
     # Join counts and beta stats to real data efficiently
     results_dt <- merge(real_dt, pathway_counts, by.x = "pathway_name_std", by.y = "pathway_name", all.x = TRUE)
