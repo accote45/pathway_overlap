@@ -42,12 +42,6 @@ process calc_empirical_pvalues {
         pval_col = "P",
         beta_col = "Coefficient",
         required_cols = c("Set", "P", "Coefficient", "R2", "P.adj")
-      ),
-      gsea = list(
-        pathway_col = "pathway",
-        pval_col = "pval",
-        beta_col = "NES",
-        required_cols = c("pathway", "pval", "ES", "NES", "size")
       )
     )
 
