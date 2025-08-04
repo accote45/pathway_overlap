@@ -24,7 +24,7 @@ process calc_empirical_pvalues {
     module load R
     
     # Create R script
-    cat > calc_empirical.R << 'RSCRIPT'
+    cat > calc_empirical.R << 'EOF'
     library(tidyverse)
     library(data.table)
     library(parallel)
@@ -47,9 +47,9 @@ process calc_empirical_pvalues {
 
     # Get command line arguments
     args <- commandArgs(trailingOnly = TRUE)
-    full_tool <- args[1]
-    base_tool <- args[2]
-    trait <- args[3]
+    trait <- args[1]
+    full_tool <- args[2] 
+    base_tool <- args[3]
     real_results_file <- args[4]
     random_dir <- args[5]
 
@@ -371,9 +371,9 @@ process calc_empirical_pvalues {
       head(10) %>%
       select(all_of(c(pathway_col, pval_col, beta_col, "empirical_pval", "std_effect_size"))) %>%
       print(n = 10)
-    RSCRIPT
+    EOF
 
     # Run the R script with both the full tool name and base tool name
-    Rscript calc_empirical.R "${tool}" "${base_tool}" "${trait}" "${real_results}" "${random_dir}"
+    Rscript calc_empirical.R "${trait}" "${tool}" "${base_tool}" "${real_results}" "${random_dir}"
     """
 }
