@@ -19,7 +19,7 @@ process opentargets_statistics {
           path("*_n*_rawp*.csv"),
           path("*_n*_pvaluebeta*.csv"),          // New method
           path("*_n*_birewire_emppvalstdbeta*.csv"), // New method
-          path("*_n*_keeppath_emppvalstdbeta*.csv"), // New method
+          path("*_n*_keeppathsize_emppvalstdbeta*.csv"), // New method
           path("${trait}_${tool_base}_gene_disease_associations.csv"),
           path("${trait}_${tool_base}_advantage_summary*.csv")
 
