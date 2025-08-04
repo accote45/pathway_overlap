@@ -25,13 +25,15 @@ normalize_column <- function(data, target_col, possible_cols) {
   return(data)
 }
 
-# Get target column name based on method
+# Get target column name based on method name
 get_target_col <- function(method_name) {
   switch(method_name,
          "BireWire" = "in_birewire_top",
          "KeepPathSize" = "in_keeppath_top",
          "RawP" = "in_raw_p_top",
          "SigBeta" = "in_sig_beta_top",
+         "PvalueBeta" = "in_p_beta_top",  # New method
+         "EmpPvalEffect" = "in_emp_effect_top",  # New method
          # Default fallback
          paste0("in_", tolower(method_name), "_top"))
 }
@@ -42,6 +44,8 @@ get_file_suffix <- function(ranking_type) {
          "empirical_p" = "",
          "raw_p" = "_raw_p",
          "sig_beta" = "_sig_beta",
+         "p_beta" = "_p_beta",  # New type
+         "emp_effect" = "_emp_effect",  # New type
          # Default
          paste0("_", ranking_type))
 }
@@ -90,6 +94,43 @@ write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verb
   write.csv(data, filename, row.names=FALSE)
   if(verbose) cat("Wrote", nrow(data), "rows to", filename, "\n")
   return(filename)
+}
+
+# Function to create multi-level ranking
+create_multilevel_ranking <- function(data, primary_col, secondary_col, n, ascending_primary = TRUE, ascending_secondary = FALSE) {
+  # Ensure data frame is not empty
+  if (nrow(data) == 0) return(character(0))
+  
+  # Check if columns exist
+  if (!all(c(primary_col, secondary_col) %in% colnames(data))) {
+    warning("Columns not found for ranking: ", 
+            paste(setdiff(c(primary_col, secondary_col), colnames(data)), collapse=", "))
+    return(character(0))
+  }
+  
+  # Create copy to avoid modifying original
+  sorted_data <- data
+  
+  # Convert columns to numeric if they aren't already
+  if (!is.numeric(sorted_data[[primary_col]])) {
+    sorted_data[[primary_col]] <- as.numeric(sorted_data[[primary_col]])
+  }
+  
+  if (!is.numeric(sorted_data[[secondary_col]])) {
+    sorted_data[[secondary_col]] <- as.numeric(sorted_data[[secondary_col]])
+  }
+  
+  # Determine sort direction
+  primary_sign <- if (ascending_primary) 1 else -1
+  secondary_sign <- if (ascending_secondary) 1 else -1
+  
+  # Order by primary, then secondary criteria
+  sorted_data <- sorted_data[order(primary_sign * sorted_data[[primary_col]], 
+                                  secondary_sign * sorted_data[[secondary_col]]), ]
+  
+  # Return top n pathway names
+  if (n > nrow(sorted_data)) n <- nrow(sorted_data)
+  return(sorted_data$FULL_NAME[1:n])
 }
 
 # ===== Main Script =====
@@ -262,6 +303,26 @@ for(n in n_values) {
     matching_data$in_sig_beta_top <- FALSE
   }
   
+  # NEW: Add ranking by p_value (lowest) and then beta_value (highest positive)
+  # First create a combined ranking value where smaller is better
+  birewire_data$p_beta_rank <- with(birewire_data, ave(P, BETA * -1, 
+                                                      FUN = function(x) rank(x, ties.method = "first")))
+  matching_data$in_p_beta_top <- all_pathways %in% create_multilevel_ranking(
+    birewire_data, "P", "BETA", n, ascending_primary = TRUE, ascending_secondary = FALSE)
+  
+  # NEW: Add ranking by empirical_pval (lowest) and then std_effect_size (highest positive)
+  # Add standardized effect size to data if it doesn't exist
+  if ("std_effect_size" %in% colnames(birewire_data)) {
+    birewire_data$emp_effect_rank <- with(birewire_data, 
+                                         ave(empirical_pval, std_effect_size * -1, 
+                                            FUN = function(x) rank(x, ties.method = "first")))
+    matching_data$in_emp_effect_top <- all_pathways %in% create_multilevel_ranking(
+      birewire_data, "empirical_pval", "std_effect_size", n, ascending_primary = TRUE, ascending_secondary = FALSE)
+  } else {
+    cat("Warning: std_effect_size column not found, cannot create emp_effect ranking\n")
+    matching_data$in_emp_effect_top <- FALSE
+  }
+  
   # Add pathway size information - More efficiently with joins
   sizes_bw <- birewire_data %>% select(FULL_NAME, NGENES) %>% rename(name=FULL_NAME, size=NGENES)
   sizes_kp <- keeppath_data %>% select(FULL_NAME, NGENES) %>% rename(name=FULL_NAME, size=NGENES)
@@ -279,7 +340,9 @@ for(n in n_values) {
     list(method_name = "BireWire", target_col = "in_birewire_top", ranking_type = "empirical_p"),
     list(method_name = "KeepPathSize", target_col = "in_keeppath_top", ranking_type = "empirical_p"),
     list(method_name = "RawP", target_col = "in_raw_p_top", ranking_type = "raw_p"),
-    list(method_name = "SigBeta", target_col = "in_sig_beta_top", ranking_type = "sig_beta")
+    list(method_name = "SigBeta", target_col = "in_sig_beta_top", ranking_type = "sig_beta"),
+    list(method_name = "PvalueBeta", target_col = "in_p_beta_top", ranking_type = "p_beta"),
+    list(method_name = "EmpPvalEffect", target_col = "in_emp_effect_top", ranking_type = "emp_effect")
   )
   
   results_list <- list()

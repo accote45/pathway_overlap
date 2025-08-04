@@ -28,12 +28,14 @@ advantage_data$N <- as.factor(as.numeric(advantage_data$N))
 n_values <- unique(as.numeric(as.character(advantage_data$N)))
 cat("Found N values:", paste(n_values, collapse=", "), "\n")
 
-# Set method labels
+# Method labels for plotting
 method_labels <- list(
-  birewire = "Fix gene frequency and pathway size",
-  keeppath = "Fix pathway size",
-  rawp = "Raw p-value",
-  sigbeta = "Significant beta"
+  birewire = "BireWire",
+  keeppath = "KeepPathSize",
+  rawp = "P-value Only",
+  sigbeta = "Significant Beta",
+  p_beta = "P-value & Beta",  # New method
+  emp_effect = "Empirical P & Effect"  # New method
 )
 
 # Update method names in advantage data to use descriptive labels

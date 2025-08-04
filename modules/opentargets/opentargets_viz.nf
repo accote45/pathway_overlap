@@ -8,7 +8,14 @@ process opentargets_visualization {
     tuple val(trait), 
           val(tool_base),
           path(detailed_advantage),
-          path(gene_disease_associations)
+          path(birewire_files),
+          path(keeppath_files),
+          path(rawp_files),
+          path(sigbeta_files),
+          path(p_beta_files),        // New method
+          path(emp_effect_files),    // New method
+          path(gene_disease_associations),
+          path(advantage_summary)
     
     output:
     tuple val(trait), 
