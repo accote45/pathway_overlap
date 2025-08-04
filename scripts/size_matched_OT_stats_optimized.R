@@ -1,6 +1,3 @@
-# ===== Top Pathway Prioritization Analysis - Statistics =====
-# OPTIMIZED VERSION - Improved efficiency and reduced redundancy
-
 library(plyr)
 library(tidyverse)
 library(data.table)
@@ -94,43 +91,6 @@ write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verb
   write.csv(data, filename, row.names=FALSE)
   if(verbose) cat("Wrote", nrow(data), "rows to", filename, "\n")
   return(filename)
-}
-
-# Function to create multi-level ranking
-create_multilevel_ranking <- function(data, primary_col, secondary_col, n, ascending_primary = TRUE, ascending_secondary = FALSE) {
-  # Ensure data frame is not empty
-  if (nrow(data) == 0) return(character(0))
-  
-  # Check if columns exist
-  if (!all(c(primary_col, secondary_col) %in% colnames(data))) {
-    warning("Columns not found for ranking: ", 
-            paste(setdiff(c(primary_col, secondary_col), colnames(data)), collapse=", "))
-    return(character(0))
-  }
-  
-  # Create copy to avoid modifying original
-  sorted_data <- data
-  
-  # Convert columns to numeric if they aren't already
-  if (!is.numeric(sorted_data[[primary_col]])) {
-    sorted_data[[primary_col]] <- as.numeric(sorted_data[[primary_col]])
-  }
-  
-  if (!is.numeric(sorted_data[[secondary_col]])) {
-    sorted_data[[secondary_col]] <- as.numeric(sorted_data[[secondary_col]])
-  }
-  
-  # Determine sort direction
-  primary_sign <- if (ascending_primary) 1 else -1
-  secondary_sign <- if (ascending_secondary) 1 else -1
-  
-  # Order by primary, then secondary criteria
-  sorted_data <- sorted_data[order(primary_sign * sorted_data[[primary_col]], 
-                                  secondary_sign * sorted_data[[secondary_col]]), ]
-  
-  # Return top n pathway names
-  if (n > nrow(sorted_data)) n <- nrow(sorted_data)
-  return(sorted_data$FULL_NAME[1:n])
 }
 
 # ===== Main Script =====
@@ -253,22 +213,6 @@ keeppath_data <- read.table(keeppathsize_results_file, header=T)
 cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
 cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
 
-# 5. Normalize column names - using the helper function
-column_mappings <- list(
-  # Target column name and possible source columns
-  list(target="empirical_pval", sources=c("EMPIRICAL_P", "empirical_pvalue")),
-  list(target="FULL_NAME", sources=c("PATHWAY", "name", "pathway", "SET")),
-  list(target="P", sources=c("P", "p", "p.value", "pval", "P.value")),
-  list(target="BETA", sources=c("BETA", "beta", "effect", "EFFECT")),
-  list(target="NGENES", sources=c("NGENES", "N_GENES", "num_genes", "SIZE"))
-)
-
-# Apply normalization to both datasets
-for(mapping in column_mappings) {
-  birewire_data <- normalize_column(birewire_data, mapping$target, mapping$sources)
-  keeppath_data <- normalize_column(keeppath_data, mapping$target, mapping$sources)
-}
-
 # Ensure empirical_pval is numeric
 birewire_data$empirical_pval <- as.numeric(as.character(birewire_data$empirical_pval))
 keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
@@ -283,49 +227,30 @@ for(n in n_values) {
   n <- as.numeric(n)
   
   # First, identify all unique pathways from both methods
-  all_pathways <- unique(c(birewire_data$FULL_NAME, keeppath_data$FULL_NAME))
+  all_pathways <- unique(c(birewire_data$pathway_name, keeppath_data$pathway_name))
   
   # Create a dataset with method assignment
   matching_data <- data.frame(
     name = all_pathways,
-    in_birewire_top = all_pathways %in% head(birewire_data[order(birewire_data$empirical_pval),]$FULL_NAME, n),
-    in_keeppath_top = all_pathways %in% head(keeppath_data[order(keeppath_data$empirical_pval),]$FULL_NAME, n)
+    in_birewire_empP_top = all_pathways %in% head(birewire_data[order(birewire_data$empirical_pval),]$pathway_name, n),
+    in_keeppath_empP_top = all_pathways %in% head(keeppath_data[order(keeppath_data$empirical_pval),]$pathway_name, n)
   )
   
   # Add rankings for raw P and beta
-  matching_data$in_raw_p_top <- all_pathways %in% head(birewire_data[order(birewire_data$P),]$FULL_NAME, n)
+  matching_data$in_raw_p_top <- all_pathways %in% head(birewire_data[order(birewire_data$p_value),]$pathway_name, n)
   
-  # Add rankings for significant beta
-  sig_results <- birewire_data[birewire_data$P < 0.05,]
-  if(nrow(sig_results) > 0) {
-    matching_data$in_sig_beta_top <- all_pathways %in% head(sig_results[order(-sig_results$BETA),]$FULL_NAME, n)
-  } else {
-    matching_data$in_sig_beta_top <- FALSE
-  }
+	# Add ranking by p_value (lowest) and then beta_value (highest positive)
+  matching_data$in_p_beta_top <- all_pathways %in% head(birewire_data[order(birewire_data$p_value, -birewire_data$beta_value), ]$pathway_name,n)
   
-  # NEW: Add ranking by p_value (lowest) and then beta_value (highest positive)
-  # First create a combined ranking value where smaller is better
-  birewire_data$p_beta_rank <- with(birewire_data, ave(P, BETA * -1, 
-                                                      FUN = function(x) rank(x, ties.method = "first")))
-  matching_data$in_p_beta_top <- all_pathways %in% create_multilevel_ranking(
-    birewire_data, "P", "BETA", n, ascending_primary = TRUE, ascending_secondary = FALSE)
-  
-  # NEW: Add ranking by empirical_pval (lowest) and then std_effect_size (highest positive)
-  # Add standardized effect size to data if it doesn't exist
-  if ("std_effect_size" %in% colnames(birewire_data)) {
-    birewire_data$emp_effect_rank <- with(birewire_data, 
-                                         ave(empirical_pval, std_effect_size * -1, 
-                                            FUN = function(x) rank(x, ties.method = "first")))
-    matching_data$in_emp_effect_top <- all_pathways %in% create_multilevel_ranking(
-      birewire_data, "empirical_pval", "std_effect_size", n, ascending_primary = TRUE, ascending_secondary = FALSE)
-  } else {
-    cat("Warning: std_effect_size column not found, cannot create emp_effect ranking\n")
-    matching_data$in_emp_effect_top <- FALSE
-  }
-  
+  # Add ranking by empirical_pval (lowest) and then std_effect_size (highest positive)
+  matching_data$in_birewire_empP_stdbeta_top <- all_pathways %in% head(
+    birewire_data[order(birewire_data$empirical_pval, -birewire_data$std_effect_size), ]$pathway_name,n)
+  matching_data$in_keeppath_empP_stdbeta_top <- all_pathways %in% head(
+    keeppath_data[order(keeppath_data$empirical_pval, -keeppath_data$std_effect_size), ]$pathway_name,n)
+
   # Add pathway size information - More efficiently with joins
-  sizes_bw <- birewire_data %>% select(FULL_NAME, NGENES) %>% rename(name=FULL_NAME, size=NGENES)
-  sizes_kp <- keeppath_data %>% select(FULL_NAME, NGENES) %>% rename(name=FULL_NAME, size=NGENES)
+  sizes_bw <- birewire_data %>% select(pathway_name, ngenes) %>% rename(name=pathway_name, size=ngenes)
+  sizes_kp <- keeppath_data %>% select(pathway_name, ngenes) %>% rename(name=pathway_name, size=ngenes)
   sizes <- rbind(sizes_bw, sizes_kp) %>% distinct(name, .keep_all=TRUE)
   matching_data <- left_join(matching_data, sizes, by="name")
   
@@ -337,12 +262,12 @@ for(n in n_values) {
   
   # Define ranking methods consistently
   ranking_methods <- list(
-    list(method_name = "BireWire", target_col = "in_birewire_top", ranking_type = "empirical_p"),
-    list(method_name = "KeepPathSize", target_col = "in_keeppath_top", ranking_type = "empirical_p"),
+    list(method_name = "BireWire_empP", target_col = "in_birewire_empP_top", ranking_type = "empirical_p"),
+    list(method_name = "KeepPathSize_empP", target_col = "in_keeppath_empP_top", ranking_type = "empirical_p"),
     list(method_name = "RawP", target_col = "in_raw_p_top", ranking_type = "raw_p"),
-    list(method_name = "SigBeta", target_col = "in_sig_beta_top", ranking_type = "sig_beta"),
     list(method_name = "PvalueBeta", target_col = "in_p_beta_top", ranking_type = "p_beta"),
-    list(method_name = "EmpPvalEffect", target_col = "in_emp_effect_top", ranking_type = "emp_effect")
+    list(method_name = "BireWire_EmpPvalStdBeta", target_col = "in_birewire_empP_stdbeta_top", ranking_type = "p_beta"),
+    list(method_name = "KeepPathSize_EmpPvalStdBeta", target_col = "in_keeppath_empP_stdbeta_top", ranking_type = "p_beta")
   )
   
   results_list <- list()
