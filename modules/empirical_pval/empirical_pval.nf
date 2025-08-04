@@ -49,9 +49,11 @@ process calc_empirical_pvalues {
     args <- commandArgs(trailingOnly = TRUE)
     trait <- args[1]
     full_tool <- args[2] 
-    base_tool <- args[3]
-    real_results_file <- args[4]
-    random_dir <- args[5]
+    real_results_file <- args[3]
+    random_dir <- args[4]
+
+    # Extract base tool name within R - much clearer!
+    base_tool <- ifelse(grepl("_", full_tool), strsplit(full_tool, "_")[[1]][1], full_tool)
 
     cat("Processing empirical p-values and standardized effect sizes for", full_tool, "results from", trait, "\\n")
 
@@ -374,6 +376,6 @@ process calc_empirical_pvalues {
     EOF
 
     # Run the R script with both the full tool name and base tool name
-    Rscript calc_empirical.R "${trait}" "${tool}" "${base_tool}" "${real_results}" "${random_dir}"
+    Rscript calc_empirical.R "${trait}" "${tool}" "${real_results}" "${random_dir}"
     """
 }
