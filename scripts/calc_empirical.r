@@ -334,17 +334,3 @@ library(tidyverse)
 
     cat("Calculated empirical p-values and standardized effect sizes for", nrow(empirical_results), "pathways\n")
     cat("Results written to", output_file, "\n")
-
-    # Print summary
-    cat("Summary statistics:\n")
-    cat("Mean empirical p-value:", round(mean(empirical_results$empirical_pval, na.rm = TRUE), 4), "\n")
-    cat("Median empirical p-value:", round(median(empirical_results$empirical_pval, na.rm = TRUE), 4), "\n")
-    cat("Mean standardized effect size:", round(mean(empirical_results$std_effect_size, na.rm = TRUE), 4), "\n")
-    
-    # Print top 10 pathways by standardized effect size
-    cat("nTop 10 pathways by standardized effect size:\n")
-    empirical_results %>%
-      arrange(desc(std_effect_size)) %>%
-      head(10) %>%
-      select(all_of(c(pathway_col, pval_col, beta_col, "empirical_pval", "std_effect_size"))) %>%
-      print(n = 10)
