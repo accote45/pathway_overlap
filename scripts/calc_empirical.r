@@ -7,13 +7,15 @@ library(tidyverse)
       magma = list(
         pathway_col = "FULL_NAME",
         pval_col = "P",
-        beta_col = "BETA", 
+        beta_col = "BETA",
+        ngenes_col = "NGENES",  # Add this line
         required_cols = c("FULL_NAME", "P", "NGENES", "BETA", "BETA_STD", "SE")
       ),
       prset = list(
         pathway_col = "Set",
         pval_col = "P",
         beta_col = "Coefficient",
+        ngenes_col = "nGenes",  # Add this line for PRSet
         required_cols = c("Set", "P", "Coefficient", "R2", "P.adj")
       )
     )
@@ -39,6 +41,7 @@ library(tidyverse)
     pathway_col <- config[["pathway_col"]]
     pval_col <- config[["pval_col"]]
     beta_col <- config[["beta_col"]]
+    ngenes_col <- config[["ngenes_col"]] # Extract ngenes column name based on tool
     required_cols <- config[["required_cols"]]
 
     # Read real results - determine file type by extension
@@ -318,6 +321,7 @@ library(tidyverse)
                                    .(trait = trait, 
                                      tool = full_tool,
                                      pathway_name = get(pathway_col),
+                                     ngenes = get(ngenes_col),  # Add NGENES column here
                                      p_value = get(pval_col),
                                      beta_value = get(beta_col),
                                      empirical_pval,
