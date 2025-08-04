@@ -1,5 +1,4 @@
-
-    library(tidyverse)
+library(tidyverse)
     library(data.table)
     library(parallel)
 
@@ -134,10 +133,16 @@
           if (is_magma || is_prset) {
             # Try fread first (much faster)
             temp_data <- tryCatch({
-              fread(file, header = TRUE)
+              if (is_magma) {
+                # Always use read.table for MAGMA files
+                read.table(file, header = TRUE, stringsAsFactors = FALSE)
+              } else {
+                # Try fread for non-MAGMA files
+                fread(file, header = TRUE)
+              }
             }, error = function(e) {
-              cat("fread failed for", basename(file), ":", e$message, "\n")
-              # Fall back to read.table
+              cat("File reading failed for", basename(file), ":", e$message, "\n")
+              # Fall back to read.table as a last resort
               read.table(file, header = TRUE, stringsAsFactors = FALSE)
             })
             
@@ -221,11 +226,7 @@
           
           # Only process files that match our criteria
           if (is_magma_rand || is_prset_rand) {
-            if (is_magma_rand) {
-              temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-            } else if (is_prset_rand) {
-              temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
-            }
+            temp_data <- read.table(current_file, header = TRUE, stringsAsFactors = FALSE)
             
             # Make sure we have pathway, p-value, and beta columns
             if (all(c(pathway_col, pval_col, beta_col) %in% colnames(temp_data))) {
