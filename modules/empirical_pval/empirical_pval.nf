@@ -16,8 +16,6 @@ process calc_empirical_pvalues {
     publishDir "${params.outdir}/empirical_pvalues/${tool}/${trait}", mode: 'copy', overwrite: true
     
     script:
-    // Extract base tool name (remove randomization method suffix)
-    def base_tool = tool.contains('_') ? tool.split('_')[0] : tool
     
     """
     #!/bin/bash
