@@ -15,7 +15,7 @@ process opentargets_statistics {
           val(tool_base),
           path("${trait}_${tool_base}_detailed_advantage.csv"),
           path("*_n*_birewire_empp*.csv"),       // Changed from just birewire.csv
-          path("*_n*_keeppath_empp*.csv"),       // Changed from just keeppathsize.csv
+          path("*_n*_keeppathsize_empp*.csv"),       // Changed from just keeppathsize.csv
           path("*_n*_rawp*.csv"),
           path("*_n*_pvaluebeta*.csv"),          // New method
           path("*_n*_birewire_emppvalstdbeta*.csv"), // New method
