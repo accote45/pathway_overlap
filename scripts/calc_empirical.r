@@ -28,7 +28,7 @@ library(tidyverse)
     # Extract base tool name within R - much clearer!
     base_tool <- ifelse(grepl("_", full_tool), strsplit(full_tool, "_")[[1]][1], full_tool)
 
-    cat("Processing empirical p-values and standardized effect sizes for", full_tool, "results from", trait, "\\n")
+    cat("Processing empirical p-values and standardized effect sizes for", full_tool, "results from", trait, "\n")
 
     # Get tool configuration using base tool name
     if (!base_tool %in% names(tool_config)) {
@@ -42,7 +42,7 @@ library(tidyverse)
     required_cols <- config[["required_cols"]]
 
     # Read real results - determine file type by extension
-    cat("Reading real results file:", real_results_file, "\\n")
+    cat("Reading real results file:", real_results_file, "\n")
 
     # Check file extension
     is_magma <- endsWith(real_results_file, ".gsa.out")
@@ -59,7 +59,7 @@ library(tidyverse)
     # Check required columns exist
     missing_cols <- required_cols[!required_cols %in% colnames(real_data)]
     if (length(missing_cols) > 0) {
-      cat("Warning: Missing columns in real data:", paste(missing_cols, collapse = ", "), "\\n")
+      cat("Warning: Missing columns in real data:", paste(missing_cols, collapse = ", "), "\n")
       required_cols <- required_cols[required_cols %in% colnames(real_data)]
     }
     
@@ -68,13 +68,13 @@ library(tidyverse)
       stop("Required beta column '", beta_col, "' not found in real data")
     }
 
-    cat("Found", nrow(real_data), "pathways in real results\\n")
+    cat("Found", nrow(real_data), "pathways in real results\n")
 
     # Read random results
-    cat("Reading random results from directory:", random_dir, "\\n")
+    cat("Reading random results from directory:", random_dir, "\n")
 
     random_files <- list.files(random_dir, full.names = TRUE,pattern="*gsa.out")
-    cat("Found", length(random_files), "random result files\\n")
+    cat("Found", length(random_files), "random result files\n")
 
     if (length(random_files) == 0) {
       stop("No random result files found")
@@ -237,16 +237,16 @@ library(tidyverse)
             }
           }
         }, error = function(e) {
-          cat("Warning: Could not read", current_file, "\\n")
+          cat("Warning: Could not read", current_file, "\n")
         })
         
         # Print progress every 500 files
         if (i %% 500 == 0) {
-          cat("Processed", i, "random files\\n")
+          cat("Processed", i, "random files\n")
         }
       }
 
-      cat("Successfully read", length(random_data_list), "valid random files\\n")
+      cat("Successfully read", length(random_data_list), "valid random files\n")
 
       if (length(random_data_list) == 0) {
         stop("No valid random data files found")
@@ -256,7 +256,7 @@ library(tidyverse)
       random_data <- do.call(rbind, random_data_list)
       colnames(random_data)[1:3] <- c("pathway_name", "p_value", "beta_value")
 
-      cat("Combined random data:", nrow(random_data), "rows\\n")
+      cat("Combined random data:", nrow(random_data), "rows\n")
     }
 
     # Convert to data.table for efficiency
@@ -330,19 +330,19 @@ library(tidyverse)
 
     # Write results
     output_file <- paste0(trait, "_", full_tool, "_empirical_pvalues.txt")
-    fwrite(empirical_results, output_file, sep = "\\t")
+    fwrite(empirical_results, output_file, sep = "\t")
 
-    cat("Calculated empirical p-values and standardized effect sizes for", nrow(empirical_results), "pathways\\n")
-    cat("Results written to", output_file, "\\n")
+    cat("Calculated empirical p-values and standardized effect sizes for", nrow(empirical_results), "pathways\n")
+    cat("Results written to", output_file, "\n")
 
     # Print summary
-    cat("Summary statistics:\\n")
-    cat("Mean empirical p-value:", round(mean(empirical_results$empirical_pval, na.rm = TRUE), 4), "\\n")
-    cat("Median empirical p-value:", round(median(empirical_results$empirical_pval, na.rm = TRUE), 4), "\\n")
-    cat("Mean standardized effect size:", round(mean(empirical_results$std_effect_size, na.rm = TRUE), 4), "\\n")
+    cat("Summary statistics:\n")
+    cat("Mean empirical p-value:", round(mean(empirical_results$empirical_pval, na.rm = TRUE), 4), "\n")
+    cat("Median empirical p-value:", round(median(empirical_results$empirical_pval, na.rm = TRUE), 4), "\n")
+    cat("Mean standardized effect size:", round(mean(empirical_results$std_effect_size, na.rm = TRUE), 4), "\n")
     
     # Print top 10 pathways by standardized effect size
-    cat("\\nTop 10 pathways by standardized effect size:\\n")
+    cat("nTop 10 pathways by standardized effect size:\n")
     empirical_results %>%
       arrange(desc(std_effect_size)) %>%
       head(10) %>%
