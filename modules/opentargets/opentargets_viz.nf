@@ -8,12 +8,12 @@ process opentargets_visualization {
     tuple val(trait), 
           val(tool_base),
           path(detailed_advantage),
-          path(birewire_files),
-          path(keeppath_files),
+          path(birewire_empp_files),             // Updated name
+          path(keeppath_empp_files),             // Updated name
           path(rawp_files),
-          path(sigbeta_files),
-          path(p_beta_files),        // New method
-          path(emp_effect_files),    // New method
+          path(pvaluebeta_files),                // New method
+          path(birewire_emppvalstdbeta_files),   // New method
+          path(keeppath_emppvalstdbeta_files),   // New method
           path(gene_disease_associations),
           path(advantage_summary)
     
