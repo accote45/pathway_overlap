@@ -14,12 +14,12 @@ process opentargets_statistics {
     tuple val(trait), 
           val(tool_base),
           path("${trait}_${tool_base}_detailed_advantage.csv"),
-          path("*_n*_birewire_empp*.csv"),       // Changed from just birewire.csv
-          path("*_n*_keeppathsize_empp*.csv"),       // Changed from just keeppathsize.csv
-          path("*_n*_rawp*.csv"),
-          path("*_n*_pvaluebeta*.csv"),          // New method
-          path("*_n*_birewire_emppvalstdbeta*.csv"), // New method
-          path("*_n*_keeppathsize_emppvalstdbeta*.csv"), // New method
+          path("*_n*_birewire_empp*.csv", optional: true),       // Changed from just birewire.csv
+          path("*_n*_keeppathsize_empp*.csv", optional: true),       // Changed from just keeppathsize.csv
+          path("*_n*_rawp*.csv", optional: true),
+          path("*_n*_pvaluebeta*.csv", optional: true),          // New method
+          path("*_n*_birewire_emppvalstdbeta*.csv", optional: true), // New method
+          path("*_n*_keeppathsize_emppvalstdbeta*.csv", optional: true), // New method
           path("${trait}_${tool_base}_gene_disease_associations.csv"),
           path("${trait}_${tool_base}_advantage_summary*.csv")
 
