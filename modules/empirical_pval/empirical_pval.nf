@@ -20,6 +20,6 @@ process calc_empirical_pvalues {
     """
     module load R
     
-    Rscript ${params.scripts_dir}/calc_empirical.R "${trait}" "${tool}" "${real_results}" "${random_dir}"
+    Rscript ${params.scripts_dir}/calc_empirical.r "${trait}" "${tool}" "${real_results}" "${random_dir}"
     """
 }
