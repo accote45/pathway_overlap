@@ -283,9 +283,9 @@ workflow {
             
             // Step 2: Generate visualizations
             if (params.run_ot_viz) {
-            magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
+                magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
+            }
         }
-    }
         
         // Run OpenTargets comparison for PRSet (if enabled)
         if (params.run_prset) {
@@ -365,6 +365,13 @@ workflow {
             // Run tissue specificity analysis for PRSet
             tissue_specificity_analysis(prset_for_tissue)
         }
+    }
+}
+
+// Add process configuration to enforce the parameter
+process {
+    withName: 'opentargets_visualization' {
+        enabled = params.run_ot_viz
     }
 }
 
