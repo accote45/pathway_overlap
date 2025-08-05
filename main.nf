@@ -282,8 +282,10 @@ workflow {
             magma_opentargets_stats = opentargets_statistics(magma_for_opentargets)
             
             // Step 2: Generate visualizations
+            if (params.run_ot_viz) {
             magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
         }
+    }
         
         // Run OpenTargets comparison for PRSet (if enabled)
         if (params.run_prset) {
