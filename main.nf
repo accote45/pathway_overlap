@@ -301,8 +301,10 @@ workflow {
             // Step 1: Run statistical analysis
             prset_opentargets_stats = opentargets_statistics(prset_for_opentargets)
             
-            // Step 2: Generate visualizations
-            prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
+            // Step 2: Generate visualizations only if enabled
+            if (params.run_ot_viz) {
+                prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
+            }
         }
     }
     //////////////////////////////////////////
