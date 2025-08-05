@@ -367,12 +367,3 @@ workflow {
         }
     }
 }
-
-// Add process configuration to enforce the parameter
-process {
-    withName: 'opentargets_visualization' {
-        enabled = params.run_ot_viz
-    }
-}
-
-
