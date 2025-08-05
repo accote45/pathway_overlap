@@ -85,9 +85,14 @@ calculate_metrics <- function(target_group, control_group, metrics) {
   return(comparison)
 }
 
-# Write results to CSV with consistent naming
+# Update the write_results_csv function
 write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verbose=TRUE) {
-  filename <- paste0(trait, "_", tool_base, prefix, suffix, ".csv")
+  # Instead of appending the suffix to the filename, use it to modify the method_suffix part of prefix
+  # This avoids duplication of information in filenames
+  
+  # Create filename WITHOUT the suffix at the end
+  filename <- paste0(trait, "_", tool_base, prefix, ".csv")
+  
   write.csv(data, filename, row.names=FALSE)
   if(verbose) cat("Wrote", nrow(data), "rows to", filename, "\n")
   return(filename)

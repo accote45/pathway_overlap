@@ -136,16 +136,16 @@ all_kp_empp_files <- list.files(path = data_dir,
                           pattern = paste0(trait, "_", tool_base, "_n\\d+_keeppathsize_empp.csv"), 
                           full.names = TRUE)
 all_rawp_files <- list.files(path = data_dir, 
-                            pattern = paste0(trait, "_", tool_base, "_n\\d+_rawp_raw_p.csv"), 
+                            pattern = paste0(trait, "_", tool_base, "_n\\d+_rawp.csv"), 
                             full.names = TRUE)
 all_pvalbeta_files <- list.files(path = data_dir, 
-                               pattern = paste0(trait, "_", tool_base, "_n\\d+_pvaluebeta_p_beta.csv"), 
+                               pattern = paste0(trait, "_", tool_base, "_n\\d+_pvaluebeta.csv"), 
                                full.names = TRUE)
 all_bw_emppstdbeta_files <- list.files(path = data_dir, 
-                               pattern = paste0(trait, "_", tool_base, "_n\\d+_birewire_emppvalstdbeta_p_beta.csv"), 
+                               pattern = paste0(trait, "_", tool_base, "_n\\d+_birewire_emppvalstdbeta.csv"), 
                                full.names = TRUE)
 all_kp_emppstdbeta_files <- list.files(path = data_dir, 
-                               pattern = paste0(trait, "_", tool_base, "_n\\d+_keeppathsize_emppvalstdbeta_p_beta.csv"), 
+                               pattern = paste0(trait, "_", tool_base, "_n\\d+_keeppathsize_emppvalstdbeta.csv"), 
                                full.names = TRUE)
 
 # Check if we have any data files
