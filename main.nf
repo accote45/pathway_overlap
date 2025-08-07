@@ -33,6 +33,10 @@ include {
     opentargets_visualization;
 } from './modules/opentargets/opentargets_viz.nf'
 
+include {
+    opentargets_stats_correlation;
+} from './modules/opentargets/opentargets_stats_correlation.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -285,6 +289,11 @@ workflow {
             if (params.run_ot_viz) {
                 magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
             }
+            
+            // Step 3: Run correlation statistics analysis (new)
+            if (params.run_ot_correlation) {
+                magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
+            }
         }
         
         // Run OpenTargets comparison for PRSet (if enabled)
@@ -304,6 +313,11 @@ workflow {
             // Step 2: Generate visualizations only if enabled
             if (params.run_ot_viz) {
                 prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
+            }
+            
+            // Step 3: Run correlation statistics analysis (new)
+            if (params.run_ot_correlation) {
+                prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
             }
         }
     }
