@@ -98,16 +98,6 @@ gene_disease_associations <- disease_data %>%
   select(targetId, diseaseId, datatypeId, score, evidenceCount) %>%
   arrange(desc(evidenceCount))
 
-# Rank Correlation Analysis
-cat("\n======= Performing Rank Correlation Analysis =======\n")
-rank_correlation_results <- data.frame()
-
-# Get all unique pathways that have OpenTargets scores
-all_paths_with_scores <- pathway_scores %>% 
-  filter(!is.na(mean_score)) %>%
-  select(name, mean_score, evidence_density)
-
-
 # Save to CSV
 write_results_csv(gene_disease_associations, trait, tool_base, "_gene_disease_associations")
 
@@ -144,6 +134,15 @@ cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
 # Ensure empirical_pval is numeric
 birewire_data$empirical_pval <- as.numeric(as.character(birewire_data$empirical_pval))
 keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
+
+# Rank Correlation Analysis
+cat("\n======= Performing Rank Correlation Analysis =======\n")
+rank_correlation_results <- data.frame()
+
+# Get all unique pathways that have OpenTargets scores
+all_paths_with_scores <- pathway_scores %>% 
+  filter(!is.na(mean_score)) %>%
+  select(name, mean_score, evidence_density)
 
 # Define ranking methods for correlation analysis
 ranking_methods <- list(
