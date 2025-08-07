@@ -1,0 +1,305 @@
+# ===== Tissue Specificity Correlation Analysis =====
+# This script analyzes the correlation between pathway rankings
+# and tissue specificity metrics
+
+library(plyr)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(GSA)
+
+# Helper function for writing results to CSV
+write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verbose=TRUE) {
+  filename <- paste0(trait, "_", tool_base, prefix, ".csv")
+  
+  write.csv(data, filename, row.names=FALSE)
+  if(verbose) cat("Wrote", nrow(data), "rows to", filename, "\n")
+  return(filename)
+}
+
+# Process command line arguments
+args <- commandArgs(trailingOnly = TRUE)
+if(length(args) < 5) {
+  stop("Usage: Rscript tissue_correlation_stats.R <trait> <tool_base> <birewire_results_file> <keeppathsize_results_file> <gmt_file> <tissue_file> [top_n_values]")
+}
+
+trait <- args[1]
+tool_base <- args[2]
+birewire_results_file <- args[3]
+keeppathsize_results_file <- args[4]
+gmt_file <- args[5]
+tissue_file <- args[6]
+
+# Optional: parse comma-separated n_values or use default
+n_values <- c(10, 20, 50, 100)  # Default
+if(length(args) >= 7) {
+  n_values <- as.numeric(unlist(strsplit(args[7], ",")))
+}
+
+cat("======= Starting Tissue Specificity Correlation Analysis for", trait, "=======\n")
+
+# 1. Load pathway data
+cat("Loading pathway data from", gmt_file, "...\n")
+dat <- GSA.read.gmt(gmt_file)
+path.list <- dat$genesets
+names(path.list) <- dat$geneset.names
+
+# Convert the path list to a data table
+genes_long <- rbindlist(lapply(names(path.list), function(name) {
+  data.table(value = path.list[[name]], name = name)
+}))
+
+# 2. Load tissue specificity data
+cat("Loading tissue specificity data from", tissue_file, "...\n")
+ts <- read.csv(tissue_file)
+cat("Loaded tissue data with", nrow(ts), "genes and", ncol(ts) - 1, "tissues\n")
+
+# 3. Calculate pathway-level tissue expression scores
+cat("Calculating pathway-level tissue expression scores...\n")
+masterfin <- merge(genes_long, ts, by.x="value", by.y="Name")
+
+# Get all tissue columns (excluding gene identifiers)
+tissue_cols <- setdiff(colnames(masterfin), c("value", "name"))
+
+# Calculate pathway-level tissue expression metrics (mean only, no median)
+pathway_tissue_scores <- masterfin %>% 
+  group_by(name) %>% 
+  summarise(
+    # Calculate mean for each tissue
+    across(all_of(tissue_cols), 
+           list(
+             mean = ~mean(.x, na.rm = TRUE)
+           ),
+           .names = "{.col}_mean"),
+    # Count genes per pathway
+    num_genes = n()
+  ) %>%
+  as.data.frame()
+
+cat("Generated tissue expression profiles for", nrow(pathway_tissue_scores), "pathways\n")
+
+# 4. Load empirical results files
+birewire_data <- read.table(birewire_results_file, header=TRUE)
+keeppath_data <- read.table(keeppathsize_results_file, header=TRUE)
+
+# Normalize column names to ensure consistency
+if(!"pathway_name" %in% colnames(birewire_data) && "FULL_NAME" %in% colnames(birewire_data)) {
+  birewire_data$pathway_name <- birewire_data$FULL_NAME
+}
+if(!"pathway_name" %in% colnames(keeppath_data) && "FULL_NAME" %in% colnames(keeppath_data)) {
+  keeppath_data$pathway_name <- keeppath_data$FULL_NAME
+}
+
+cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
+cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
+
+# Ensure empirical_pval is numeric
+birewire_data$empirical_pval <- as.numeric(as.character(birewire_data$empirical_pval))
+keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
+
+# 6. Start correlation analysis
+cat("\n======= Performing Tissue Specificity Correlation Analysis =======\n")
+rank_correlation_results <- data.frame()
+
+# Define ranking methods for correlation analysis
+ranking_methods <- list(
+  list(method_name = "BireWire_empP", 
+       data = birewire_data, 
+       rank_col = "empirical_pval",
+       higher_better = FALSE),
+  list(method_name = "KeepPathSize_empP", 
+       data = keeppath_data, 
+       rank_col = "empirical_pval",
+       higher_better = FALSE),
+  list(method_name = "RawP", 
+       data = birewire_data, 
+       rank_col = "p_value",
+       higher_better = FALSE),
+  list(method_name = "PvalueBeta", 
+       data = birewire_data, 
+       rank_col = c("p_value", "beta_value"),
+       higher_better = c(FALSE, TRUE)),
+  list(method_name = "BireWire_EmpPvalStdBeta", 
+       data = birewire_data, 
+       rank_col = c("empirical_pval", "std_effect_size"),
+       higher_better = c(FALSE, TRUE)),
+  list(method_name = "KeepPathSize_EmpPvalStdBeta", 
+       data = keeppath_data, 
+       rank_col = c("empirical_pval", "std_effect_size"),
+       higher_better = c(FALSE, TRUE))
+)
+
+# Get all tissue metrics (each individual tissue)
+tissue_metrics <- list()
+for(tissue_col in tissue_cols) {
+  tissue_name <- gsub("_mean$", "", paste0(tissue_col, "_mean"))
+  tissue_metrics[[length(tissue_metrics) + 1]] <- list(
+    metric = paste0(tissue_col, "_mean"),
+    name = tissue_name,
+    higher_better = TRUE
+  )
+}
+
+cat("Analyzing correlation for", length(tissue_metrics), "individual tissues\n")
+
+# Process each ranking method
+for(ranking in ranking_methods) {
+  method_name <- ranking$method_name
+  data <- ranking$data
+  rank_cols <- ranking$rank_col
+  higher_better <- ranking$higher_better
+  
+  cat(paste("\nCalculating tissue correlations for", method_name, "...\n"))
+  
+  # Create a clean copy of data for ranking
+  ranking_data <- data
+  
+  # Create properly oriented ranking columns
+  for(i in 1:length(rank_cols)) {
+    col <- rank_cols[i]
+    # If higher is better, multiply by -1 so lower values = better ranking
+    if(higher_better[i]) {
+      ranking_data[[paste0("ranking_", i)]] <- -ranking_data[[col]]
+    } else {
+      ranking_data[[paste0("ranking_", i)]] <- ranking_data[[col]]
+    }
+  }
+  
+  # Simple ordering approach
+  if(length(rank_cols) == 1) {
+    # If just one column, order directly by it
+    ranking_data <- ranking_data[order(ranking_data$ranking_1),]
+  } else if(length(rank_cols) == 2) {
+    # If two columns, order by first column, then second
+    ranking_data <- ranking_data[order(ranking_data$ranking_1, ranking_data$ranking_2),]
+  }
+  
+  # Add rank as the row number after ordering
+  ranking_data$pathway_rank <- 1:nrow(ranking_data)
+  
+  # Extract just the pathway name and rank
+  ranked_paths <- ranking_data %>%
+    select(pathway_name, pathway_rank) %>%
+    rename(name = pathway_name)
+  
+  # Merge with tissue scores - this gives us all pathways with scores
+  all_merged_ranks <- merge(ranked_paths, pathway_tissue_scores, by="name")
+  
+  # Also create a dataset with only the top 500 pathways (if available)
+  top500_ranked_paths <- ranked_paths %>%
+    filter(pathway_rank <= 500)
+  
+  # Merge the top 500 with tissue scores
+  top500_merged_ranks <- merge(top500_ranked_paths, pathway_tissue_scores, by="name")
+  
+  # Calculate correlations for all metrics and subsets
+  for(subset_name in c("All Pathways", "Top 500 Pathways")) {
+    # Select the appropriate dataset
+    if(subset_name == "All Pathways") {
+      merged_ranks <- all_merged_ranks
+    } else {
+      merged_ranks <- top500_merged_ranks
+    }
+    
+    # Skip if no data
+    if(nrow(merged_ranks) == 0) {
+      cat("  No matching pathways found for", method_name, "- skipping", subset_name, "\n")
+      next
+    }
+    
+    cat(paste("  Found", nrow(merged_ranks), "pathways for", subset_name, "\n"))
+    
+    # Create multiple PDFs with a reasonable number of tissues per file
+    # Maximum 9 tissues per PDF to keep plots readable
+    tissues_per_file <- 9
+    num_tissue_files <- ceiling(length(tissue_metrics) / tissues_per_file)
+    
+    for(file_num in 1:num_tissue_files) {
+      start_idx <- (file_num - 1) * tissues_per_file + 1
+      end_idx <- min(file_num * tissues_per_file, length(tissue_metrics))
+      
+      # Create a subset of tissues for this file
+      current_tissues <- tissue_metrics[start_idx:end_idx]
+      
+      # Create PDF filename
+      pdf_filename <- paste0(trait, "_", tool_base, "_", gsub("[[:punct:]]", "_", method_name), 
+                            "_", tolower(gsub(" ", "_", subset_name)), 
+                            "_tissue_correlation_", file_num, ".pdf")
+      
+      pdf(pdf_filename, width=15, height=15)
+      
+      # Calculate grid dimensions for plots
+      plot_dim <- ceiling(sqrt(length(current_tissues)))
+      
+      # Set up plot layout
+      par(mfrow=c(plot_dim, plot_dim))
+      
+      # For each tissue metric, calculate correlation and create plot
+      for(tissue_metric in current_tissues) {
+        metric <- tissue_metric$metric
+        metric_name <- tissue_metric$name
+        
+        # Skip if metric not available
+        if(!metric %in% colnames(merged_ranks)) {
+          cat("  Metric", metric, "not found in data - skipping\n")
+          next
+        }
+        
+        # Calculate Spearman correlation
+        spearman_cor <- cor.test(merged_ranks$pathway_rank, 
+                                merged_ranks[[metric]], 
+                                method = "spearman")
+        
+        # Create plot
+        plot(merged_ranks$pathway_rank, merged_ranks[[metric]],
+             main=paste(metric_name),  # Shorter title to fit more tissues
+             xlab="Pathway Rank",
+             ylab="Expression Tissue Specificity",
+             pch=19, col=rgb(0,0,1,0.3),
+             cex.main=0.8, cex.lab=0.8, cex.axis=0.7)  # Smaller text
+        abline(lm(as.formula(paste(metric, "~ pathway_rank")), data=merged_ranks), col="red", lwd=1.5)
+        legend("topright", 
+               legend=c(paste("rho =", round(spearman_cor$estimate, 3)),
+                       paste("p =", format.pval(spearman_cor$p.value, digits=2))),
+               bty="n", cex=0.7)
+        
+        # Add to results dataframe
+        method_result <- data.frame(
+          trait = trait,
+          tool_base = tool_base,
+          method = method_name,
+          subset = subset_name,
+          tissue_metric = metric_name,
+          n_pathways = nrow(merged_ranks),
+          spearman_rho = spearman_cor$estimate,
+          correlation_pvalue = spearman_cor$p.value
+        )
+        
+        rank_correlation_results <- rbind(rank_correlation_results, method_result)
+      }
+      
+      dev.off()
+      cat("  Created correlation plots (file", file_num, "of", num_tissue_files, ") for", subset_name, "using", method_name, "\n")
+    }
+  }
+}
+
+# Write correlation results to CSV
+if(nrow(rank_correlation_results) > 0) {
+  write_results_csv(rank_correlation_results, trait, tool_base, "_tissue_correlation_summary")
+    }
+
+# Create a table of best performing methods per tissue
+best_methods_by_tissue <- rank_correlation_results %>%
+  group_by(tissue_metric, subset) %>%
+  slice_min(correlation_pvalue, n = 1) %>%
+  select(tissue_metric, subset, method, spearman_rho, correlation_pvalue) %>%
+  arrange(tissue_metric, subset)
+
+write_results_csv(best_methods_by_tissue, trait, tool_base, "_best_method_by_tissue")
+
+cat("\nAnalysis complete. Summary files written to current directory.\n")
+cat("======= Tissue Specificity Correlation Analysis Complete =======\n")
+
+
+

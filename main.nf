@@ -23,7 +23,11 @@ include {
 
 include {
     tissue_specificity_analysis
-} from './modules/tissue_specificity/tissuespecificity.nf'
+} from './modules/tissuespecificity/tissuespecificity.nf'
+
+include {
+    tissue_correlation_analysis
+} from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
     opentargets_statistics;
@@ -351,6 +355,11 @@ workflow {
             
             // Run tissue specificity analysis for all MAGMA traits
             tissue_specificity_analysis(magma_for_tissue)
+            
+            // Run tissue correlation analysis for all MAGMA traits
+            if (params.run_tissue_correlation) {
+                tissue_correlation_analysis(magma_for_tissue)
+            }
         }
         
         // Run tissue specificity analysis for PRSet
@@ -378,6 +387,11 @@ workflow {
             
             // Run tissue specificity analysis for PRSet
             tissue_specificity_analysis(prset_for_tissue)
+            
+            // Run tissue correlation analysis for PRSet
+            if (params.run_tissue_correlation) {
+                tissue_correlation_analysis(prset_for_tissue)
+            }
         }
     }
 }
