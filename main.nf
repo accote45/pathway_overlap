@@ -355,11 +355,6 @@ workflow {
             
             // Run tissue specificity analysis for all MAGMA traits
             tissue_specificity_analysis(magma_for_tissue)
-            
-            // Run tissue correlation analysis for all MAGMA traits
-            if (params.run_tissue_correlation) {
-                tissue_correlation_analysis(magma_for_tissue)
-            }
         }
         
         // Run tissue specificity analysis for PRSet
@@ -387,11 +382,65 @@ workflow {
             
             // Run tissue specificity analysis for PRSet
             tissue_specificity_analysis(prset_for_tissue)
+        }
+    }
+    
+    //////////////////////////////////////////
+    // TISSUE CORRELATION WORKFLOW - Independent of Tissue Specificity
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_tissue_correlation) {
+        log.info "Setting up Tissue Correlation analysis (independent of Tissue Specificity)"
+        
+        // Run tissue correlation analysis for MAGMA
+        if (params.run_magma) {
+            log.info "Setting up Tissue Correlation analysis for MAGMA"
+            
+            // Create a channel for tissue correlation, identical setup to tissue specificity
+            magma_for_tissue_corr = magma_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            // Run tissue correlation analysis for all MAGMA traits
+            tissue_correlation_analysis(magma_for_tissue_corr)
+        }
+        
+        // Run tissue correlation analysis for PRSet
+        if (params.run_prset) {
+            log.info "Setting up Tissue Correlation analysis for PRSet"
+            
+            // Create a channel for tissue correlation, identical setup to tissue specificity
+            prset_for_tissue_corr = prset_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
             
             // Run tissue correlation analysis for PRSet
-            if (params.run_tissue_correlation) {
-                tissue_correlation_analysis(prset_for_tissue)
-            }
+            tissue_correlation_analysis(prset_for_tissue_corr)
         }
     }
 }
