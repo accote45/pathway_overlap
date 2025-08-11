@@ -8,6 +8,7 @@ Key capabilities:
 - Build null distributions using two strategies and compute empirical p-values and standardized effect sizes.
 - Compare top pathways against OpenTargets gene–disease evidence using size-matched controls; create summary plots.
 - Evaluate tissue specificity using precomputed tissue expression specificity tables.
+- Perform correlation analyses across ranking methods and tissues (optional).
 
 ---
 
@@ -99,6 +100,8 @@ Key parameters in `nextflow.config` (edit to your environment):
   - `params.run_tissue_specificity` – run tissue specificity analysis
   - `params.run_opentargets` – run OpenTargets size-matched comparisons
   - `params.run_ot_viz` – generate OpenTargets plots (default false)
+  - `params.run_ot_correlation` – run OpenTargets correlation analyses across ranking methods
+  - `params.run_tissue_correlation` – run tissue specificity correlation analyses
 
 - OpenTargets
   - `params.opentargets_supported_traits` – whitelist of traits
@@ -127,7 +130,8 @@ nextflow run main.nf \
   --enrichment_method magma \
   --num_random_sets 1000 \
   --run_magma true --run_prset true --run_empirical true \
-  --run_opentargets true --run_ot_viz true --run_tissue_specificity true \
+  --run_opentargets true --run_ot_viz true \
+  --run_tissue_specificity true --run_ot_correlation true --run_tissue_correlation true \
   -resume
 ```
 
@@ -167,6 +171,15 @@ Note: If not using LSF, edit `nextflow.config` to your scheduler before running.
 - Summary TSV: `<trait>_<tool>_size_matched_analysis_summary.tsv`
 - Per-trait outputs organized under `<outdir>`; examples in `magma_tissuespec/`
 
+6) Correlation analyses (optional)
+- OpenTargets correlation across ranking methods (enable with `--run_ot_correlation true`)
+  - Correlates pathway rankings/metrics across methods to assess concordance
+  - Produces summary tables and plots (see `modules/opentargets` outputs)
+- Tissue specificity correlation (enable with `--run_tissue_correlation true`)
+  - Runs `scripts/tissue_correlation_stats.R`
+  - Computes Spearman correlations between pathway ranks and tissue specificity metrics
+  - Outputs per-trait CSV summaries and multi-page PDFs per method/subset
+
 ---
 
 ## Outputs (typical)
@@ -176,9 +189,14 @@ Note: If not using LSF, edit `nextflow.config` to your scheduler before running.
   - `<trait>_<tool>_gene_disease_associations.csv`
   - `<trait>_<tool>_*_detailed_advantage.csv`
   - `<trait>_combined_advantage_plots.pdf`, `<trait>_combined_boxplots.pdf`
+  - OpenTargets correlation summaries/plots (if enabled)
 - Tissue specificity:
   - `<trait>_<tool>_all_detailed_metrics.csv`
   - `<trait>_<tool>_size_matched_analysis_summary.tsv`
+  - Tissue correlation summaries and plots (if enabled):
+    - `<trait>_<tool>_tissue_correlation_summary.csv`
+    - `<trait>_<tool>_best_method_by_tissue.csv`
+    - `<trait>_<tool>_<method>_<subset>_tissue_correlation_*.pdf`
 
 Note: Exact paths depend on how modules in `main.nf` stage outputs into `params.outdir`.
 
@@ -188,6 +206,7 @@ Note: Exact paths depend on how modules in `main.nf` stage outputs into `params.
 
 - Update absolute paths in `nextflow.config` to your environment (bfile, gene sets, OpenTargets data, tissue data).
 - If your OpenTargets JSONs live elsewhere, modify the path used in `scripts/size_matched_OT_stats_optimized.R` or expose it as a Nextflow parameter.
+- For tissue correlation, ensure `params.tissue_expression_data` points to the correct CSV with a `Name` column for gene symbols and tissue columns.
 - For non-LSF systems, simplify the `process {}` blocks in `nextflow.config` and set a global `executor`.
 - Adjust `params.opentargets_supported_traits` to restrict which traits are processed in the OpenTargets stage.
 
@@ -198,6 +217,7 @@ Note: Exact paths depend on how modules in `main.nf` stage outputs into `params.
 - No random result files found: ensure randomized GMT directories are correct and that randomization steps have run (BiReWire/KeepPathSize).
 - Missing columns errors in R scripts: confirm your GWAS JSON column mappings and that tool-specific outputs contain the expected fields.
 - MAGMA failures: verify `params.bfile` and that MAGMA binaries are available on PATH or referenced in the module.
+- Correlation step warnings about missing metrics: check tissue file columns and that empirical results include required fields (e.g., `empirical_pval`, `std_effect_size`).
 - Scheduler issues: adapt `nextflow.config` executors and resource directives to your environment.
 
 ---
