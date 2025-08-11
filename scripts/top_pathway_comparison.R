@@ -8,6 +8,7 @@ library(patchwork)
 library(data.table)
 library(jsonlite)
 library(GSA)
+library(MatchIt)
 
 # Set parameters
 disease_name <- "CAD"
@@ -55,7 +56,6 @@ process_disease_data <- function(files, disease_id) {
   
   if(nrow(combined_dat) == 0) {
     stop(paste("No OpenTargets data found for disease ID:", disease_id))
-  }
   
   return(combined_dat)
 }
@@ -118,10 +118,9 @@ masterfin[is.na(masterfin)] <- 0
 pathway_scores <- masterfin %>% 
   group_by(name) %>% 
   summarise(
-    avg_score = mean(score, na.rm = TRUE),
+    mean_score = mean(score, na.rm = TRUE),
     num_genes = n(),
     num_with_evidence = sum(score > 0, na.rm = TRUE),
-    coverage = sum(score > 0, na.rm = TRUE) / n(),
     evidence_density = num_with_evidence / num_genes,
     max_score = max(score, na.rm = TRUE),
     median_score = median(score, na.rm = TRUE)
@@ -176,12 +175,11 @@ analyze_top_pathways <- function(birewire_data, keeppath_data, pathway_scores, N
       return(list(
         n = nrow(pathway_data),
         mean_size = mean(pathway_data$num_genes),
-        mean_ot_score = mean(pathway_data$avg_score),
-        median_ot_score = median(pathway_data$avg_score),
+        mean_ot_score = mean(pathway_data$mean_score),
+        median_ot_score = median(pathway_data$mean_score),
         mean_evidence_density = mean(pathway_data$evidence_density),
         median_evidence_density = median(pathway_data$evidence_density),
         pct_with_evidence = 100 * mean(pathway_data$num_with_evidence > 0),
-        mean_coverage = mean(pathway_data$coverage),
         mean_max_score = mean(pathway_data$max_score)
       ))
     }
@@ -436,60 +434,10 @@ top_keeppath <- top_keeppath %>%
   select(rank, name, NGENES, empirical_pvalue, P, avg_score, evidence_density, num_with_evidence, max_score)
 
 # Write detailed pathway tables to CSV
-write.csv(top_birewire, paste0(tolower(disease_name), '_top_birewire_pathways.csv'), row.names=FALSE)
-write.csv(top_keeppath, paste0(tolower(disease_name), '_top_keeppath_pathways.csv'), row.names=FALSE)
-write.csv(results_df, paste0(tolower(disease_name), '_top_pathway_summary.csv'), row.names=FALSE)
+write.csv(top_birewire, paste0(tolower(disease_name), '_top_birewire_pathways.csv'), row.names=FALSE,quote=F)
+write.csv(top_keeppath, paste0(tolower(disease_name), '_top_keeppath_pathways.csv'), row.names=FALSE,quote=F)
+write.csv(results_df, paste0(tolower(disease_name), '_top_pathway_summary.csv'), row.names=FALSE,quote=F)
 
-# ===== Statistical Tests =====
-cat("\n===== Statistical Tests =====\n")
-
-# Perform paired t-tests to compare methods
-# Test 1: Compare mean OT scores in top pathways
-t_test_scores <- t.test(
-  results_df$birewire_mean_ot_score,
-  results_df$keeppath_mean_ot_score,
-  paired = TRUE
-)
-
-# Test 2: Compare evidence density in top pathways
-t_test_density <- t.test(
-  results_df$birewire_mean_evidence_density,
-  results_df$keeppath_mean_evidence_density,
-  paired = TRUE
-)
-
-# Test 3: Compare max scores in top pathways
-t_test_max <- t.test(
-  results_df$birewire_mean_max_score,
-  results_df$keeppath_mean_max_score,
-  paired = TRUE
-)
-
-# Print test results
-cat("\nPaired t-test comparing mean OpenTargets scores:\n")
-cat("t =", t_test_scores$statistic, ", p-value =", t_test_scores$p.value, "\n")
-cat("BireWire mean:", mean(results_df$birewire_mean_ot_score), "\n")
-cat("KeepPathSize mean:", mean(results_df$keeppath_mean_ot_score), "\n")
-
-cat("\nPaired t-test comparing evidence density:\n")
-cat("t =", t_test_density$statistic, ", p-value =", t_test_density$p.value, "\n")
-cat("BireWire mean:", mean(results_df$birewire_mean_evidence_density), "\n")
-cat("KeepPathSize mean:", mean(results_df$keeppath_mean_evidence_density), "\n")
-
-cat("\nPaired t-test comparing maximum scores:\n")
-cat("t =", t_test_max$statistic, ", p-value =", t_test_max$p.value, "\n")
-cat("BireWire mean:", mean(results_df$birewire_mean_max_score), "\n")
-cat("KeepPathSize mean:", mean(results_df$keeppath_mean_max_score), "\n")
-
-# ===== Final Summary =====
-cat("\n===== Final Summary =====\n")
-better_method <- ifelse(mean(results_df$birewire_mean_evidence_density) > mean(results_df$keeppath_mean_evidence_density),
-                      "BireWire", "KeepPathSize")
-
-cat("Overall better method for top pathway prioritization:", better_method, "\n")
-cat("Evidence density advantage:", 
-    abs(mean(results_df$birewire_mean_evidence_density) - mean(results_df$keeppath_mean_evidence_density)), "\n")
-cat("Analysis complete. Results saved to CSV files and PDF.\n")
 
 # ===== Pathway Size Analysis =====
 cat("\n===== Pathway Size Analysis =====\n")
@@ -602,19 +550,6 @@ print(p6)
 print(p7)
 print(p8)
 print(p9)
-
-# Additional plot: Size difference in relation to evidence advantage
-p10 <- ggplot(size_analysis, aes(x=size_difference, 
-                                y=results_df$birewire_mean_evidence_density - results_df$keeppath_mean_evidence_density)) +
-  geom_point(aes(size=N), color="purple") +
-  geom_text(aes(label=N), vjust=-0.7) +
-  geom_hline(yintercept=0, linetype="dashed") +
-  geom_vline(xintercept=0, linetype="dashed") +
-  labs(title=paste(disease_name, "- Relationship Between Size Difference and Evidence Advantage"),
-       x="Size Difference (BireWire - KeepPathSize)",
-       y="Evidence Density Advantage (BireWire - KeepPathSize)") +
-  theme_minimal()
-print(p10)
 dev.off()
 
 # Create a size-specific CSV file
@@ -638,152 +573,590 @@ size_distribution <- all_sizes %>%
 cat("\nSize distribution of top pathways:\n")
 print(size_distribution)
 
-# Create stacked bar plot of size distribution
-size_dist_long <- all_sizes %>%
-  group_by(method, N, size_category) %>%
-  summarize(count = n()) %>%
-  ungroup()
-
-p11 <- ggplot(size_dist_long, aes(x=as.factor(N), y=count, fill=size_category)) +
-  geom_bar(stat="identity") +
-  facet_wrap(~method) +
-  scale_fill_brewer(palette="Set3") +
-  labs(title=paste(disease_name, "- Size Distribution of Top Pathways"),
-       x="Top N Pathways", y="Number of Pathways", fill="Size Category") +
-  theme_minimal()
-
-# Add to the PDF
-pdf(paste0(tolower(disease_name), '_pathway_size_distribution.pdf'), width=10, height=6)
-print(p11)
-dev.off()
-
 # Add to the summary results
-write.csv(size_dist_long, paste0(tolower(disease_name), '_pathway_size_distribution.csv'), row.names=FALSE)
+write.csv(size_distribution, paste0(tolower(disease_name), '_pathway_size_distribution.csv'), row.names=FALSE)
 
-cat("\nPathway size analysis complete. Results added to PDFs and CSV files.\n")
 
-# ===== Size-Matched Pathway Analysis =====
-cat("\n===== Size-Matched Pathway Analysis =====\n")
 
-# Function to perform analysis on size-matched pathways
-analyze_size_matched_pathways <- function(birewire_results, keeppath_results, pathway_scores, 
-                                         size_bins=c(0, 50, 100, 200, 500, Inf)) {
+
+# ===== Propensity Score Matching Analysis =====
+cat("\n===== Propensity Score Matching Analysis =====\n")
+# Function to perform propensity score matching
+perform_psm_analysis <- function(birewire_results, keeppath_results, pathway_scores) {
+  # Prepare data for matching
+  # First, identify all unique pathways from both methods
+  all_pathways <- unique(c(birewire_results$name, keeppath_results$name))
   
-  # Create size categories
-  birewire_results$size_bin <- cut(birewire_results$NGENES, breaks=size_bins)
-  keeppath_results$size_bin <- cut(keeppath_results$NGENES, breaks=size_bins)
+  # Create a dataset with method assignment and pathway size
+  matching_data <- data.frame(
+    name = all_pathways,
+    in_birewire_top100 = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pvalue),]$name, 20),
+    in_keeppath_top100 = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pvalue),]$name, 20)
+  )
   
-  # Results container
-  all_results <- data.frame()
-  
-  # Analyze each size bin separately
-  for(bin in levels(birewire_results$size_bin)) {
-    cat("\nAnalyzing size bin:", bin, "\n")
-    
-    # Get pathways in this size bin
-    bin_birewire <- birewire_results[birewire_results$size_bin == bin, ]
-    bin_keeppath <- keeppath_results[keeppath_results$size_bin == bin, ]
-    
-    # Get top N for each method within this size bin
-    n_values <- c(5, 10, 20)
-    n_values <- n_values[n_values <= min(nrow(bin_birewire), nrow(bin_keeppath))/2]
-    
-    if(length(n_values) == 0) {
-      cat("Not enough pathways in bin", bin, "for analysis\n")
-      next
-    }
-    
-    for(n in n_values) {
-      # Get top n pathways in this size bin
-      top_birewire <- bin_birewire %>% arrange(empirical_pvalue) %>% head(n)
-      top_keeppath <- bin_keeppath %>% arrange(empirical_pvalue) %>% head(n)
-      
-      # Get evidence metrics
-      bw_evidence <- pathway_scores %>% 
-        filter(name %in% top_birewire$name) %>%
-        summarize(
-          mean_size = mean(num_genes),
-          mean_score = mean(avg_score),
-          evidence_density = mean(evidence_density),
-          max_score = mean(max_score)
-        )
-      
-      kp_evidence <- pathway_scores %>% 
-        filter(name %in% top_keeppath$name) %>%
-        summarize(
-          mean_size = mean(num_genes),
-          mean_score = mean(avg_score),
-          evidence_density = mean(evidence_density),
-          max_score = mean(max_score)
-        )
-      
-      # Store results
-      bin_result <- data.frame(
-        size_bin = bin,
-        n_pathways = n,
-        mean_size_birewire = bw_evidence$mean_size,
-        mean_size_keeppath = kp_evidence$mean_size,
-        
-        mean_score_birewire = bw_evidence$mean_score,
-        mean_score_keeppath = kp_evidence$mean_score,
-        score_advantage = bw_evidence$mean_score - kp_evidence$mean_score,
-        
-        density_birewire = bw_evidence$evidence_density, 
-        density_keeppath = kp_evidence$evidence_density,
-        density_advantage = bw_evidence$evidence_density - kp_evidence$evidence_density,
-        
-        max_score_birewire = bw_evidence$max_score,
-        max_score_keeppath = kp_evidence$max_score,
-        max_advantage = bw_evidence$max_score - kp_evidence$max_score
-      )
-      
-      all_results <- rbind(all_results, bin_result)
-      
-      # Print results
-      cat("Top", n, "pathways in size bin", bin, ":\n")
-      cat("- BireWire mean score:", round(bw_evidence$mean_score, 4), 
-          ", evidence density:", round(bw_evidence$evidence_density, 4), "\n")
-      cat("- KeepPathSize mean score:", round(kp_evidence$mean_score, 4), 
-          ", evidence density:", round(kp_evidence$evidence_density, 4), "\n")
+  # Add pathway size information
+  matching_data$size <- NA
+  for(i in 1:nrow(matching_data)) {
+    idx <- which(birewire_results$name == matching_data$name[i])
+    if(length(idx) > 0) {
+      matching_data$size[i] <- birewire_results$NGENES[idx[1]]
+    } else {
+      idx <- which(keeppath_results$name == matching_data$name[i])
+      if(length(idx) > 0) {
+        matching_data$size[i] <- keeppath_results$NGENES[idx[1]]
+      }
     }
   }
+  
+  # Remove pathways with missing size
+  matching_data <- matching_data[!is.na(matching_data$size),]
+  
+  # Add OpenTargets evidence information
+  matching_data <- merge(matching_data, pathway_scores[,c("name", "mean_score")], by="name", all.x=TRUE)
+  
+  # Perform size matching for BireWire top pathways
+  tryCatch({
+    m.out1 <- matchit(in_birewire_top100 ~ size, data = matching_data, 
+                     method = "nearest", ratio = 1)
+    
+    matched_data1 <- match.data(m.out1)
+    
+    # Compare OT scores
+    bw_density <- mean(matched_data1$mean_score[matched_data1$in_birewire_top100], na.rm=TRUE)
+    other_density <- mean(matched_data1$mean_score[!matched_data1$in_birewire_top100], na.rm=TRUE)
+    
+    cat("Size-matched comparison (BireWire top 100 vs. size-matched pathways):\n")
+    cat("- Average evidence density in BireWire top 100:", round(bw_density, 4), "\n")
+    cat("- Average evidence density in size-matched pathways:", round(other_density, 4), "\n")
+    cat("- Advantage:", round(bw_density - other_density, 4), 
+        "(", ifelse(bw_density > other_density, "BireWire better", "Other better"), ")\n\n")
+    
+    # Perform matching for KeepPathSize top pathways
+    m.out2 <- matchit(in_keeppath_top100 ~ size, data = matching_data, 
+                     method = "nearest", ratio = 1)
+    
+    matched_data2 <- match.data(m.out2)
+    
+    # Compare OT scores
+    kp_density <- mean(matched_data2$mean_score[matched_data2$in_keeppath_top100], na.rm=TRUE)
+    other_density2 <- mean(matched_data2$mean_score[!matched_data2$in_keeppath_top100], na.rm=TRUE)
+    
+    cat("Size-matched comparison (KeepPathSize top 100 vs. size-matched pathways):\n")
+    cat("- Average OT score in KeepPathSize top 100:", round(kp_density, 4), "\n")
+    cat("- Average OT score in size-matched pathways:", round(other_density2, 4), "\n")
+    cat("- Advantage:", round(kp_density - other_density2, 4),
+        "(", ifelse(kp_density > other_density2, "KeepPathSize better", "Other better"), ")\n")
+    
+    return(list(
+      birewire_match = matched_data1,
+      keeppath_match = matched_data2
+    ))
+  }, error = function(e) {
+    cat("Error in pathway size matching:", e$message, "\n")
+    cat("Consider installing the MatchIt package: install.packages('MatchIt')\n")
+    return(NULL)
+  })
+}
+
+# Use the function
+psm_results <- perform_psm_analysis(birewire_results, keeppath_results, pathway_scores)
+
+# If successful, save results
+if(!is.null(psm_results)) {
+  lapply(names(psm_results), function(name) {
+    write.csv(psm_results[[name]], 
+             paste0(tolower(disease_name), '_psm_', name, '.csv'), 
+             row.names=FALSE,quote=F)
+  })
+}
+
+
+# ===== Enhanced Size Matching Analysis =====
+cat("\n===== Enhanced Size Matching Analysis =====\n")
+
+# Function to perform size matching with multiple values of N
+perform_enhanced_matching <- function(birewire_results, keeppath_results, pathway_scores, n_values = c(10, 20, 50, 100)) {
+  all_results <- list()
+  
+  for (n in n_values) {
+    cat(paste("\nAnalyzing top", n, "pathways...\n"))
+    
+    # Prepare data for matching
+    # First, identify all unique pathways from both methods
+    all_pathways <- unique(c(birewire_results$name, keeppath_results$name))
+    
+    # Create a dataset with method assignment and pathway size
+    matching_data <- data.frame(
+      name = all_pathways,
+      in_birewire_top = all_pathways %in% head(birewire_results[order(birewire_results$empirical_pvalue),]$name, n),
+      in_keeppath_top = all_pathways %in% head(keeppath_results[order(keeppath_results$empirical_pvalue),]$name, n)
+    )
+    
+    # Add pathway size information
+    matching_data$size <- NA
+    for(i in 1:nrow(matching_data)) {
+      idx <- which(birewire_results$name == matching_data$name[i])
+      if(length(idx) > 0) {
+        matching_data$size[i] <- birewire_results$NGENES[idx[1]]
+      } else {
+        idx <- which(keeppath_results$name == matching_data$name[i])
+        if(length(idx) > 0) {
+          matching_data$size[i] <- keeppath_results$NGENES[idx[1]]
+        }
+      }
+    }
+    
+    # Remove pathways with missing size
+    matching_data <- matching_data[!is.na(matching_data$size),]
+    
+    # Add OpenTargets evidence information - include all metrics
+    matching_data <- merge(matching_data, pathway_scores, by="name", all.x=TRUE)
+    
+    # BireWire analysis
+    tryCatch({
+      # Perform size matching for BireWire top pathways
+      m.out1 <- matchit(in_birewire_top ~ size, data = matching_data, 
+                       method = "nearest", ratio = 1)
+      
+      matched_data1 <- match.data(m.out1)
+      
+      # Compare all OT metrics
+      metrics <- c("mean_score", "evidence_density", "max_score", "median_score")
+      bw_comparison <- data.frame()
+      
+      for(metric in metrics) {
+        if(metric %in% colnames(matched_data1)) {
+          bw_value <- mean(matched_data1[[metric]][matched_data1$in_birewire_top], na.rm=TRUE)
+          other_value <- mean(matched_data1[[metric]][!matched_data1$in_birewire_top], na.rm=TRUE)
+          
+          bw_comparison <- rbind(bw_comparison, data.frame(
+            metric = metric,
+            birewire_value = bw_value,
+            control_value = other_value,
+            difference = bw_value - other_value,
+            percent_diff = 100 * (bw_value - other_value) / ifelse(other_value == 0, 1, other_value)
+          ))
+        }
+      }
+      
+      # Calculate size balance
+      bw_size_avg <- mean(matched_data1$size[matched_data1$in_birewire_top])
+      other_size_avg <- mean(matched_data1$size[!matched_data1$in_birewire_top])
+      
+      cat("Size-matched comparison (BireWire top", n, "vs. size-matched pathways):\n")
+      cat("- Average size in BireWire top:", round(bw_size_avg, 1), 
+          "vs. matched pathways:", round(other_size_avg, 1), "\n")
+      
+      # Print metric comparisons
+      for(i in 1:nrow(bw_comparison)) {
+        metric_name <- bw_comparison$metric[i]
+        bw_val <- bw_comparison$birewire_value[i]
+        other_val <- bw_comparison$control_value[i]
+        diff <- bw_comparison$difference[i]
+        
+        cat("- Average", metric_name, "in BireWire top", n, ":", round(bw_val, 4), 
+            "vs. matched pathways:", round(other_val, 4), 
+            "(diff:", round(diff, 4), ",", 
+            ifelse(diff > 0, "BireWire better)", "Control better)"), "\n")
+      }
+      
+      # KeepPathSize analysis
+      m.out2 <- matchit(in_keeppath_top ~ size, data = matching_data, 
+                       method = "nearest", ratio = 1)
+      
+      matched_data2 <- match.data(m.out2)
+      
+      # Compare all OT metrics for KeepPathSize
+      kp_comparison <- data.frame()
+      
+      for(metric in metrics) {
+        if(metric %in% colnames(matched_data2)) {
+          kp_value <- mean(matched_data2[[metric]][matched_data2$in_keeppath_top], na.rm=TRUE)
+          other_value <- mean(matched_data2[[metric]][!matched_data2$in_keeppath_top], na.rm=TRUE)
+          
+          kp_comparison <- rbind(kp_comparison, data.frame(
+            metric = metric,
+            keeppath_value = kp_value,
+            control_value = other_value,
+            difference = kp_value - other_value,
+            percent_diff = 100 * (kp_value - other_value) / ifelse(other_value == 0, 1, other_value)
+          ))
+        }
+      }
+      
+      # Calculate size balance for KeepPathSize
+      kp_size_avg <- mean(matched_data2$size[matched_data2$in_keeppath_top])
+      other_size_avg2 <- mean(matched_data2$size[!matched_data2$in_keeppath_top])
+      
+      cat("\nSize-matched comparison (KeepPathSize top", n, "vs. size-matched pathways):\n")
+      cat("- Average size in KeepPathSize top:", round(kp_size_avg, 1), 
+          "vs. matched pathways:", round(other_size_avg2, 1), "\n")
+      
+      # Print metric comparisons for KeepPathSize
+      for(i in 1:nrow(kp_comparison)) {
+        metric_name <- kp_comparison$metric[i]
+        kp_val <- kp_comparison$keeppath_value[i]
+        other_val <- kp_comparison$control_value[i]
+        diff <- kp_comparison$difference[i]
+        
+        cat("- Average", metric_name, "in KeepPathSize top", n, ":", round(kp_val, 4), 
+            "vs. matched pathways:", round(other_val, 4), 
+            "(diff:", round(diff, 4), ",", 
+            ifelse(diff > 0, "KeepPathSize better)", "Control better)"), "\n")
+      }
+      
+      # Add N to the matched datasets for plotting
+      matched_data1$N <- n
+      matched_data2$N <- n
+      
+      # Add method identifier for later comparison
+      matched_data1$method <- "BireWire"
+      matched_data2$method <- "KeepPathSize"
+      
+      # Store results
+      all_results[[paste0("birewire_", n)]] <- matched_data1
+      all_results[[paste0("keeppath_", n)]] <- matched_data2
+      all_results[[paste0("bw_metrics_", n)]] <- bw_comparison
+      all_results[[paste0("kp_metrics_", n)]] <- kp_comparison
+      
+      # Create boxplots for this N value
+      create_comparison_plots(matched_data1, matched_data2, n, disease_name)
+      
+    }, error = function(e) {
+      cat("Error in matching for N =", n, ":", e$message, "\n")
+    })
+  }
+  
+  # Combine all matched data for overall comparison
+  bw_combined <- do.call(rbind, all_results[grep("^birewire_\\d+$", names(all_results))])
+  kp_combined <- do.call(rbind, all_results[grep("^keeppath_\\d+$", names(all_results))])
+  
+  all_results[["birewire_combined"]] <- bw_combined
+  all_results[["keeppath_combined"]] <- kp_combined
+  
+  # Create combined visualizations
+  create_combined_plots(bw_combined, kp_combined, disease_name)
   
   return(all_results)
 }
 
-# Run size-matched analysis
-size_matched_results <- analyze_size_matched_pathways(birewire_results, keeppath_results, pathway_scores)
-
-# Visualize results
-if(nrow(size_matched_results) > 0) {
-  # Plot advantage by size bin - USING ORIGINAL CODE WITHOUT FIXING X-AXIS
-  size_matched_long <- size_matched_results %>%
-    select(size_bin, n_pathways, score_advantage, density_advantage, max_advantage) %>%
-    pivot_longer(cols=c(score_advantage, density_advantage, max_advantage),
-                 names_to="metric", values_to="advantage")
+# Helper function to create comparison plots for a specific N value
+create_comparison_plots <- function(bw_data, kp_data, n, disease_name) {
+  # BireWire plots
+  pdf(paste0(tolower(disease_name), "_birewire_top", n, "_matching_plots.pdf"), width=12, height=8)
   
-  p_size_matched <- ggplot(size_matched_long, 
-                          aes(x=size_bin, y=advantage, fill=metric)) +
-    geom_bar(stat="identity", position=position_dodge()) +
-    facet_wrap(~n_pathways, labeller=labeller(n_pathways=function(x) paste0("Top ", x, " Pathways"))) +
-    geom_hline(yintercept=0, linetype="dashed") +
-    scale_fill_brewer(palette="Set1", 
-                    labels=c("density_advantage"="Evidence Density", 
-                             "max_advantage"="Max Evidence", 
-                             "score_advantage"="Mean Score")) +
-    labs(title="BireWire Advantage by Size Bin (Controlling for Pathway Size)",
-         x="Pathway Size Bin", y="BireWire Advantage", fill="Metric") +
-    theme_minimal() +
-    theme(axis.text.x=element_text(angle=45, hjust=1))
+  # Mean score comparison
+  p1 <- ggplot(bw_data, aes(x=factor(in_birewire_top, labels=c("Control", "BireWire")), 
+                            y=mean_score)) +
+    geom_boxplot(fill="lightblue", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("OpenTargets Mean Score - BireWire Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Mean OpenTargets Score") +
+    theme_minimal()
   
-  # Save results
-  pdf(paste0(tolower(disease_name), '_size_matched_analysis.pdf'), width=10, height=7)
-  print(p_size_matched)
+  print(p1)
+  
+  # Evidence density comparison
+  p2 <- ggplot(bw_data, aes(x=factor(in_birewire_top, labels=c("Control", "BireWire")), 
+                           y=evidence_density)) +
+    geom_boxplot(fill="lightblue", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("Evidence Density - BireWire Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Evidence Density") +
+    theme_minimal()
+  
+  print(p2)
+  
+  # Size verification - to confirm matching worked
+  p3 <- ggplot(bw_data, aes(x=factor(in_birewire_top, labels=c("Control", "BireWire")), 
+                           y=size)) +
+    geom_boxplot(fill="lightblue", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("Pathway Size - BireWire Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Pathway Size (# genes)") +
+    theme_minimal()
+  
+  print(p3)
+  
   dev.off()
   
-  # Save to CSV
-  write.csv(size_matched_results, paste0(tolower(disease_name), '_size_matched_results.csv'), row.names=FALSE)
+  # KeepPathSize plots
+  pdf(paste0(tolower(disease_name), "_keeppath_top", n, "_matching_plots.pdf"), width=12, height=8)
+  
+  # Mean score comparison
+  p4 <- ggplot(kp_data, aes(x=factor(in_keeppath_top, labels=c("Control", "KeepPathSize")), 
+                            y=mean_score)) +
+    geom_boxplot(fill="lightpink", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("OpenTargets Mean Score - KeepPathSize Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Mean OpenTargets Score") +
+    theme_minimal()
+  
+  print(p4)
+  
+  # Evidence density comparison
+  p5 <- ggplot(kp_data, aes(x=factor(in_keeppath_top, labels=c("Control", "KeepPathSize")), 
+                           y=evidence_density)) +
+    geom_boxplot(fill="lightpink", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("Evidence Density - KeepPathSize Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Evidence Density") +
+    theme_minimal()
+  
+  print(p5)
+  
+  # Size verification - to confirm matching worked
+  p6 <- ggplot(kp_data, aes(x=factor(in_keeppath_top, labels=c("Control", "KeepPathSize")), 
+                           y=size)) +
+    geom_boxplot(fill="lightpink", width=0.5) +
+    geom_jitter(width=0.2, alpha=0.6) +
+    stat_summary(fun=mean, geom="point", shape=23, size=4, fill="red") +
+    labs(title=paste("Pathway Size - KeepPathSize Top", n, "vs Size-Matched Controls"),
+         x="Group", y="Pathway Size (# genes)") +
+    theme_minimal()
+  
+  print(p6)
+  
+  dev.off()
 }
+
+# Helper function to create combined plots across all N values
+create_combined_plots <- function(bw_combined, kp_combined, disease_name) {
+  pdf(paste0(tolower(disease_name), "_combined_matching_analysis.pdf"), width=14, height=10)
+  
+  # Reshape BireWire data for faceted plot
+  bw_plot_data <- bw_combined %>%
+    mutate(Group = factor(in_birewire_top, 
+                        labels = c("Size-Matched Control", "BireWire Top Pathways"))) %>%
+    select(N, Group, name, size, mean_score, evidence_density, max_score) %>%
+    mutate(N = factor(N))
+  
+  # Reshape KeepPathSize data for faceted plot
+  kp_plot_data <- kp_combined %>%
+    mutate(Group = factor(in_keeppath_top, 
+                        labels = c("Size-Matched Control", "KeepPathSize Top Pathways"))) %>%
+    select(N, Group, name, size, mean_score, evidence_density, max_score) %>%
+    mutate(N = factor(N))
+  
+  # Combined mean score plots - BireWire
+  p1 <- ggplot(bw_plot_data, aes(x=Group, y=mean_score, fill=Group)) +
+    geom_boxplot(alpha=0.7) +
+    geom_jitter(width=0.2, alpha=0.4) +
+    stat_summary(fun=mean, geom="point", shape=23, size=3, fill="black") +
+    facet_wrap(~ N, scales = "free_y", labeller = labeller(N = function(x) paste0("Top ", x, " Pathways"))) +
+    scale_fill_manual(values=c("Size-Matched Control" = "gray80", "BireWire Top Pathways" = "lightblue")) +
+    labs(title="BireWire: OpenTargets Mean Score Comparison Across Different N Values",
+         x="", y="Mean OpenTargets Score") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  
+  # Combined mean score plots - KeepPathSize
+  p2 <- ggplot(kp_plot_data, aes(x=Group, y=mean_score, fill=Group)) +
+    geom_boxplot(alpha=0.7) +
+    geom_jitter(width=0.2, alpha=0.4) +
+    stat_summary(fun=mean, geom="point", shape=23, size=3, fill="black") +
+    facet_wrap(~ N, scales = "free_y", labeller = labeller(N = function(x) paste0("Top ", x, " Pathways"))) +
+    scale_fill_manual(values=c("Size-Matched Control" = "gray80", "KeepPathSize Top Pathways" = "lightpink")) +
+    labs(title="KeepPathSize: OpenTargets Mean Score Comparison Across Different N Values",
+         x="", y="Mean OpenTargets Score") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  
+  # Evidence density plots
+  p3 <- ggplot(bw_plot_data, aes(x=Group, y=evidence_density, fill=Group)) +
+    geom_boxplot(alpha=0.7) +
+    geom_jitter(width=0.2, alpha=0.4) +
+    stat_summary(fun=mean, geom="point", shape=23, size=3, fill="black") +
+    facet_wrap(~ N, scales = "free_y", labeller = labeller(N = function(x) paste0("Top ", x, " Pathways"))) +
+    scale_fill_manual(values=c("Size-Matched Control" = "gray80", "BireWire Top Pathways" = "lightblue")) +
+    labs(title="BireWire: Evidence Density Comparison Across Different N Values",
+         x="", y="Evidence Density") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  
+  p4 <- ggplot(kp_plot_data, aes(x=Group, y=evidence_density, fill=Group)) +
+    geom_boxplot(alpha=0.7) +
+    geom_jitter(width=0.2, alpha=0.4) +
+    stat_summary(fun=mean, geom="point", shape=23, size=3, fill="black") +
+    facet_wrap(~ N, scales = "free_y", labeller = labeller(N = function(x) paste0("Top ", x, " Pathways"))) +
+    scale_fill_manual(values=c("Size-Matched Control" = "gray80", "KeepPathSize Top Pathways" = "lightpink")) +
+    labs(title="KeepPathSize: Evidence Density Comparison Across Different N Values",
+         x="", y="Evidence Density") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  
+  # Direct comparison between methods
+  # Create dataset with advantage metrics
+  bw_advantage <- bw_plot_data %>%
+    group_by(N) %>%
+    summarise(
+      mean_score_top = mean(mean_score[Group == "BireWire Top Pathways"], na.rm=TRUE),
+      mean_score_control = mean(mean_score[Group == "Size-Matched Control"], na.rm=TRUE),
+      mean_score_advantage = mean_score_top - mean_score_control,
+      evidence_density_top = mean(evidence_density[Group == "BireWire Top Pathways"], na.rm=TRUE),
+      evidence_density_control = mean(evidence_density[Group == "Size-Matched Control"], na.rm=TRUE),
+      evidence_density_advantage = evidence_density_top - evidence_density_control
+    ) %>%
+    mutate(method = "BireWire")
+  
+  kp_advantage <- kp_plot_data %>%
+    group_by(N) %>%
+    summarise(
+      mean_score_top = mean(mean_score[Group == "KeepPathSize Top Pathways"], na.rm=TRUE),
+      mean_score_control = mean(mean_score[Group == "Size-Matched Control"], na.rm=TRUE),
+      mean_score_advantage = mean_score_top - mean_score_control,
+      evidence_density_top = mean(evidence_density[Group == "KeepPathSize Top Pathways"], na.rm=TRUE),
+      evidence_density_control = mean(evidence_density[Group == "Size-Matched Control"], na.rm=TRUE),
+      evidence_density_advantage = evidence_density_top - evidence_density_control
+    ) %>%
+    mutate(method = "KeepPathSize")
+  
+  advantage_data <- rbind(bw_advantage, kp_advantage)
+  
+  # Create advantage comparison plot
+  p5 <- ggplot(advantage_data, aes(x=N, y=mean_score_advantage, fill=method)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    geom_text(aes(label=sprintf("%.3f", mean_score_advantage)), 
+              position=position_dodge(width=0.9), vjust=-0.5) +
+    scale_fill_manual(values=c("BireWire"="blue", "KeepPathSize"="red")) +
+    labs(title="Mean Score Advantage (Top Pathways vs. Size-Matched Controls)",
+         x="Top N Pathways", y="Score Difference") +
+    theme_minimal()
+  
+  p6 <- ggplot(advantage_data, aes(x=N, y=evidence_density_advantage, fill=method)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    geom_text(aes(label=sprintf("%.3f", evidence_density_advantage)), 
+              position=position_dodge(width=0.9), vjust=-0.5) +
+    scale_fill_manual(values=c("BireWire"="blue", "KeepPathSize"="red")) +
+    labs(title="Evidence Density Advantage (Top Pathways vs. Size-Matched Controls)",
+         x="Top N Pathways", y="Density Difference") +
+    theme_minimal()
+  
+  # Print all plots
+  print(p1)
+  print(p2)
+  print(p3)
+  print(p4)
+  print(p5)
+  print(p6)
+  
+  dev.off()
+  
+  # Create a summary CSV
+  summary_data <- advantage_data %>%
+    select(N, method, mean_score_advantage, evidence_density_advantage) %>%
+    pivot_wider(
+      names_from = method,
+      values_from = c(mean_score_advantage, evidence_density_advantage)
+    ) %>%
+    mutate(
+      mean_score_better_method = ifelse(mean_score_advantage_BireWire > mean_score_advantage_KeepPathSize, 
+                                      "BireWire", "KeepPathSize"),
+      mean_score_advantage_ratio = mean_score_advantage_BireWire / mean_score_advantage_KeepPathSize,
+      evidence_better_method = ifelse(evidence_density_advantage_BireWire > evidence_density_advantage_KeepPathSize, 
+                                     "BireWire", "KeepPathSize"),
+      evidence_advantage_ratio = evidence_density_advantage_BireWire / evidence_density_advantage_KeepPathSize
+    )
+  
+  write.csv(summary_data, paste0(tolower(disease_name), "_matching_advantage_summary.csv"), 
+           row.names = FALSE, quote = FALSE)
+  
+  write.csv(advantage_data, paste0(tolower(disease_name), "_matching_raw_advantage.csv"), 
+           row.names = FALSE, quote = FALSE)
+}
+
+# Run the enhanced matching analysis
+matching_results <- perform_enhanced_matching(
+  birewire_results, 
+  keeppath_results, 
+  pathway_scores, 
+  n_values = c(10, 20, 50, 100)
+)
+
+# Save all matching results to CSV files
+for(name in names(matching_results)) {
+  write.csv(matching_results[[name]], 
+           paste0(tolower(disease_name), "_size_matched_", name, ".csv"),
+           row.names = FALSE, quote = FALSE)
+}
+
+# Create a statistical test table
+stat_test_results <- data.frame()
+
+for(n in c(20, 50, 100)) {
+  bw_data <- matching_results[[paste0("birewire_", n)]]
+  kp_data <- matching_results[[paste0("keeppath_", n)]]
+  
+  # BireWire t-test
+  bw_test_mean_score <- t.test(
+    bw_data$mean_score[bw_data$in_birewire_top],
+    bw_data$mean_score[!bw_data$in_birewire_top]
+  )
+  
+  bw_test_evidence <- t.test(
+    bw_data$evidence_density[bw_data$in_birewire_top],
+    bw_data$evidence_density[!bw_data$in_birewire_top]
+  )
+  
+  # KeepPathSize t-test
+  kp_test_mean_score <- t.test(
+    kp_data$mean_score[kp_data$in_keeppath_top],
+    kp_data$mean_score[!kp_data$in_keeppath_top]
+  )
+  
+  kp_test_evidence <- t.test(
+    kp_data$evidence_density[kp_data$in_keeppath_top],
+    kp_data$evidence_density[!kp_data$in_keeppath_top]
+  )
+  
+  # Add to results table
+  stat_test_results <- rbind(stat_test_results, data.frame(
+    N = n,
+    Method = "BireWire",
+    Metric = "Mean Score",
+    t_value = bw_test_mean_score$statistic,
+    p_value = bw_test_mean_score$p.value,
+    significant = bw_test_mean_score$p.value < 0.05
+  ))
+  
+  stat_test_results <- rbind(stat_test_results, data.frame(
+    N = n,
+    Method = "BireWire",
+    Metric = "Evidence Density",
+    t_value = bw_test_evidence$statistic,
+    p_value = bw_test_evidence$p.value,
+    significant = bw_test_evidence$p.value < 0.05
+  ))
+  
+  stat_test_results <- rbind(stat_test_results, data.frame(
+    N = n,
+    Method = "KeepPathSize",
+    Metric = "Mean Score",
+    t_value = kp_test_mean_score$statistic,
+    p_value = kp_test_mean_score$p.value,
+    significant = kp_test_mean_score$p.value < 0.05
+  ))
+  
+  stat_test_results <- rbind(stat_test_results, data.frame(
+    N = n,
+    Method = "KeepPathSize",
+    Metric = "Evidence Density",
+    t_value = kp_test_evidence$statistic,
+    p_value = kp_test_evidence$p.value,
+    significant = kp_test_evidence$p.value < 0.05
+  ))
+}
+
+# Save statistical test results
+write.csv(stat_test_results, paste0(tolower(disease_name), "_matching_statistical_tests.csv"), 
+         row.names = FALSE, quote = FALSE)
+
+cat("\nEnhanced size matching analysis complete!\n")
 
 
 

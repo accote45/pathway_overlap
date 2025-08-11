@@ -1,5 +1,4 @@
 # ===== Top Pathway Prioritization Analysis =====
-# ===== Top Pathway Prioritization Analysis =====
 # This script compares the biological relevance of top-ranked pathways 
 # identified by different randomization methods
 

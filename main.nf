@@ -23,7 +23,11 @@ include {
 
 include {
     tissue_specificity_analysis
-} from './modules/tissue_specificity/tissuespecificity.nf'
+} from './modules/tissuespecificity/tissuespecificity.nf'
+
+include {
+    tissue_correlation_analysis
+} from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
     opentargets_statistics;
@@ -32,6 +36,10 @@ include {
 include {
     opentargets_visualization;
 } from './modules/opentargets/opentargets_viz.nf'
+
+include {
+    opentargets_stats_correlation;
+} from './modules/opentargets/opentargets_stats_correlation.nf'
 
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
@@ -285,6 +293,11 @@ workflow {
             if (params.run_ot_viz) {
                 magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
             }
+            
+            // Step 3: Run correlation statistics analysis (new)
+            if (params.run_ot_correlation) {
+                magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
+            }
         }
         
         // Run OpenTargets comparison for PRSet (if enabled)
@@ -304,6 +317,11 @@ workflow {
             // Step 2: Generate visualizations only if enabled
             if (params.run_ot_viz) {
                 prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
+            }
+            
+            // Step 3: Run correlation statistics analysis (new)
+            if (params.run_ot_correlation) {
+                prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
             }
         }
     }
@@ -366,13 +384,63 @@ workflow {
             tissue_specificity_analysis(prset_for_tissue)
         }
     }
-}
-
-// Add process configuration to enforce the parameter
-process {
-    withName: 'opentargets_visualization' {
-        enabled = params.run_ot_viz
+    
+    //////////////////////////////////////////
+    // TISSUE CORRELATION WORKFLOW - Independent of Tissue Specificity
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_tissue_correlation) {
+        log.info "Setting up Tissue Correlation analysis (independent of Tissue Specificity)"
+        
+        // Run tissue correlation analysis for MAGMA
+        if (params.run_magma) {
+            log.info "Setting up Tissue Correlation analysis for MAGMA"
+            
+            // Create a channel for tissue correlation, identical setup to tissue specificity
+            magma_for_tissue_corr = magma_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            // Run tissue correlation analysis for all MAGMA traits
+            tissue_correlation_analysis(magma_for_tissue_corr)
+        }
+        
+        // Run tissue correlation analysis for PRSet
+        if (params.run_prset) {
+            log.info "Setting up Tissue Correlation analysis for PRSet"
+            
+            // Create a channel for tissue correlation, identical setup to tissue specificity
+            prset_for_tissue_corr = prset_by_trait_method
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            // Run tissue correlation analysis for PRSet
+            tissue_correlation_analysis(prset_for_tissue_corr)
+        }
     }
 }
-
-
