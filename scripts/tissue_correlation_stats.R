@@ -185,20 +185,31 @@ for(ranking in ranking_methods) {
   # Merge with tissue scores - this gives us all pathways with scores
   all_merged_ranks <- merge(ranked_paths, pathway_tissue_scores, by="name")
   
-  # Also create a dataset with only the top 500 pathways (if available)
-  top500_ranked_paths <- ranked_paths %>%
-    filter(pathway_rank <= 500)
+  # Create datasets with the top N pathways (if available)
+  top50_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 50)
+  top100_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 100)
+  top250_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 250)
+  top500_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 500)
   
-  # Merge the top 500 with tissue scores
+  # Merge the top N pathways with tissue scores
+  top50_merged_ranks <- merge(top50_ranked_paths, pathway_tissue_scores, by="name")
+  top100_merged_ranks <- merge(top100_ranked_paths, pathway_tissue_scores, by="name")
+  top250_merged_ranks <- merge(top250_ranked_paths, pathway_tissue_scores, by="name")
   top500_merged_ranks <- merge(top500_ranked_paths, pathway_tissue_scores, by="name")
   
   # Calculate correlations for all metrics and subsets
-  for(subset_name in c("All Pathways", "Top 500 Pathways")) {
+  for(subset_name in c("All Pathways", "Top 500 Pathways", "Top 250 Pathways", "Top 100 Pathways", "Top 50 Pathways")) {
     # Select the appropriate dataset
     if(subset_name == "All Pathways") {
       merged_ranks <- all_merged_ranks
-    } else {
+    } else if(subset_name == "Top 500 Pathways") {
       merged_ranks <- top500_merged_ranks
+    } else if(subset_name == "Top 250 Pathways") {
+      merged_ranks <- top250_merged_ranks
+    } else if(subset_name == "Top 100 Pathways") {
+      merged_ranks <- top100_merged_ranks
+    } else {
+      merged_ranks <- top50_merged_ranks
     }
     
     # Skip if no data
