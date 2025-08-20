@@ -221,142 +221,64 @@ for(ranking in ranking_methods) {
   # Merge with OpenTargets scores - this gives us all pathways with scores
   all_merged_ranks <- merge(ranked_paths, all_paths_with_scores, by="name")
   
-  # Also create a dataset with only the top 500 pathways (if available)
-  top500_ranked_paths <- ranked_paths %>%
-    filter(pathway_rank <= 500)
-  
-  # Merge the top 500 with OpenTargets scores
-  top500_merged_ranks <- merge(top500_ranked_paths, all_paths_with_scores, by="name")
-  
-  # Calculate correlations for all pathways
-  if(nrow(all_merged_ranks) > 0) {
-    cat(paste("  Found", nrow(all_merged_ranks), "pathways with OpenTargets scores\n"))
-    
-    # Spearman correlation with mean_score
-    all_spearman_cor <- cor.test(all_merged_ranks$pathway_rank, 
-                                all_merged_ranks$mean_score, 
-                                method = "spearman")
-    
-    # Spearman correlation with evidence_density
-    all_spearman_density <- cor.test(all_merged_ranks$pathway_rank, 
-                                    all_merged_ranks$evidence_density, 
-                                    method = "spearman")
-    
-    # Add to results
-    all_method_result <- data.frame(
+  # Build Top-N ranked sets
+  top50_ranked_paths  <- ranked_paths %>% filter(pathway_rank <= 50)
+  top100_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 100)
+  top250_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 250)
+  top500_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 500)
+
+  # Merge Top-N with scores
+  top50_merged_ranks  <- merge(top50_ranked_paths,  all_paths_with_scores, by = "name")
+  top100_merged_ranks <- merge(top100_ranked_paths, all_paths_with_scores, by = "name")
+  top250_merged_ranks <- merge(top250_ranked_paths, all_paths_with_scores, by = "name")
+  top500_merged_ranks <- merge(top500_ranked_paths, all_paths_with_scores, by = "name")
+
+  # Helper to compute both Spearman and Kendall for mean_score and evidence_density
+  add_corr_row <- function(df, subset_label) {
+    if (nrow(df) <= 1) return(NULL)
+    # Spearman
+    sp_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "spearman"))
+    sp_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "spearman"))
+    # Kendall
+    kd_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "kendall"))
+    kd_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "kendall"))
+    data.frame(
       method = method_name,
-      subset = "All Pathways",
-      n_pathways = nrow(all_merged_ranks),
-      rank_mean_score_correlation = all_spearman_cor$estimate,
-      rank_mean_score_pvalue = all_spearman_cor$p.value,
-      rank_evidence_density_correlation = all_spearman_density$estimate,
-      rank_evidence_density_pvalue = all_spearman_density$p.value
+      subset = subset_label,
+      n_pathways = nrow(df),
+      rank_mean_score_correlation = unname(sp_mean$estimate),
+      rank_mean_score_pvalue = sp_mean$p.value,
+      rank_evidence_density_correlation = unname(sp_den$estimate),
+      rank_evidence_density_pvalue = sp_den$p.value,
+      kendall_mean_score_tau = unname(kd_mean$estimate),
+      kendall_mean_score_pvalue = kd_mean$p.value,
+      kendall_evidence_density_tau = unname(kd_den$estimate),
+      kendall_evidence_density_pvalue = kd_den$p.value,
+      stringsAsFactors = FALSE
     )
-    
-    rank_correlation_results <- rbind(rank_correlation_results, all_method_result)
-    
-    # Create scatterplots for all pathways
-    pdf(paste0(trait, "_", tool_base, "_", gsub("[[:punct:]]", "_", method_name), "_all_pathways_correlation.pdf"), width=12, height=6)
-    
-    # Set up a 1x2 plot layout
-    par(mfrow=c(1,2))
-    
-    # Plot 1: All Pathway Ranks vs Mean Score
-    plot(all_merged_ranks$pathway_rank, all_merged_ranks$mean_score,
-         main=paste(method_name, "All Pathway Ranks vs OpenTargets Score"),
-         xlab="Pathway Rank (lower is better)",
-         ylab="OpenTargets Mean Score",
-         pch=19, col=rgb(0,0,1,0.3))
-    abline(lm(mean_score ~ pathway_rank, data=all_merged_ranks), col="red", lwd=2)
-    legend("topright", 
-           legend=c(paste("Spearman rho =", round(all_spearman_cor$estimate, 3)),
-                   paste("p-value =", format.pval(all_spearman_cor$p.value, digits=3)),
-                   paste("n =", nrow(all_merged_ranks), "pathways")),
-           bty="n")
-    
-    # Plot 2: All Pathway Ranks vs Evidence Density
-    plot(all_merged_ranks$pathway_rank, all_merged_ranks$evidence_density,
-         main=paste(method_name, "All Pathway Ranks vs Evidence Density"),
-         xlab="Pathway Rank (lower is better)",
-         ylab="OpenTargets Evidence Density",
-         pch=19, col=rgb(0,0.7,0,0.3))
-    abline(lm(evidence_density ~ pathway_rank, data=all_merged_ranks), col="red", lwd=2)
-    legend("topright", 
-           legend=c(paste("Spearman rho =", round(all_spearman_density$estimate, 3)),
-                   paste("p-value =", format.pval(all_spearman_density$p.value, digits=3)),
-                   paste("n =", nrow(all_merged_ranks), "pathways")),
-           bty="n")
-    
-    dev.off()
-    cat("  Created correlation plots for all pathways using", method_name, "\n")
-  } else {
-    cat("  No matching pathways found for", method_name, "- skipping correlation analysis\n")
   }
-  
-  # Calculate correlations for top 500 pathways
-  if(nrow(top500_merged_ranks) > 0) {
-    cat(paste("  Found", nrow(top500_merged_ranks), "of top 500 pathways with OpenTargets scores\n"))
-    
-    # Spearman correlation with mean_score
-    top500_spearman_cor <- cor.test(top500_merged_ranks$pathway_rank, 
-                               top500_merged_ranks$mean_score, 
-                               method = "spearman")
-    
-    # Spearman correlation with evidence_density
-    top500_spearman_density <- cor.test(top500_merged_ranks$pathway_rank, 
-                                   top500_merged_ranks$evidence_density, 
-                                   method = "spearman")
-    
-    # Add to results
-    top500_method_result <- data.frame(
-      method = method_name,
-      subset = "Top 500 Pathways",
-      n_pathways = nrow(top500_merged_ranks),
-      rank_mean_score_correlation = top500_spearman_cor$estimate,
-      rank_mean_score_pvalue = top500_spearman_cor$p.value,
-      rank_evidence_density_correlation = top500_spearman_density$estimate,
-      rank_evidence_density_pvalue = top500_spearman_density$p.value
-    )
-    
-    rank_correlation_results <- rbind(rank_correlation_results, top500_method_result)
-    
-    # Create scatterplots for top 500 pathways
-    pdf(paste0(trait, "_", tool_base, "_", gsub("[[:punct:]]", "_", method_name), "_top500_correlation.pdf"), width=12, height=6)
-    
-    # Set up a 1x2 plot layout
-    par(mfrow=c(1,2))
-    
-    # Plot 1: Top 500 Pathway Ranks vs Mean Score
-    plot(top500_merged_ranks$pathway_rank, top500_merged_ranks$mean_score,
-         main=paste(method_name, "Top 500 Pathway Ranks vs OpenTargets Score"),
-         xlab="Pathway Rank (lower is better)",
-         ylab="OpenTargets Mean Score",
-         pch=19, col=rgb(0,0,1,0.3))
-    abline(lm(mean_score ~ pathway_rank, data=top500_merged_ranks), col="red", lwd=2)
-    legend("topright", 
-           legend=c(paste("Spearman rho =", round(top500_spearman_cor$estimate, 3)),
-                   paste("p-value =", format.pval(top500_spearman_cor$p.value, digits=3)),
-                   paste("n =", nrow(top500_merged_ranks), "pathways")),
-           bty="n")
-    
-    # Plot 2: Top 500 Pathway Ranks vs Evidence Density
-    plot(top500_merged_ranks$pathway_rank, top500_merged_ranks$evidence_density,
-         main=paste(method_name, "Top 500 Pathway Ranks vs Evidence Density"),
-         xlab="Pathway Rank (lower is better)",
-         ylab="OpenTargets Evidence Density",
-         pch=19, col=rgb(0,0.7,0,0.3))
-    abline(lm(evidence_density ~ pathway_rank, data=top500_merged_ranks), col="red", lwd=2)
-    legend("topright", 
-           legend=c(paste("Spearman rho =", round(top500_spearman_density$estimate, 3)),
-                   paste("p-value =", format.pval(top500_spearman_density$p.value, digits=3)),
-                   paste("n =", nrow(top500_merged_ranks), "pathways")),
-           bty="n")
-    
-    dev.off()
-    cat("  Created correlation plots for top 500 pathways using", method_name, "\n")
-  } else {
-    cat("  No matching top 500 pathways found for", method_name, "- skipping top 500 correlation analysis\n")
+
+  # Compute for all requested subsets
+  subset_list <- list(
+    "All Pathways"      = all_merged_ranks,
+    "Top 50 Pathways"   = top50_merged_ranks,
+    "Top 100 Pathways"  = top100_merged_ranks,
+    "Top 250 Pathways"  = top250_merged_ranks,
+    "Top 500 Pathways"  = top500_merged_ranks
+  )
+
+  for (lbl in names(subset_list)) {
+    df_sub <- subset_list[[lbl]]
+    if (nrow(df_sub) > 0) {
+      cat(sprintf("  Found %d pathways for %s with OpenTargets scores\n", nrow(df_sub), lbl))
+      row <- add_corr_row(df_sub, lbl)
+      if (!is.null(row)) rank_correlation_results <- rbind(rank_correlation_results, row)
+    } else {
+      cat("  No matching pathways found for", method_name, "- skipping", lbl, "correlation analysis\n")
+    }
   }
+
+  # PDF plots removed per request; CSV outputs retained.
 }
 
 # Write correlation results to CSV
@@ -373,7 +295,7 @@ if(nrow(rank_correlation_results) > 0) {
   # Print all pathways results
   cat("\nALL PATHWAYS:\n")
   all_pathways_results <- rank_correlation_results %>% filter(subset == "All Pathways")
-  for(i in 1:nrow(all_pathways_results)) {
+  for(i in seq_len(nrow(all_pathways_results))) {
     method <- all_pathways_results$method[i]
     cor_score <- all_pathways_results$rank_mean_score_correlation[i]
     pval_score <- all_pathways_results$rank_mean_score_pvalue[i]
@@ -391,7 +313,7 @@ if(nrow(rank_correlation_results) > 0) {
   # Print top 500 pathways results
   cat("\nTOP 500 PATHWAYS:\n")
   top500_results <- rank_correlation_results %>% filter(subset == "Top 500 Pathways")
-  for(i in 1:nrow(top500_results)) {
+  for(i in seq_len(nrow(top500_results))) {
     method <- top500_results$method[i]
     cor_score <- top500_results$rank_mean_score_correlation[i]
     pval_score <- top500_results$rank_mean_score_pvalue[i]

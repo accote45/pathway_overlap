@@ -10,13 +10,11 @@ process opentargets_stats_correlation {
           path(birewire_results),
           path(keeppathsize_results)
     
-    output:
-    tuple val(trait), 
-          val(tool_base),
-          path("${trait}_${tool_base}_rank_correlation_summary.csv"),
-          path("${trait}_${tool_base}_*_all_pathways_correlation.pdf"),
-          path("${trait}_${tool_base}_*_top500_correlation.pdf"),
-          path("${trait}_${tool_base}_gene_disease_associations.csv")
+      output:
+      tuple val(trait), 
+              val(tool_base),
+              path("${trait}_${tool_base}_rank_correlation_summary.csv"),
+              path("${trait}_${tool_base}_gene_disease_associations.csv")
 
     script:
     """
