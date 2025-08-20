@@ -309,6 +309,15 @@ best_methods_by_tissue <- rank_correlation_results %>%
 
 write_results_csv(best_methods_by_tissue, trait, tool_base, "_best_method_by_tissue")
 
+# Create a summary selecting the strongest (lowest p-value) tissue per method and subset
+best_tissue_overall_by_method_subset <- rank_correlation_results %>%
+  group_by(method, subset) %>%
+  slice_min(correlation_pvalue, n = 1) %>%
+  select(method, subset, tissue_metric, spearman_rho, correlation_pvalue, n_pathways) %>%
+  arrange(subset, method)
+
+write_results_csv(best_tissue_overall_by_method_subset, trait, tool_base, "_best_tissue_overall_by_method_subset")
+
 cat("\nAnalysis complete. Summary files written to current directory.\n")
 cat("======= Tissue Specificity Correlation Analysis Complete =======\n")
 
