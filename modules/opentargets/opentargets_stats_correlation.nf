@@ -21,6 +21,6 @@ process opentargets_stats_correlation {
     module load R
     
     # Run the OpenTargets correlation statistics R script
-    Rscript ${params.scripts_dir}/OT_correlation_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.opentargets_n_values}"
+    Rscript ${params.scripts_dir}/OT_correlation_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}"
     """
 }
