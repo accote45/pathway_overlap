@@ -24,11 +24,6 @@ gmt_file <- args[5]
 # Optional: comma-separated list of Top-N cutoffs (default: 100,250,500)
 # Example: Rscript OT_correlation_stats.R ... "100,250,500"
 top_ns <- c(100, 250, 500)
-if (length(args) >= 6 && nzchar(args[6])) {
-  top_ns <- suppressWarnings(as.numeric(unlist(strsplit(args[6], ","))))
-  top_ns <- top_ns[is.finite(top_ns)]
-  if (length(top_ns) == 0) top_ns <- c(100, 250, 500)
-}
 
 # Define trait mapping
 trait_mapping <- list(
@@ -268,26 +263,8 @@ for(ranking in ranking_methods) {
 # Write correlation results to CSV (now includes All + all requested Top-N subsets)
 if(nrow(rank_correlation_results) > 0) {
   write_results_csv(rank_correlation_results, trait, tool_base, "_rank_correlation_summary")
-
-  # Optional: concise console summary for every subset present
-  cat("\nRank Correlation Analysis Summary (all subsets):\n")
-  rank_correlation_results <- rank_correlation_results %>% arrange(subset, rank_mean_score_pvalue)
-  for (sb in unique(rank_correlation_results$subset)) {
-    cat("\n", toupper(sb), ":\n", sep = "")
-    subres <- rank_correlation_results %>% filter(subset == sb)
-    for(i in seq_len(nrow(subres))) {
-      method <- subres$method[i]
-      n_paths <- subres$n_pathways[i]
-      cat(sprintf("%s (%d pathways):\n", method, n_paths))
-      cat(sprintf("  Mean Score: rho = %.3f (p = %s)\n",
-                  subres$rank_mean_score_correlation[i],
-                  format.pval(subres$rank_mean_score_pvalue[i], digits=3)))
-      cat(sprintf("  Evidence Density: rho = %.3f (p = %s)\n",
-                  subres$rank_evidence_density_correlation[i],
-                  format.pval(subres$rank_evidence_density_pvalue[i], digits=3)))
-    }
-  }
 }
+
 
 cat("======= Rank Correlation Analysis Complete =======\n")
 
