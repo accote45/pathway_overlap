@@ -14,9 +14,6 @@ write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verb
 
 # Process command line arguments
 args <- commandArgs(trailingOnly = TRUE)
-if(length(args) < 5) {
-  stop("Usage: Rscript size_matched_OT_stats_optimized.R <trait> <tool_base> <birewire_results_file> <keeppathsize_results_file> <gmt_file> [top_n_values]")
-}
 
 trait <- args[1]
 tool_base <- args[2]
@@ -24,11 +21,13 @@ birewire_results_file <- args[3]
 keeppathsize_results_file <- args[4]
 gmt_file <- args[5]
 
-
-# Optional: parse comma-separated n_values or use default
-n_values <- c(10, 20, 50, 100)  # Default
-if(length(args) >= 6) {
-  n_values <- as.numeric(unlist(strsplit(args[6], ",")))
+# Optional: comma-separated list of Top-N cutoffs (default: 100,250,500)
+# Example: Rscript OT_correlation_stats.R ... "100,250,500"
+top_ns <- c(100, 250, 500)
+if (length(args) >= 6 && nzchar(args[6])) {
+  top_ns <- suppressWarnings(as.numeric(unlist(strsplit(args[6], ","))))
+  top_ns <- top_ns[is.finite(top_ns)]
+  if (length(top_ns) == 0) top_ns <- c(100, 250, 500)
 }
 
 # Define trait mapping
@@ -220,29 +219,24 @@ for(ranking in ranking_methods) {
   
   # Merge with OpenTargets scores - this gives us all pathways with scores
   all_merged_ranks <- merge(ranked_paths, all_paths_with_scores, by="name")
-  
-  # Build Top-N ranked sets
-  top50_ranked_paths  <- ranked_paths %>% filter(pathway_rank <= 50)
-  top100_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 100)
-  top250_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 250)
-  top500_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 500)
 
-  # Merge Top-N with scores
-  top50_merged_ranks  <- merge(top50_ranked_paths,  all_paths_with_scores, by = "name")
-  top100_merged_ranks <- merge(top100_ranked_paths, all_paths_with_scores, by = "name")
-  top250_merged_ranks <- merge(top250_ranked_paths, all_paths_with_scores, by = "name")
-  top500_merged_ranks <- merge(top500_ranked_paths, all_paths_with_scores, by = "name")
+  # Build subset list dynamically: "All Pathways" + requested Top-N sets
+  subset_list <- list("All Pathways" = all_merged_ranks)
+  for (N in sort(unique(top_ns))) {
+    topN_ranked_paths <- ranked_paths %>% filter(pathway_rank <= N)
+    subset_list[[sprintf("Top %d Pathways", N)]] <- merge(topN_ranked_paths, all_paths_with_scores, by = "name")
+  }
 
   # Helper to compute both Spearman and Kendall for mean_score and evidence_density
   add_corr_row <- function(df, subset_label) {
     if (nrow(df) <= 1) return(NULL)
-    # Spearman
     sp_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "spearman"))
     sp_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "spearman"))
-    # Kendall
     kd_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "kendall"))
     kd_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "kendall"))
     data.frame(
+      trait = trait,
+      tool_base = tool_base,
       method = method_name,
       subset = subset_label,
       n_pathways = nrow(df),
@@ -258,15 +252,7 @@ for(ranking in ranking_methods) {
     )
   }
 
-  # Compute for all requested subsets
-  subset_list <- list(
-    "All Pathways"      = all_merged_ranks,
-    "Top 50 Pathways"   = top50_merged_ranks,
-    "Top 100 Pathways"  = top100_merged_ranks,
-    "Top 250 Pathways"  = top250_merged_ranks,
-    "Top 500 Pathways"  = top500_merged_ranks
-  )
-
+  # Compute correlations for all subsets and append to results
   for (lbl in names(subset_list)) {
     df_sub <- subset_list[[lbl]]
     if (nrow(df_sub) > 0) {
@@ -277,55 +263,29 @@ for(ranking in ranking_methods) {
       cat("  No matching pathways found for", method_name, "- skipping", lbl, "correlation analysis\n")
     }
   }
-
-  # PDF plots removed per request; CSV outputs retained.
 }
 
-# Write correlation results to CSV
+# Write correlation results to CSV (now includes All + all requested Top-N subsets)
 if(nrow(rank_correlation_results) > 0) {
   write_results_csv(rank_correlation_results, trait, tool_base, "_rank_correlation_summary")
-  
-  # Print summary of results
-  cat("\nRank Correlation Analysis Summary:\n")
-  
-  # Sort by subset first, then by mean score correlation p-value
-  rank_correlation_results <- rank_correlation_results %>%
-    arrange(subset, rank_mean_score_pvalue)
-  
-  # Print all pathways results
-  cat("\nALL PATHWAYS:\n")
-  all_pathways_results <- rank_correlation_results %>% filter(subset == "All Pathways")
-  for(i in seq_len(nrow(all_pathways_results))) {
-    method <- all_pathways_results$method[i]
-    cor_score <- all_pathways_results$rank_mean_score_correlation[i]
-    pval_score <- all_pathways_results$rank_mean_score_pvalue[i]
-    cor_density <- all_pathways_results$rank_evidence_density_correlation[i]
-    pval_density <- all_pathways_results$rank_evidence_density_pvalue[i]
-    n_paths <- all_pathways_results$n_pathways[i]
-    
-    cat(paste0(method, " (", n_paths, " pathways): \n"))
-    cat(paste0("  Mean Score Correlation: ", round(cor_score, 3), 
-              " (p = ", format.pval(pval_score, digits=3), ")\n"))
-    cat(paste0("  Evidence Density Correlation: ", round(cor_density, 3), 
-              " (p = ", format.pval(pval_density, digits=3), ")\n"))
-  }
-  
-  # Print top 500 pathways results
-  cat("\nTOP 500 PATHWAYS:\n")
-  top500_results <- rank_correlation_results %>% filter(subset == "Top 500 Pathways")
-  for(i in seq_len(nrow(top500_results))) {
-    method <- top500_results$method[i]
-    cor_score <- top500_results$rank_mean_score_correlation[i]
-    pval_score <- top500_results$rank_mean_score_pvalue[i]
-    cor_density <- top500_results$rank_evidence_density_correlation[i]
-    pval_density <- top500_results$rank_evidence_density_pvalue[i]
-    n_paths <- top500_results$n_pathways[i]
-    
-    cat(paste0(method, " (", n_paths, " of top 500 pathways): \n"))
-    cat(paste0("  Mean Score Correlation: ", round(cor_score, 3), 
-              " (p = ", format.pval(pval_score, digits=3), ")\n"))
-    cat(paste0("  Evidence Density Correlation: ", round(cor_density, 3), 
-              " (p = ", format.pval(pval_density, digits=3), ")\n"))
+
+  # Optional: concise console summary for every subset present
+  cat("\nRank Correlation Analysis Summary (all subsets):\n")
+  rank_correlation_results <- rank_correlation_results %>% arrange(subset, rank_mean_score_pvalue)
+  for (sb in unique(rank_correlation_results$subset)) {
+    cat("\n", toupper(sb), ":\n", sep = "")
+    subres <- rank_correlation_results %>% filter(subset == sb)
+    for(i in seq_len(nrow(subres))) {
+      method <- subres$method[i]
+      n_paths <- subres$n_pathways[i]
+      cat(sprintf("%s (%d pathways):\n", method, n_paths))
+      cat(sprintf("  Mean Score: rho = %.3f (p = %s)\n",
+                  subres$rank_mean_score_correlation[i],
+                  format.pval(subres$rank_mean_score_pvalue[i], digits=3)))
+      cat(sprintf("  Evidence Density: rho = %.3f (p = %s)\n",
+                  subres$rank_evidence_density_correlation[i],
+                  format.pval(subres$rank_evidence_density_pvalue[i], digits=3)))
+    }
   }
 }
 
