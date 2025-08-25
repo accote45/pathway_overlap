@@ -19,9 +19,6 @@ write_results_csv <- function(data, trait, tool_base, prefix="", suffix="", verb
 
 # Process command line arguments
 args <- commandArgs(trailingOnly = TRUE)
-if(length(args) < 5) {
-  stop("Usage: Rscript tissue_correlation_stats.R <trait> <tool_base> <birewire_results_file> <keeppathsize_results_file> <gmt_file> <tissue_file> [top_n_values]")
-}
 
 trait <- args[1]
 tool_base <- args[2]
@@ -29,12 +26,6 @@ birewire_results_file <- args[3]
 keeppathsize_results_file <- args[4]
 gmt_file <- args[5]
 tissue_file <- args[6]
-
-# Optional: parse comma-separated n_values or use default
-n_values <- c(10, 20, 50, 100)  # Default
-if(length(args) >= 7) {
-  n_values <- as.numeric(unlist(strsplit(args[7], ",")))
-}
 
 cat("======= Starting Tissue Specificity Correlation Analysis for", trait, "=======\n")
 
@@ -256,24 +247,31 @@ for(ranking in ranking_methods) {
           next
         }
         
-        # Calculate Spearman correlation
-        spearman_cor <- cor.test(merged_ranks$pathway_rank, 
-                                merged_ranks[[metric]], 
-                                method = "spearman")
-        
+        # Calculate Spearman and Kendall correlations
+        spearman_cor <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
+                                                  merged_ranks[[metric]],
+                                                  method = "spearman"))
+        kendall_cor  <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
+                                                  merged_ranks[[metric]],
+                                                  method = "kendall"))
+
         # Create plot
         plot(merged_ranks$pathway_rank, merged_ranks[[metric]],
-             main=paste(metric_name),  # Shorter title to fit more tissues
+             main=paste(metric_name),
              xlab="Pathway Rank",
              ylab="Expression Tissue Specificity",
              pch=19, col=rgb(0,0,1,0.3),
-             cex.main=0.8, cex.lab=0.8, cex.axis=0.7)  # Smaller text
+             cex.main=0.8, cex.lab=0.8, cex.axis=0.7)
         abline(lm(as.formula(paste(metric, "~ pathway_rank")), data=merged_ranks), col="red", lwd=1.5)
-        legend("topright", 
-               legend=c(paste("rho =", round(spearman_cor$estimate, 3)),
-                       paste("p =", format.pval(spearman_cor$p.value, digits=2))),
+        legend("topright",
+               legend=c(
+                 paste("Spearman rho =", round(as.numeric(spearman_cor$estimate), 3)),
+                 paste("p =", format.pval(spearman_cor$p.value, digits=2)),
+                 paste("Kendall tau =", round(as.numeric(kendall_cor$estimate), 3)),
+                 paste("p =", format.pval(kendall_cor$p.value, digits=2))
+               ),
                bty="n", cex=0.7)
-        
+
         # Add to results dataframe
         method_result <- data.frame(
           trait = trait,
@@ -282,8 +280,10 @@ for(ranking in ranking_methods) {
           subset = subset_name,
           tissue_metric = metric_name,
           n_pathways = nrow(merged_ranks),
-          spearman_rho = spearman_cor$estimate,
-          correlation_pvalue = spearman_cor$p.value
+          spearman_rho = unname(spearman_cor$estimate),
+          correlation_pvalue = spearman_cor$p.value,     # Spearman p-value (kept for backward compatibility)
+          kendall_tau = unname(kendall_cor$estimate),
+          kendall_pvalue = kendall_cor$p.value
         )
         
         rank_correlation_results <- rbind(rank_correlation_results, method_result)
