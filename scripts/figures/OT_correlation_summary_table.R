@@ -12,7 +12,7 @@ INPUT_ROOT <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/
 TOOL_BASE  <- "magma"
 
 # Include whatever subsets you want to evaluate; add "Top 50 Pathways" if present
-SUBSETS <- c("Top 50 Pathways","Top 100 Pathways","Top 250 Pathways","Top 500 Pathways","All Pathways")
+SUBSETS <- c("Top 100 Pathways","Top 250 Pathways","Top 500 Pathways","All Pathways")
 
 # Methods to compare (must match your CSV 'method' values)
 METHODS3 <- c("BireWire_EmpPvalStdBeta","KeepPathSize_EmpPvalStdBeta","PvalueBeta")
@@ -26,6 +26,7 @@ ABBR <- c(
 
 # Significance threshold; “strict” summaries keep (trait, subset) with at least one method p < alpha
 alpha <- 0.000925925925
+alpha_lenient <- 0.05
 
 # ------------------------------------------------------------------------------
 # Read all correlation summaries
@@ -199,6 +200,17 @@ spearman_strict <- summarise_three(
 spearman_summary_strict <- if (is.null(spearman_strict)) NULL else spearman_strict$summary
 spearman_rows_strict    <- if (is.null(spearman_strict)) NULL else spearman_strict$rows
 
+# NEW: Spearman (mean score): p < 0.05 filter
+spearman_p05 <- summarise_three(
+  df = dat,
+  corr_col = "rank_mean_score_correlation",
+  pval_col = "rank_mean_score_pvalue",
+  alpha = alpha_lenient,
+  methods3 = METHODS3
+)
+spearman_summary_p05 <- if (is.null(spearman_p05)) NULL else spearman_p05$summary
+spearman_rows_p05    <- if (is.null(spearman_p05)) NULL else spearman_p05$rows
+
 # Kendall (tau, mean score): significant-only
 kendall_strict <- summarise_three(
   df = dat,
@@ -210,7 +222,18 @@ kendall_strict <- summarise_three(
 kendall_summary_strict <- if (is.null(kendall_strict)) NULL else kendall_strict$summary
 kendall_rows_strict    <- if (is.null(kendall_strict)) NULL else kendall_strict$rows
 
-# Spearman (mean score): ALL rows (no p-value filter)
+# NEW: Kendall (mean score): p < 0.05 filter
+kendall_p05 <- summarise_three(
+  df = dat,
+  corr_col = "kendall_mean_score_tau",
+  pval_col = "kendall_mean_score_pvalue",
+  alpha = alpha_lenient,
+  methods3 = METHODS3
+)
+kendall_summary_p05 <- if (is.null(kendall_p05)) NULL else kendall_p05$summary
+kendall_rows_p05    <- if (is.null(kendall_p05)) NULL else kendall_p05$rows
+
+# NEW: Spearman (mean score): ALL rows (no p-value filter)
 spearman_all <- summarise_three(
   df = dat,
   corr_col = "rank_mean_score_correlation",
@@ -221,7 +244,7 @@ spearman_all <- summarise_three(
 spearman_summary_all <- if (is.null(spearman_all)) NULL else spearman_all$summary
 spearman_rows_all    <- if (is.null(spearman_all)) NULL else spearman_all$rows
 
-# Kendall (tau, mean score): ALL rows (no p-value filter)
+# NEW: Kendall (mean score): ALL rows (no p-value filter)
 kendall_all <- summarise_three(
   df = dat,
   corr_col = "kendall_mean_score_tau",
@@ -246,6 +269,17 @@ spearman_density_strict <- summarise_three(
 spearman_density_summary_strict <- if (is.null(spearman_density_strict)) NULL else spearman_density_strict$summary
 spearman_density_rows_strict    <- if (is.null(spearman_density_strict)) NULL else spearman_density_strict$rows
 
+# NEW: Spearman (evidence density): p < 0.05 filter
+spearman_density_p05 <- summarise_three(
+  df = dat,
+  corr_col = "rank_evidence_density_correlation",
+  pval_col = "rank_evidence_density_pvalue",
+  alpha = alpha_lenient,
+  methods3 = METHODS3
+)
+spearman_density_summary_p05 <- if (is.null(spearman_density_p05)) NULL else spearman_density_p05$summary
+spearman_density_rows_p05    <- if (is.null(spearman_density_p05)) NULL else spearman_density_p05$rows
+
 # Kendall (evidence density): significant-only
 kendall_density_strict <- summarise_three(
   df = dat,
@@ -257,27 +291,16 @@ kendall_density_strict <- summarise_three(
 kendall_density_summary_strict <- if (is.null(kendall_density_strict)) NULL else kendall_density_strict$summary
 kendall_density_rows_strict    <- if (is.null(kendall_density_strict)) NULL else kendall_density_strict$rows
 
-# Spearman (evidence density): ALL rows
-spearman_density_all <- summarise_three(
-  df = dat,
-  corr_col = "rank_evidence_density_correlation",
-  pval_col = "rank_evidence_density_pvalue",
-  alpha = Inf,
-  methods3 = METHODS3
-)
-spearman_density_summary_all <- if (is.null(spearman_density_all)) NULL else spearman_density_all$summary
-spearman_density_rows_all    <- if (is.null(spearman_density_all)) NULL else spearman_density_all$rows
-
-# Kendall (evidence density): ALL rows
-kendall_density_all <- summarise_three(
+# NEW: Kendall (evidence density): p < 0.05 filter
+kendall_density_p05 <- summarise_three(
   df = dat,
   corr_col = "kendall_evidence_density_tau",
   pval_col = "kendall_evidence_density_pvalue",
-  alpha = Inf,
+  alpha = alpha_lenient,
   methods3 = METHODS3
 )
-kendall_density_summary_all <- if (is.null(kendall_density_all)) NULL else kendall_density_all$summary
-kendall_density_rows_all    <- if (is.null(kendall_density_all)) NULL else kendall_density_all$rows
+kendall_density_summary_p05 <- if (is.null(kendall_density_p05)) NULL else kendall_density_p05$summary
+kendall_density_rows_p05    <- if (is.null(kendall_density_p05)) NULL else kendall_density_p05$rows
 
 # ------------------------------------------------------------------------------
 # Legend for outputs
@@ -294,11 +317,11 @@ cat(
 # ------------------------------------------------------------------------------
 # Print results
 # ------------------------------------------------------------------------------
-cat("\n=== Spearman (mean score, restricted to significant) ===\n")
-if (is.null(spearman_summary_strict)) message("No Spearman strict summary.") else print(spearman_summary_strict)
+cat("\n=== Spearman (mean score, p<0.05 filter) ===\n")
+if (is.null(spearman_summary_p05)) message("No Spearman p<0.05 summary.") else print(spearman_summary_p05)
 
-cat("\n=== Kendall (mean score, restricted to significant) ===\n")
-if (is.null(kendall_summary_strict)) message("No Kendall strict summary.") else print(kendall_summary_strict)
+cat("\n=== Kendall (mean score, p<0.05 filter) ===\n")
+if (is.null(kendall_summary_p05)) message("No Kendall p<0.05 summary.") else print(kendall_summary_p05)
 
 cat("\n=== Spearman (mean score, ALL correlations) ===\n")
 if (is.null(spearman_summary_all)) message("No Spearman all-rows summary.") else print(spearman_summary_all)
@@ -312,25 +335,19 @@ if (is.null(spearman_density_summary_strict)) message("No Spearman density stric
 cat("\n=== Kendall (evidence density, restricted to significant) ===\n")
 if (is.null(kendall_density_summary_strict)) message("No Kendall density strict summary.") else print(kendall_density_summary_strict)
 
-cat("\n=== Spearman (evidence density, ALL correlations) ===\n")
-if (is.null(spearman_density_summary_all)) message("No Spearman density all-rows summary.") else print(spearman_density_summary_all)
+cat("\n=== Spearman (evidence density, p<0.05 filter) ===\n")
+if (is.null(spearman_density_summary_p05)) message("No Spearman density p<0.05 summary.") else print(spearman_density_summary_p05)
 
-cat("\n=== Kendall (evidence density, ALL correlations) ===\n")
-if (is.null(kendall_density_summary_all)) message("No Kendall density all-rows summary.") else print(kendall_density_summary_all)
+cat("\n=== Kendall (evidence density, p<0.05 filter) ===\n")
+if (is.null(kendall_density_summary_p05)) message("No Kendall density p<0.05 summary.") else print(kendall_density_summary_p05)
 
 # ------------------------------------------------------------------------------
 # Trait-level scoreboards
 # ------------------------------------------------------------------------------
-print_trait_scoreboard(spearman_rows_strict,         "Spearman mean score (significant-only)")
-print_trait_scoreboard(spearman_rows_all,            "Spearman mean score (all rows)")
-print_trait_scoreboard(kendall_rows_strict,          "Kendall mean score (significant-only)")
-print_trait_scoreboard(kendall_rows_all,             "Kendall mean score (all rows)")
-
-print_trait_scoreboard(spearman_density_rows_strict, "Spearman evidence density (significant-only)")
-print_trait_scoreboard(spearman_density_rows_all,    "Spearman evidence density (all rows)")
-print_trait_scoreboard(kendall_density_rows_strict,  "Kendall evidence density (significant-only)")
-print_trait_scoreboard(kendall_density_rows_all,     "Kendall evidence density (all rows)")
-
+print_trait_scoreboard(spearman_rows_p05,          "Spearman mean score (p<0.05 filter)")
+print_trait_scoreboard(kendall_rows_p05,           "Kendall mean score (p<0.05 filter)")
+print_trait_scoreboard(spearman_density_rows_p05,  "Spearman evidence density (p<0.05 filter)")
+print_trait_scoreboard(kendall_density_rows_p05,   "Kendall evidence density (p<0.05 filter)")
 
 
 # ------------------------------------------------------------------------------
@@ -357,9 +374,12 @@ write_if_any(
   spearman_summary_strict,
   file.path(OUTPUT_DIR, "spearman_mean_score_summary_significant_only.csv")
 )
+# NEW: Spearman mean score: p<0.05 summary
+write_if_any(
+  spearman_summary_p05,
+  file.path(OUTPUT_DIR, "spearman_mean_score_summary_p05.csv")
+)
 
-# Optional: also write row-level deltas
-# write_if_any(spearman_rows_all,
-#              file.path(OUTPUT_DIR, "spearman_mean_score_rows_all.csv"))
-# write_if_any(spearman_rows_strict,
-#              file.path(OUTPUT_DIR, "spearman_mean_score_rows_significant_only.csv"))
+# Optional: also write row-level deltas for p<0.05
+# write_if_any(spearman_rows_p05,
+#              file.path(OUTPUT_DIR, "spearman_mean_score_rows_p05.csv"))
