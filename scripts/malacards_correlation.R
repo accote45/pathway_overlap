@@ -1,4 +1,4 @@
-library(plyr)
+  library(plyr)
   library(tidyverse)
   library(data.table)
   library(GSA)
@@ -26,7 +26,7 @@ gmt_file <- args[6]
 trait <- "cad"
 tool_base <- "magma"
 birewire_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
-keeppathsize_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
+keeppathsize_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_keeppathsize/cad/cad_magma_keeppathsize_empirical_pvalues.txt"
 gmt_file <- '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt'
 malacards_path <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/Malacards"
 
@@ -107,18 +107,18 @@ gene_scores <- mc_all %>%
 cat("MalaCards rows:", nrow(mc_all), "| unique ENSEMBL genes:", nrow(gene_scores), "\n")
 
 # Rank-normalize scores: r = ascending rank among positive scores (highest raw -> r = n)
-# normalized Score = (r + 1) / (n + 1); genes without positive score -> 0
+# normalized Score = (r + 1) / (n + 1); genes without score -> 0
 gene_scores$Score_original <- gene_scores$Score
-positive <- !is.na(gene_scores$Score) & gene_scores$Score > 0
-n_pos <- sum(positive)
-if (n_pos > 0) {
+positive <- !is.na(gene_scores$Score)
+if (length(positive) > 0) {
   r <- rank(gene_scores$Score[positive], ties.method = "average")  # lowest=1, highest=n_pos
   gene_scores$Score <- 0
-  gene_scores$Score[positive] <- (r + 1) / (n_pos + 1)
-  cat("Rank-normalized", n_pos, "genes; max normalized =", max(gene_scores$Score), "\n")
+  gene_scores$Score[positive] <- (r + 1) / (length(positive) + 1)
+  cat("Rank-normalized", length(positive), "genes; max normalized =", max(gene_scores$Score), "\n")
 } else {
   gene_scores$Score <- 0
 }
+
 
 # 3) Build pathway-level MalaCards scores
 masterfin <- genes_long %>%
@@ -161,21 +161,6 @@ all_paths_with_scores <- pathway_scores %>%
   select(name, mean_score, evidence_density)
 
 ranking_methods <- list(
-  list(method_name = "BireWire_empP", 
-       data = birewire_data, 
-       rank_col = "empirical_pval",
-       sig_col = "empirical_pval",
-       higher_better = FALSE),
-  list(method_name = "KeepPathSize_empP", 
-       data = keeppath_data, 
-       rank_col = "empirical_pval",
-       sig_col = "empirical_pval",
-       higher_better = FALSE),
-  list(method_name = "RawP", 
-       data = birewire_data, 
-       rank_col = "p_value",
-       sig_col = "p_value",
-       higher_better = FALSE),
   list(method_name = "PvalueBeta", 
        data = birewire_data, 
        rank_col = c("p_value", "beta_value"),
