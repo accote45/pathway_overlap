@@ -41,6 +41,10 @@ include {
     opentargets_stats_correlation;
 } from './modules/opentargets/opentargets_stats_correlation.nf'
 
+include {
+    malacards_correlation;
+} from './modules/malacards/malacards_correlation.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -441,6 +445,55 @@ workflow {
             
             // Run tissue correlation analysis for PRSet
             tissue_correlation_analysis(prset_for_tissue_corr)
+        }
+    }
+    
+    //////////////////////////////////////////
+    // MALACARDS CORRELATION WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_malacards_correlation) {
+        log.info "Setting up MalaCards correlation analysis"
+
+        // MAGMA
+        if (params.run_magma) {
+            log.info "MalaCards correlation for MAGMA"
+
+            magma_for_malacards_corr = magma_by_trait_method
+                .groupTuple(by: [0, 1]) // [trait, base_tool]
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+
+            malacards_correlation(magma_for_malacards_corr)
+        }
+
+        // PRSet
+        if (params.run_prset) {
+            log.info "MalaCards correlation for PRSet"
+
+            prset_for_malacards_corr = prset_by_trait_method
+                .groupTuple(by: [0, 1]) // [trait, base_tool]
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+
+            malacards_correlation(prset_for_malacards_corr)
         }
     }
 }

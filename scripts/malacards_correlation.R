@@ -1,4 +1,4 @@
-  library(plyr)
+library(plyr)
   library(tidyverse)
   library(data.table)
   library(GSA)
@@ -22,13 +22,6 @@ birewire_results_file <- args[4]
 keeppathsize_results_file <- args[5]
 gmt_file <- args[6]
 
-
-trait <- "cad"
-tool_base <- "magma"
-birewire_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
-keeppathsize_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_keeppathsize/cad/cad_magma_keeppathsize_empirical_pvalues.txt"
-gmt_file <- '/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt'
-malacards_path <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/Malacards"
 
 # Top-N cutoffs for subset analyses (keep consistent with OT script)
 top_ns <- c(100, 250, 500)
