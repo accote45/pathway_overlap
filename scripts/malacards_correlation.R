@@ -42,7 +42,8 @@ path.list <- dat$genesets
 names(path.list) <- dat$geneset.names
 
 genes_long <- rbindlist(lapply(names(path.list), function(name) {
-  data.table(Symbol = toupper(path.list[[name]]), name = name)
+  # Pathway genes now stored under ENSEMBL (must already be ENSEMBL IDs in the GMT)
+  data.table(ENSEMBL = toupper(path.list[[name]]), name = name)
 }))
 
 # 2) Read MalaCards CSVs (file or directory; combine if multiple)
@@ -71,25 +72,24 @@ list_malacards_files <- function(base_path, trait) {
 numify <- function(x) as.numeric(gsub("[^0-9eE\\+\\-\\.]", "", as.character(x)))
 
 read_one_malacards <- function(f) {
-  # Detect header line containing Symbol and Score, skipping preamble text
   all <- readLines(f, warn = FALSE)
-  header_idx <- which(grepl("\\bSymbol\\b", all, ignore.case = TRUE) &
+  # Require header line containing ENSEMBL and Score
+  header_idx <- which(grepl("\\bENSEMBL\\b", all, ignore.case = TRUE) &
                         grepl("\\bScore\\b", all, ignore.case = TRUE))[1]
-  if (is.na(header_idx)) stop("Could not find header with 'Symbol' and 'Score' in: ", f)
+  if (is.na(header_idx)) stop("Could not find header with 'ENSEMBL' and 'Score' in: ", f)
   dt <- tryCatch(
     suppressWarnings(fread(f, skip = header_idx - 1, header = TRUE)),
     error = function(e) suppressWarnings(as.data.table(read.csv(f, skip = header_idx - 1, header = TRUE, check.names = FALSE)))
   )
   setnames(dt, old = names(dt), new = make.names(names(dt)))
-  # Identify Symbol/Score columns
-  sym_col <- names(dt)[tolower(names(dt)) %in% "symbol"]
-  if (!length(sym_col)) sym_col <- names(dt)[grepl("symbol", names(dt), ignore.case = TRUE)]
-  score_col <- names(dt)[tolower(names(dt)) %in% "score"]
-  if (!length(sym_col) || !length(score_col)) {
-    stop("Could not identify Symbol/Score columns in: ", f, " | Columns: ", paste(names(dt), collapse = ", "))
+  ensembl_col <- names(dt)[tolower(names(dt)) == "ensembl"]
+  if (!length(ensembl_col)) ensembl_col <- names(dt)[grepl("ensembl", names(dt), ignore.case = TRUE)]
+  score_col <- names(dt)[tolower(names(dt)) == "score"]
+  if (!length(ensembl_col) || !length(score_col)) {
+    stop("Missing required ENSEMBL/Score columns in: ", f, " | Columns: ", paste(names(dt), collapse = ", "))
   }
-  out <- dt[, .(Symbol = toupper(get(sym_col[1])), Score = numify(get(score_col[1])))]
-  out <- out[!is.na(Symbol) & nzchar(Symbol)]
+  out <- dt[, .(ENSEMBL = toupper(get(ensembl_col[1])), Score = numify(get(score_col[1])))]
+  out <- out[!is.na(ENSEMBL) & nzchar(ENSEMBL)]
   out
 }
 
@@ -101,14 +101,14 @@ mc_all <- rbindlist(mc_list, use.names = TRUE, fill = TRUE)
 # Collapse to one score per gene (max across files)
 gene_scores <- mc_all %>%
   filter(!is.na(Score)) %>%
-  group_by(Symbol) %>%
+  group_by(ENSEMBL) %>%
   summarise(Score = max(Score, na.rm = TRUE), .groups = "drop")
 
-cat("MalaCards rows:", nrow(mc_all), "| unique genes:", nrow(gene_scores), "\n")
+cat("MalaCards rows:", nrow(mc_all), "| unique ENSEMBL genes:", nrow(gene_scores), "\n")
 
 # 3) Build pathway-level MalaCards scores
 masterfin <- genes_long %>%
-  left_join(gene_scores, by = "Symbol") %>%
+  left_join(gene_scores, by = "ENSEMBL") %>%
   mutate(Score = ifelse(is.na(Score), 0, Score))
 
 pathway_scores <- masterfin %>% 
