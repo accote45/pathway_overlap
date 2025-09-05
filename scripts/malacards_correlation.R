@@ -1,4 +1,4 @@
-  library(plyr)
+library(plyr)
   library(tidyverse)
   library(data.table)
   library(GSA)
@@ -50,14 +50,21 @@ is_dir <- function(p) isTRUE(file.info(p)$isdir)
 
 list_malacards_files <- function(base_path, trait) {
   if (!file.exists(base_path)) stop("MalaCards path does not exist: ", base_path)
-  if (!is_dir(base_path)) return(normalizePath(base_path))
-  files <- list.files(base_path, pattern = "\\.csv$", full.names = TRUE)
-  if (length(files) == 0) stop("No CSV files under: ", base_path)
+  if (!is_dir(base_path)) {
+    # Single file path supplied: enforce *ensembl.csv requirement
+    if (!grepl("ensembl\\.csv$", tolower(basename(base_path))))
+      stop("Provided file does not match *ensembl.csv: ", base_path)
+    return(normalizePath(base_path))
+  }
+  # Only list files ending with ensembl.csv
+  files <- list.files(base_path, pattern = "ensembl\\.csv$", full.names = TRUE, ignore.case = TRUE)
+  if (length(files) == 0) stop("No *ensembl.csv files under: ", base_path)
   tci <- tolower(trait)
-  sel <- grepl(sprintf("^malacards_%s.*\\.csv$", tci), tolower(basename(files))) |
+  sel <- grepl(sprintf("^malacards_%s.*ensembl\\.csv$", tci), tolower(basename(files))) |
          grepl(tci, tolower(basename(files)))
   out <- files[sel]
-  if (length(out) == 0) stop("No MalaCards CSVs matched trait '", trait, "'. Available: ", paste(basename(files), collapse = ", "))
+  if (length(out) == 0) stop("No *ensembl.csv MalaCards files matched trait '", trait,
+                             "'. Available: ", paste(basename(files), collapse = ", "))
   normalizePath(out)
 }
 
