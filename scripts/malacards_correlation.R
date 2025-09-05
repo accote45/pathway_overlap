@@ -106,6 +106,20 @@ gene_scores <- mc_all %>%
 
 cat("MalaCards rows:", nrow(mc_all), "| unique ENSEMBL genes:", nrow(gene_scores), "\n")
 
+# Rank-normalize scores: r = ascending rank among positive scores (highest raw -> r = n)
+# normalized Score = (r + 1) / (n + 1); genes without positive score -> 0
+gene_scores$Score_original <- gene_scores$Score
+positive <- !is.na(gene_scores$Score) & gene_scores$Score > 0
+n_pos <- sum(positive)
+if (n_pos > 0) {
+  r <- rank(gene_scores$Score[positive], ties.method = "average")  # lowest=1, highest=n_pos
+  gene_scores$Score <- 0
+  gene_scores$Score[positive] <- (r + 1) / (n_pos + 1)
+  cat("Rank-normalized", n_pos, "genes; max normalized =", max(gene_scores$Score), "\n")
+} else {
+  gene_scores$Score <- 0
+}
+
 # 3) Build pathway-level MalaCards scores
 masterfin <- genes_long %>%
   left_join(gene_scores, by = "ENSEMBL") %>%
