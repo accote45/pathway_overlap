@@ -495,6 +495,161 @@ for (ss in SUBSETS) {
   }
 }
 
+# ------------------------------------------------------------------------------
+# Dumbbell plots: two panels (facets) — BW vs RawP and BW vs KPS
+#   Left endpoint = comparator; Right endpoint = EmpStd (GF+PS)
+#   (OT analysis does not include BMI; no BMI label fixes needed)
+# ------------------------------------------------------------------------------
+make_methods_dumbbellplot <- function(subset_name, alpha_filter, title_suffix, filter_by_any_method = FALSE) {
+  df <- dat %>%
+    filter(subset == subset_name, method %in% METHODS3)
+
+  if (filter_by_any_method) {
+    df <- df %>%
+      group_by(trait) %>%
+      filter(any(rank_mean_score_pvalue < alpha_filter, na.rm = TRUE)) %>%
+      ungroup()
+  }
+
+  # Prepare long -> wide for the three methods
+  df0 <- df %>%
+    transmute(
+      trait_label  = label_trait(trait),
+      method_id    = method,
+      rho          = rank_mean_score_correlation,
+      pval         = rank_mean_score_pvalue
+    )
+  if (nrow(df0) == 0) return(NULL)
+
+  dfw <- df0 %>%
+    tidyr::pivot_wider(
+      names_from = method_id,
+      values_from = c(rho, pval)
+    )
+
+  # Require all three methods present per trait
+  need_cols <- c(
+    "rho_BireWire_EmpPvalStdBeta",
+    "rho_KeepPathSize_EmpPvalStdBeta",
+    "rho_PvalueBeta",
+    "pval_BireWire_EmpPvalStdBeta"
+  )
+  dfw <- dfw %>% dplyr::filter(if_all(all_of(need_cols), ~ !is.na(.)))
+  if (nrow(dfw) == 0) return(NULL)
+
+  # Trait ordering consistent with bar plots
+  preferred <- c("IBD","CAD","Breast cancer","SCZ","T2D","AD","MDD")
+  trait_levels <- c(preferred[preferred %in% dfw$trait_label],
+                    setdiff(sort(unique(dfw$trait_label)), preferred))
+  dfw$trait_label <- factor(dfw$trait_label, levels = trait_levels)
+
+  # Build dumbbell data for two comparisons
+  dumb_dat <- bind_rows(
+    dfw %>%
+      transmute(
+        trait_label,
+        comparison = "BW vs RawP",
+        x    = .data[["rho_PvalueBeta"]],
+        xend = .data[["rho_BireWire_EmpPvalStdBeta"]],
+        pval_bw = .data[["pval_BireWire_EmpPvalStdBeta"]]
+      ),
+    dfw %>%
+      transmute(
+        trait_label,
+        comparison = "BW vs KPS",
+        x    = .data[["rho_KeepPathSize_EmpPvalStdBeta"]],
+        xend = .data[["rho_BireWire_EmpPvalStdBeta"]],
+        pval_bw = .data[["pval_BireWire_EmpPvalStdBeta"]]
+      )
+  ) %>%
+    mutate(
+      sig_label = dplyr::case_when(
+        pval_bw < alpha         ~ "***",          # Bonferroni
+        pval_bw < 0.001         ~ "**",
+        pval_bw < alpha_lenient ~ "*",
+        TRUE                    ~ ""
+      )
+    )
+
+  # Labels from ABBR for figure text
+  bw_lab  <- ABBR["BireWire_EmpPvalStdBeta"]     # "EmpStd (GF+PS)"
+  kps_lab <- ABBR["KeepPathSize_EmpPvalStdBeta"] # "EmpStd (PS)"
+  pvb_lab <- ABBR["PvalueBeta"]                  # "RawP + ES"
+
+  # Keep data levels stable, but show ABBR in legend and facet strips
+  comp_levels <- c("BW vs RawP","BW vs KPS")
+  dumb_dat$comparison <- factor(dumb_dat$comparison, levels = comp_levels)
+
+  # Colors: left endpoint = comparator; right endpoint = BW
+  comp_pal <- setNames(
+    as.character(c(method_pal[pvb_lab], method_pal[kps_lab])),
+    comp_levels
+  )
+  bw_color <- unname(method_pal[bw_lab])
+
+  # Facet strip labels use ABBR text
+  strip_labs <- c(
+    "BW vs RawP" = paste0(bw_lab, " vs ", pvb_lab),
+    "BW vs KPS"  = paste0(bw_lab, " vs ", kps_lab)
+  )
+
+  # Two-panel plot (facets), one dumbbell per trait in each panel
+  xpad <- 0.02
+  p <- ggplot(dumb_dat, aes(y = trait_label)) +
+    geom_vline(xintercept = 0, linetype = 2, color = "grey70") +
+    geom_segment(aes(x = x, xend = xend, yend = trait_label), color = "grey60", linewidth = 0.9) +
+    geom_point(aes(x = x, color = comparison), size = 2.6) +
+    geom_point(aes(x = xend), color = bw_color, size = 2.6, show.legend = FALSE) +
+    geom_text(
+      aes(
+        x = xend + ifelse(xend >= 0, xpad, -xpad),
+        label = sig_label,
+        hjust = ifelse(xend >= 0, 0, 1)
+      ),
+      size = 3.0
+    ) +
+    facet_wrap(~ comparison, nrow = 1, labeller = as_labeller(strip_labs)) +
+    scale_color_manual(
+      values = comp_pal,
+      breaks = comp_levels,
+      labels = c(pvb_lab, kps_lab),
+      name   = "Comparator (left point)"
+    ) +
+    labs(
+      title = paste0("Spearman \u03C1 dumbbells: ", bw_lab, " vs ", pvb_lab, " and ", kps_lab, " (", subset_name, ")"),
+      subtitle = paste0("Left = comparator; Right = ", bw_lab, ". Asterisks show ", bw_lab, " significance."),
+      x = "Spearman \u03C1 (rank vs OT evidence)",
+      y = NULL
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      panel.grid.minor = element_blank(),
+      legend.position = "bottom"
+    )
+
+  p
+}
+
+# Generate and save dumbbell plots: one per subset
+for (ss in SUBSETS) {
+  p_db <- make_methods_dumbbellplot(
+    subset_name = ss,
+    alpha_filter = alpha_lenient,
+    title_suffix = "all traits; asterisks denote BW significance",
+    filter_by_any_method = FALSE
+  )
+  if (!is.null(p_db)) {
+    if (interactive()) print(p_db)
+    ggsave(
+      filename = file.path(OUTPUT_DIR, paste0("spearman_methods_dumbbells_", gsub("[^A-Za-z0-9]+","_", ss), ".pdf")),
+      plot = p_db, width = 10, height = 4.2, device = cairo_pdf
+    )
+  } else {
+    message("No dumbbell data for ", ss, ".")
+  }
+}
+
 
 
 
