@@ -530,13 +530,18 @@ workflow {
         if (params.run_magma) {
             def magma_bw = birewire_only(magma_by_trait_method)
 
+            // Restrict OT delta-rank to whitelist only
+            def magma_bw_ot = magma_bw.filter { trait, tool_base, birewire_file ->
+                params.opentargets_supported_traits.contains(trait)
+            }
+
             if (params.run_delta_rank_ot) {
-                log.info "Delta-rank OT correlation for MAGMA"
-                delta_rank_ot_correlation(magma_bw)
+                log.info "Delta-rank OT correlation for MAGMA (whitelist only)"
+                delta_rank_ot_correlation(magma_bw_ot)
             }
             if (params.run_delta_rank_malacards) {
                 log.info "Delta-rank MalaCards correlation for MAGMA"
-                delta_rank_malacards_correlation(magma_bw)
+                delta_rank_malacards_correlation(magma_bw)  // unfiltered
             }
         }
 
@@ -544,13 +549,18 @@ workflow {
         if (params.run_prset) {
             def prset_bw = birewire_only(prset_by_trait_method)
 
+            // Restrict OT delta-rank to whitelist only
+            def prset_bw_ot = prset_bw.filter { trait, tool_base, birewire_file ->
+                params.opentargets_supported_traits.contains(trait)
+            }
+
             if (params.run_delta_rank_ot) {
-                log.info "Delta-rank OT correlation for PRSet"
-                delta_rank_ot_correlation(prset_bw)
+                log.info "Delta-rank OT correlation for PRSet (whitelist only)"
+                delta_rank_ot_correlation(prset_bw_ot)
             }
             if (params.run_delta_rank_malacards) {
                 log.info "Delta-rank MalaCards correlation for PRSet"
-                delta_rank_malacards_correlation(prset_bw)
+                delta_rank_malacards_correlation(prset_bw)  // unfiltered
             }
         }
     }
