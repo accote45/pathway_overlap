@@ -52,20 +52,24 @@ list_malacards_files <- function(base_path, trait) {
   tci <- tolower(trait)
   bns <- tolower(basename(files))
 
-  # 1) Prefer strict pattern: malacards_<trait>...ensembl.csv
-  strict <- grepl(sprintf("^malacards_%s(?:[^a-z0-9].*)?ensembl\\.csv$", tci),
-                  bns, perl = TRUE)
-
+  # 1) Allow trait followed by letters/digits/._- before 'ensembl.csv' (matches cad1, cad_2, cad-3, etc.)
+  strict <- grepl(sprintf("^malacards_%s[a-z0-9._-]*ensembl\\.csv$", tci), bns, perl = TRUE)
   candidates <- files[strict]
 
-  # 2) If none, fallback to token-based exact match (split on non-alnum)
-  if (length(candidates) == 0) {
-    tokens <- strsplit(gsub("\\.csv$", "", bns), "[^a-z0-9]+")
+  # 2) Token-based match, splitting also at letter–digit boundaries
+  if (!length(candidates)) {
+    noext <- sub("\\.csv$", "", bns)
+    tokens <- strsplit(noext, "[^a-z0-9]+|(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])", perl = TRUE)
     has_trait_token <- vapply(tokens, function(v) tci %in% v, logical(1))
     candidates <- files[has_trait_token]
   }
 
-  if (length(candidates) == 0) {
+  # 3) Substring fallback
+  if (!length(candidates)) {
+    candidates <- files[grepl(tci, bns, fixed = TRUE)]
+  }
+
+  if (!length(candidates)) {
     stop("No MalaCards files matched trait '", trait, "'. Available: ",
          paste(basename(files), collapse = ", "))
   }
