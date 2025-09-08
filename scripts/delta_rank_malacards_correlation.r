@@ -1,4 +1,3 @@
-# ...existing code...
 # Delta-rank vs MalaCards correlation (BireWire − PvalueBeta)
 # Usage:
 # Rscript delta_rank_malacards_correlation.R <trait> <tool_base> <birewire_results_file> <gmt_file> <malacards_path_or_file> [top_ns_csv]
@@ -43,19 +42,34 @@ numify <- function(x) as.numeric(gsub("[^0-9eE\\+\\-\\.]", "", as.character(x)))
 
 list_malacards_files <- function(base_path, trait) {
   if (!file.exists(base_path)) stop("MalaCards path does not exist: ", base_path)
-  if (!is_dir(base_path)) {
+  if (isTRUE(file.info(base_path)$isdir) == FALSE) {
     # Single file: must contain ENSEMBL + Score columns
     return(normalizePath(base_path))
   }
   files <- list.files(base_path, pattern = "ensembl\\.csv$", full.names = TRUE, ignore.case = TRUE)
   if (length(files) == 0) stop("No *ensembl.csv files under: ", base_path)
+
   tci <- tolower(trait)
-  sel <- grepl(sprintf("^malacards_%s.*ensembl\\.csv$", tci), tolower(basename(files))) |
-         grepl(tci, tolower(basename(files)))
-  out <- files[sel]
-  if (length(out) == 0) stop("No *ensembl.csv MalaCards files matched trait '", trait,
-                             "'. Available: ", paste(basename(files), collapse = ", "))
-  normalizePath(out)
+  bns <- tolower(basename(files))
+
+  # 1) Prefer strict pattern: malacards_<trait>...ensembl.csv
+  strict <- grepl(sprintf("^malacards_%s(?:[^a-z0-9].*)?ensembl\\.csv$", tci),
+                  bns, perl = TRUE)
+
+  candidates <- files[strict]
+
+  # 2) If none, fallback to token-based exact match (split on non-alnum)
+  if (length(candidates) == 0) {
+    tokens <- strsplit(gsub("\\.csv$", "", bns), "[^a-z0-9]+")
+    has_trait_token <- vapply(tokens, function(v) tci %in% v, logical(1))
+    candidates <- files[has_trait_token]
+  }
+
+  if (length(candidates) == 0) {
+    stop("No MalaCards files matched trait '", trait, "'. Available: ",
+         paste(basename(files), collapse = ", "))
+  }
+  normalizePath(candidates)
 }
 
 read_one_malacards <- function(f) {
