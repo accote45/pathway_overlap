@@ -19,14 +19,6 @@ gmt_file <- args[[4]]
 ot_dir <- args[[5]]
 top_ns <- if (length(args) >= 6) as.integer(strsplit(args[[6]], ",")[[1]]) else c(50,100,250,500)
 
-trait <- "ad"
-tool_base <- "magma"
-birewire_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/ad/ad_magma_birewire_empirical_pvalues.txt"
-gmt_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
-ot_dir <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect"
-top_ns <- c(50,100,250,500)
-
-
 # Map traits to OpenTargets disease IDs (extend as needed)
 trait_mapping <- list(
   "t2d" = "MONDO_0005148",

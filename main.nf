@@ -45,6 +45,15 @@ include {
     malacards_correlation;
 } from './modules/malacards/malacards_correlation.nf'
 
+// Add delta-rank modules
+include {
+    delta_rank_ot_correlation
+} from './modules/opentargets/delta_rank_ot.nf'
+
+include {
+    delta_rank_malacards_correlation
+} from './modules/malacards/delta_rank_malacards.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -494,6 +503,55 @@ workflow {
                 .filter { it != null }
 
             malacards_correlation(prset_for_malacards_corr)
+        }
+    }
+    //////////////////////////////////////////
+    // DELTA-RANK CORRELATION WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards)) {
+        log.info "Setting up delta-rank correlation analyses"
+
+        // Helper channel (BireWire-only result per trait/tool)
+        def birewire_only = { ch ->
+            ch.groupTuple(by: [0, 1])
+              .map { trait, base_tool, rand_methods, result_files ->
+                  def idx = rand_methods.findIndexOf { it == 'birewire' }
+                  if (idx != -1) {
+                      [trait, base_tool, result_files[idx]]
+                  } else {
+                      log.warn "Missing BireWire results for ${trait} with ${base_tool}"
+                      return null
+                  }
+              }
+              .filter { it != null }
+        }
+
+        // MAGMA
+        if (params.run_magma) {
+            def magma_bw = birewire_only(magma_by_trait_method)
+
+            if (params.run_delta_rank_ot) {
+                log.info "Delta-rank OT correlation for MAGMA"
+                delta_rank_ot_correlation(magma_bw)
+            }
+            if (params.run_delta_rank_malacards) {
+                log.info "Delta-rank MalaCards correlation for MAGMA"
+                delta_rank_malacards_correlation(magma_bw)
+            }
+        }
+
+        // PRSet
+        if (params.run_prset) {
+            def prset_bw = birewire_only(prset_by_trait_method)
+
+            if (params.run_delta_rank_ot) {
+                log.info "Delta-rank OT correlation for PRSet"
+                delta_rank_ot_correlation(prset_bw)
+            }
+            if (params.run_delta_rank_malacards) {
+                log.info "Delta-rank MalaCards correlation for PRSet"
+                delta_rank_malacards_correlation(prset_bw)
+            }
         }
     }
 }
