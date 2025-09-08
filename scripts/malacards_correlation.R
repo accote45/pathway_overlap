@@ -44,22 +44,37 @@ is_dir <- function(p) isTRUE(file.info(p)$isdir)
 
 list_malacards_files <- function(base_path, trait) {
   if (!file.exists(base_path)) stop("MalaCards path does not exist: ", base_path)
+
   if (!is_dir(base_path)) {
     # Single file path supplied: enforce *ensembl.csv requirement
     if (!grepl("ensembl\\.csv$", tolower(basename(base_path))))
       stop("Provided file does not match *ensembl.csv: ", base_path)
     return(normalizePath(base_path))
   }
-  # Only list files ending with ensembl.csv
+
   files <- list.files(base_path, pattern = "ensembl\\.csv$", full.names = TRUE, ignore.case = TRUE)
   if (length(files) == 0) stop("No *ensembl.csv files under: ", base_path)
+
   tci <- tolower(trait)
-  sel <- grepl(sprintf("^malacards_%s.*ensembl\\.csv$", tci), tolower(basename(files))) |
-         grepl(tci, tolower(basename(files)))
-  out <- files[sel]
-  if (length(out) == 0) stop("No *ensembl.csv MalaCards files matched trait '", trait,
-                             "'. Available: ", paste(basename(files), collapse = ", "))
-  normalizePath(out)
+  bns <- tolower(basename(files))
+
+  # 1) Prefer strict pattern: malacards_<trait>...ensembl.csv
+  strict <- grepl(sprintf("^malacards_%s(?:[^a-z0-9].*)?ensembl\\.csv$", tci),
+                  bns, perl = TRUE)
+  candidates <- files[strict]
+
+  # 2) If none, fallback to token-based exact match (split on non-alnum)
+  if (length(candidates) == 0) {
+    tokens <- strsplit(gsub("\\.csv$", "", bns), "[^a-z0-9]+")
+    has_trait_token <- vapply(tokens, function(v) tci %in% v, logical(1))
+    candidates <- files[has_trait_token]
+  }
+
+  if (length(candidates) == 0) {
+    stop("No MalaCards files matched trait '", trait, "'. Available: ",
+         paste(basename(files), collapse = ", "))
+  }
+  normalizePath(candidates)
 }
 
 numify <- function(x) as.numeric(gsub("[^0-9eE\\+\\-\\.]", "", as.character(x)))
