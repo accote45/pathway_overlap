@@ -54,6 +54,14 @@ include {
     delta_rank_malacards_correlation
 } from './modules/malacards/delta_rank_malacards.nf'
 
+include {
+    // GSA-MiXeR
+    prepare_gsamixer_sumstats;
+    split_gsamixer_sumstats;
+    gsamixer_plsa_base;
+    gsamixer_plsa_full;
+} from './modules/gsamixer/gsamixer.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -563,5 +571,28 @@ workflow {
                 delta_rank_malacards_correlation(prset_bw)  // unfiltered
             }
         }
+    }
+    
+    //////////////////////////////////////////
+    // GSA-MiXeR WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_gsamixer) {
+      log.info "Running GSA-MiXeR for all traits"
+
+      // Use the same trait_data as MAGMA/PRSet; only need trait + gwas path
+      gsamixer_inputs = trait_data.map { t ->
+        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary, a1, a2, stat_name, stat_type) = t
+        tuple(trait, file(gwas_file))
+      }
+
+      gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
+      gsamixer_split = split_gsamixer_sumstats(gsamixer_prepared)
+
+      gsamixer_base = gsamixer_plsa_base(gsamixer_split)
+
+      // Link base json to full step; reuse split outputs implicitly (pattern .chr@.)
+      gsamixer_full = gsamixer_plsa_full(
+        gsamixer_base.map { trait, base_json, base_log -> tuple(trait, base_json, base_log) }
+      )
     }
 }
