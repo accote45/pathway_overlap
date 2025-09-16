@@ -22,6 +22,8 @@ opt <- OptionParser() |>
   add_option("--col-z",    type="character", default=NULL) |>
   add_option("--col-beta", type="character", default=NULL) |>
   add_option("--col-se",   type="character", default=NULL) |>
+  # NEW: optional OR column
+  add_option("--col-or",   type="character", default=NULL) |>
   parse_args(commandArgs(TRUE))
 
 stopifnot(!is.null(opt$trait), !is.null(opt$input), !is.null(opt$output))
@@ -70,7 +72,9 @@ if (!is.null(opt$`traits-config`) && nzchar(opt$`traits-config`)) {
         n    = getv("n_col","n","neff","samplesize"),
         z    = getv("z_col","z"),
         beta = getv("beta_col","beta"),
-        se   = getv("se_col","se")
+        se   = getv("se_col","se"),
+        # NEW: odds ratio column (if provided in JSON)
+        or   = getv("or_col","or","odds_ratio","oddsratio")
       )
     }
   }
@@ -80,7 +84,9 @@ if (!is.null(opt$`traits-config`) && nzchar(opt$`traits-config`)) {
 cli_map <- list(
   rsid = opt$`col-rsid`, chr = opt$`col-chr`, pos = opt$`col-pos`,
   a1   = opt$`col-a1`,   a2  = opt$`col-a2`,  n   = opt$`col-n`,
-  z    = opt$`col-z`,    beta= opt$`col-beta`, se  = opt$`col-se`
+  z    = opt$`col-z`,    beta= opt$`col-beta`, se  = opt$`col-se`,
+  # NEW: CLI override for OR column
+  or   = opt$`col-or`
 )
 for (k in names(cli_map)) {
   if (!is.null(cli_map[[k]]) && nzchar(cli_map[[k]])) json_map[[k]] <- cli_map[[k]]
@@ -95,8 +101,10 @@ heur <- list(
   a2   = pick_first(c("a2","otherallele","other_allele","allele2")),
   n    = pick_first(c("n","samplesize","neff")),
   z    = pick_first(c("z","zscore","z_stat","zstat","zvalue","z.value")),
-  beta = pick_first(c("beta","effect","beta_hat")),
-  se   = pick_first(c("se","stderr","se_beta","sebeta"))
+  beta = pick_first(c("beta","effect","beta_hat","logor","lnor","log_odds")),
+  se   = pick_first(c("se","stderr","se_beta","sebeta")),
+  # NEW: detect OR column
+  or   = pick_first(c("or","oddsratio","odds_ratio","odds.ratio"))
 )
 for (k in names(heur)) if (is.null(json_map[[k]]) || !nzchar(json_map[[k]])) json_map[[k]] <- heur[[k]]
 
@@ -104,11 +112,18 @@ for (k in names(heur)) if (is.null(json_map[[k]]) || !nzchar(json_map[[k]])) jso
 missing_basic <- c()
 for (k in c("rsid","chr","pos","a1","a2","n")) if (is.null(json_map[[k]]) || !nzchar(json_map[[k]])) missing_basic <- c(missing_basic, toupper(k))
 if (length(missing_basic)) {
-  stop(sprintf("Missing required columns (from JSON/flags/header): %s. Required: SNP/RSID, CHR, BP/POS, A1/EffectAllele, A2/OtherAllele, N, and Z or BETA+SE.", paste(missing_basic, collapse=", ")))
+  stop(sprintf(
+    "Missing required columns (from JSON/flags/header): %s. Required: SNP/RSID, CHR, BP/POS, A1/EffectAllele, A2/OtherAllele, N, and Z or BETA+SE or OR+SE.",
+    paste(missing_basic, collapse=", ")
+  ))
 }
 if (is.null(json_map$z) || !nzchar(json_map$z)) {
-  if (is.null(json_map$beta) || !nzchar(json_map$beta) || is.null(json_map$se) || !nzchar(json_map$se)) {
-    stop("Provide Z or both BETA and SE in JSON/flags/headers for GSA-MiXeR.")
+  // Require either (BETA and SE) or (OR and SE)
+  if (
+    (is.null(json_map$beta) || !nzchar(json_map$beta) || is.null(json_map$se) || !nzchar(json_map$se)) &&
+    (is.null(json_map$or)   || !nzchar(json_map$or)   || is.null(json_map$se) || !nzchar(json_map$se))
+  ) {
+    stop("Provide Z or both BETA and SE, or OR and SE in JSON/flags/headers for GSA-MiXeR.")
   }
 }
 
@@ -122,12 +137,23 @@ A1   <- toupper(as.character(col_get(json_map$a1)))
 A2   <- toupper(as.character(col_get(json_map$a2)))
 N    <- suppressWarnings(as.numeric(col_get(json_map$n)))
 
+Z <- NULL
 if (!is.null(json_map$z) && nzchar(json_map$z)) {
   Z <- suppressWarnings(as.numeric(col_get(json_map$z)))
 } else {
-  BETA <- suppressWarnings(as.numeric(col_get(json_map$beta)))
-  SE   <- suppressWarnings(as.numeric(col_get(json_map$se)))
-  Z <- BETA / SE
+  BETA <- if (!is.null(json_map$beta) && nzchar(json_map$beta)) suppressWarnings(as.numeric(col_get(json_map$beta))) else NULL
+  SE   <- if (!is.null(json_map$se)   && nzchar(json_map$se))   suppressWarnings(as.numeric(col_get(json_map$se)))   else NULL
+  OR   <- if (!is.null(json_map$or)   && nzchar(json_map$or))   suppressWarnings(as.numeric(col_get(json_map$or)))   else NULL
+
+  if (!is.null(BETA) && !is.null(SE)) {
+    Z <- BETA / SE
+  } else if (!is.null(OR) && !is.null(SE)) {
+    // Guard against non-positive OR
+    OR[!is.finite(OR) | OR <= 0] <- NA_real_
+    Z <- log(OR) / SE
+  } else {
+    stop("Could not compute Z: need (BETA and SE) or (OR and SE).")
+  }
 }
 
 out <- data.table(RSID=RSID, CHR=CHR, POS=POS, A1=A1, A2=A2, N=N, Z=Z)
