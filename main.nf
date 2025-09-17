@@ -579,23 +579,36 @@ workflow {
     if (params.run_gsamixer) {
       log.info "Running GSA-MiXeR for all traits"
 
-      // Step 1: Generate GSA-MiXeR reference files ONCE
-      gsamixer_reference = convert_gmt_for_gsamixer(
-          file(params.geneset_real),
-          file(params.gtf_reference)
+      // One-time reference generation
+      ch_refs = convert_gmt_for_gsamixer(
+        file(params.geneset_real),
+        file(params.gtf_reference)
       )
 
-      // Step 2: Use reference files in all GSAMixer steps
-      gsamixer_inputs = trait_data.map { t ->
-        def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary, a1, a2, stat_name, stat_type) = t
-        tuple(trait, file(gwas_file))
-      }
+      // Turn the single tuple output into three singleton channels
+      ch_baseline      = ch_refs.map { baseline, full_gene, full_gene_set -> baseline }
+      ch_full_gene     = ch_refs.map { baseline, full_gene, full_gene_set -> full_gene }
+      ch_full_gene_set = ch_refs.map { baseline, full_gene, full_gene_set -> full_gene_set }
 
+      // Prepare per-trait sumstats and split by chromosome (your existing logic)
       gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
+      gsamixer_split    = split_gsamixer_sumstats(gsamixer_prepared)
 
-      // Pass reference files to downstream GSAMixer steps
-      gsamixer_split = split_gsamixer_sumstats(gsamixer_prepared)
-      gsamixer_base = gsamixer_plsa_base(gsamixer_split, gsamixer_reference)
-      gsamixer_full = gsamixer_plsa_full(gsamixer_base, gsamixer_reference)
+      // Wire baseline into every base job
+      ch_base_in = gsamixer_split
+        .combine(ch_baseline)                                    // adds the singleton baseline file to each tuple
+        .map { trait, chrom_sumstats, baseline -> tuple(trait, chrom_sumstats, baseline) }
+
+      gsamixer_base = gsamixer_plsa_base(ch_base_in)
+
+      // Wire full_gene + full_gene_set into every full job
+      ch_full_in = gsamixer_base
+        .combine(ch_full_gene)                                   // adds full_gene.txt
+        .combine(ch_full_gene_set)                               // adds full_gene_set.txt
+        .map { trait, base_json, base_log, full_gene, full_gene_set ->
+            tuple(trait, base_json, base_log, full_gene, full_gene_set)
+        }
+
+      gsamixer_full = gsamixer_plsa_full(ch_full_in)
     }
 }

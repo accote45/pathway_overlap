@@ -76,7 +76,8 @@ process gsamixer_plsa_base {
 
   input:
   tuple val(trait),
-        path(chrom_sumstats)
+        path(chrom_sumstats),
+        path(baseline_txt)   // NEW: baseline.txt comes from the reference step
 
   output:
   tuple val(trait),
@@ -94,7 +95,7 @@ process gsamixer_plsa_base {
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
-    --go-file ${params.mixer_go_base} \\
+    --go-file ${baseline_txt} \\
     --annot-file ${params.mixer_ref_annot} \\
     ${params.mixer_extra_flags:-}
   """
@@ -107,7 +108,10 @@ process gsamixer_plsa_full {
   input:
   tuple val(trait),
         path(base_json),
-        path(base_log)
+        path(base_log),
+        path(full_gene_txt),       // NEW: full_gene.txt for background (design matrix)
+        path(full_gene_set_txt)    // NEW: full_gene_set.txt for tests
+  // NOTE: If you prefer a test-only file, see note below.
 
   output:
   tuple val(trait),
@@ -125,8 +129,8 @@ process gsamixer_plsa_full {
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
-    --go-file ${params.mixer_go_full} \\
-    --go-file-test ${params.mixer_go_full_test} \\
+    --go-file ${full_gene_txt} \\
+    --go-file-test ${full_gene_set_txt} \\
     --annot-file ${params.mixer_ref_annot} \\
     --load-params-file ${base_json} \\
     ${params.mixer_extra_flags:-}
