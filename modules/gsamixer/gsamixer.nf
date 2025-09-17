@@ -1,5 +1,27 @@
 nextflow.enable.dsl=2
 
+process convert_gmt_for_gsamixer {
+  executor 'lsf'
+  tag "convert_gmt_for_gsamixer"
+
+  input:
+  path gmt_file
+  path gtf_file
+
+  output:
+  path "baseline.txt"
+  path "full_gene.txt"
+  path "full_gene_set.txt"
+
+  publishDir "${params.outdir}/gsamixer_reference", mode: 'copy', overwrite: true
+
+  script:
+  """
+  module load R
+  Rscript ${params.scripts_dir}/convert_geneset_gsamixer.R ${gmt_file} ${gtf_file}
+  """
+}
+
 process prepare_gsamixer_sumstats {
   executor 'lsf'
   tag "${trait}_gsamixer_prepare"

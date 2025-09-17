@@ -579,20 +579,23 @@ workflow {
     if (params.run_gsamixer) {
       log.info "Running GSA-MiXeR for all traits"
 
-      // Use the same trait_data as MAGMA/PRSet; only need trait + gwas path
+      // Step 1: Generate GSA-MiXeR reference files ONCE
+      gsamixer_reference = convert_gmt_for_gsamixer(
+          file(params.geneset_real),
+          file(params.gtf_reference)
+      )
+
+      // Step 2: Use reference files in all GSAMixer steps
       gsamixer_inputs = trait_data.map { t ->
         def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, binary, a1, a2, stat_name, stat_type) = t
         tuple(trait, file(gwas_file))
       }
 
       gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
+
+      // Pass reference files to downstream GSAMixer steps
       gsamixer_split = split_gsamixer_sumstats(gsamixer_prepared)
-
-      gsamixer_base = gsamixer_plsa_base(gsamixer_split)
-
-      // Link base json to full step; reuse split outputs implicitly (pattern .chr@.)
-      gsamixer_full = gsamixer_plsa_full(
-        gsamixer_base.map { trait, base_json, base_log -> tuple(trait, base_json, base_log) }
-      )
+      gsamixer_base = gsamixer_plsa_base(gsamixer_split, gsamixer_reference)
+      gsamixer_full = gsamixer_plsa_full(gsamixer_base, gsamixer_reference)
     }
 }
