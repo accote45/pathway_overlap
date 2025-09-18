@@ -11,22 +11,15 @@ opt <- OptionParser() |>
   add_option("--input", type="character") |>
   add_option("--output", type="character") |>
   add_option("--traits-config", type="character", default=NULL,
-             help="Path to GWAS_input.json. If present, column mapping is read for the given trait.") |>
-  # Optional explicit column flags override JSON if provided
-  add_option("--col-rsid", type="character", default=NULL) |>
-  add_option("--col-chr",  type="character", default=NULL) |>
-  add_option("--col-pos",  type="character", default=NULL) |>
-  add_option("--col-a1",   type="character", default=NULL) |>
-  add_option("--col-a2",   type="character", default=NULL) |>
-  add_option("--col-n",    type="character", default=NULL) |>
-  add_option("--col-z",    type="character", default=NULL) |>
-  add_option("--col-beta", type="character", default=NULL) |>
-  add_option("--col-se",   type="character", default=NULL) |>
-  # NEW: optional OR column
-  add_option("--col-or",   type="character", default=NULL) |>
+             help="Path to GWAS_input.json. Column mapping must be specified for the given trait.") |>
   parse_args(commandArgs(TRUE))
 
 stopifnot(!is.null(opt$trait), !is.null(opt$input), !is.null(opt$output))
+
+# Verify traits-config is provided
+if (is.null(opt$`traits-config`) || !nzchar(opt$`traits-config`)) {
+  stop("--traits-config parameter is required. Please provide a JSON file with column mappings.")
+}
 
 # Load GWAS
 dt <- fread(opt$input, sep = "\t", header = TRUE, nThread = 1, showProgress = FALSE)
@@ -36,94 +29,64 @@ to_key <- function(x) gsub("[^a-z0-9]", "", tolower(x))
 cn <- to_key(names(dt))
 name_by_key <- setNames(names(dt), cn)
 
-pick_first <- function(keys) {
-  hits <- which(cn %in% to_key(keys))
-  if (length(hits)) names(dt)[hits[1]] else NA_character_
-}
-
-# 1) Start with JSON mapping (if provided)
+# Load JSON mapping (required)
 json_map <- list()
-if (!is.null(opt$`traits-config`) && nzchar(opt$`traits-config`)) {
-  cfg <- jsonlite::fromJSON(opt$`traits-config`, simplifyVector = TRUE)
-  # cfg can be a list of objects or a named list; try to find by "trait" name (case-insensitive)
-  rows <- NULL
-  if (is.data.frame(cfg)) {
-    rows <- cfg
-  } else if (is.list(cfg)) {
-    # try to bind rows if it’s a list
-    try(rows <- data.table::rbindlist(cfg, fill = TRUE), silent = TRUE)
-  }
-  if (!is.null(rows) && nrow(rows)) {
-    trait_row <- rows[tolower(rows$trait) == tolower(opt$trait), ]
-    if (nrow(trait_row) == 1) {
-      # Accept multiple common field names
-      getv <- function(...) {
-        for (k in list(...)) {
-          if (!is.null(trait_row[[k]]) && nzchar(as.character(trait_row[[k]]))) return(as.character(trait_row[[k]]))
-        }
-        return(NULL)
-      }
-      json_map <- list(
-        rsid = getv("rsid_col","snp_col","snp","rsid","id"),
-        chr  = getv("chr_col","chr","chrom","chromosome"),
-        pos  = getv("pos_col","bp_col","pos","bp","position"),
-        a1   = getv("a1_col","effect_allele","effectallele","a1"),
-        a2   = getv("a2_col","other_allele","otherallele","a2"),
-        n    = getv("n_col","n","neff","samplesize"),
-        z    = getv("z_col","z"),
-        beta = getv("beta_col","beta"),
-        se   = getv("se_col","se"),
-        # NEW: odds ratio column (if provided in JSON)
-        or   = getv("or_col","or","odds_ratio","oddsratio")
-      )
-    }
-  }
+cfg <- jsonlite::fromJSON(opt$`traits-config`, simplifyVector = TRUE)
+# cfg can be a list of objects or a named list; try to find by "trait" name (case-insensitive)
+rows <- NULL
+if (is.data.frame(cfg)) {
+  rows <- cfg
+} else if (is.list(cfg)) {
+  # try to bind rows if it's a list
+  try(rows <- data.table::rbindlist(cfg, fill = TRUE), silent = TRUE)
 }
 
-# 2) Override with explicit CLI flags if present
-cli_map <- list(
-  rsid = opt$`col-rsid`, chr = opt$`col-chr`, pos = opt$`col-pos`,
-  a1   = opt$`col-a1`,   a2  = opt$`col-a2`,  n   = opt$`col-n`,
-  z    = opt$`col-z`,    beta= opt$`col-beta`, se  = opt$`col-se`,
-  # NEW: CLI override for OR column
-  or   = opt$`col-or`
-)
-for (k in names(cli_map)) {
-  if (!is.null(cli_map[[k]]) && nzchar(cli_map[[k]])) json_map[[k]] <- cli_map[[k]]
+if (is.null(rows) || !nrow(rows)) {
+  stop("Invalid JSON configuration format. Expected a data frame or list of trait configurations.")
 }
 
-# 3) If still missing, try heuristic detection
-heur <- list(
-  rsid = pick_first(c("snp","rsid","id")),
-  chr  = pick_first(c("chr","chrom","chromosome")),
-  pos  = pick_first(c("bp","pos","position")),
-  a1   = pick_first(c("a1","effectallele","effect_allele","allele1")),
-  a2   = pick_first(c("a2","otherallele","other_allele","allele2")),
-  n    = pick_first(c("n","samplesize","neff")),
-  z    = pick_first(c("z","zscore","z_stat","zstat","zvalue","z.value")),
-  beta = pick_first(c("beta","effect","beta_hat","logor","lnor","log_odds")),
-  se   = pick_first(c("se","stderr","se_beta","sebeta")),
-  # NEW: detect OR column
-  or   = pick_first(c("or","oddsratio","odds_ratio","odds.ratio"))
+trait_row <- rows[tolower(rows$trait) == tolower(opt$trait), ]
+if (nrow(trait_row) == 0) {
+  stop(sprintf("Trait '%s' not found in JSON configuration. Available traits: %s", 
+               opt$trait, paste(rows$trait, collapse=", ")))
+}
+
+# Accept multiple common field names
+getv <- function(...) {
+  for (k in list(...)) {
+    if (!is.null(trait_row[[k]]) && nzchar(as.character(trait_row[[k]]))) return(as.character(trait_row[[k]]))
+  }
+  return(NULL)
+}
+json_map <- list(
+  rsid = getv("rsid_col","snp_col","snp","rsid","id"),
+  chr  = getv("chr_col","chr","chrom","chromosome"),
+  pos  = getv("pos_col","bp_col","pos","bp","position"),
+  a1   = getv("a1_col","effect_allele","effectallele","a1"),
+  a2   = getv("a2_col","other_allele","otherallele","a2"),
+  n    = getv("n_col","n","neff","samplesize"),
+  z    = getv("z_col","z"),
+  beta = getv("beta_col","beta"),
+  se   = getv("se_col","se"),
+  or   = getv("or_col","or","odds_ratio","oddsratio")
 )
-for (k in names(heur)) if (is.null(json_map[[k]]) || !nzchar(json_map[[k]])) json_map[[k]] <- heur[[k]]
 
 # Validate presence of required fields (allow Z or BETA+SE)
 missing_basic <- c()
 for (k in c("rsid","chr","pos","a1","a2","n")) if (is.null(json_map[[k]]) || !nzchar(json_map[[k]])) missing_basic <- c(missing_basic, toupper(k))
 if (length(missing_basic)) {
   stop(sprintf(
-    "Missing required columns (from JSON/flags/header): %s. Required: SNP/RSID, CHR, BP/POS, A1/EffectAllele, A2/OtherAllele, N, and Z or BETA+SE or OR+SE.",
-    paste(missing_basic, collapse=", ")
+    "Missing required columns in JSON configuration for trait '%s': %s. Required: SNP/RSID, CHR, BP/POS, A1/EffectAllele, A2/OtherAllele, N, and Z or BETA+SE or OR+SE.",
+    opt$trait, paste(missing_basic, collapse=", ")
   ))
 }
 if (is.null(json_map$z) || !nzchar(json_map$z)) {
-  // Require either (BETA and SE) or (OR and SE)
+  # Require either (BETA and SE) or (OR and SE)
   if (
     (is.null(json_map$beta) || !nzchar(json_map$beta) || is.null(json_map$se) || !nzchar(json_map$se)) &&
     (is.null(json_map$or)   || !nzchar(json_map$or)   || is.null(json_map$se) || !nzchar(json_map$se))
   ) {
-    stop("Provide Z or both BETA and SE, or OR and SE in JSON/flags/headers for GSA-MiXeR.")
+    stop("Provide Z or both BETA and SE, or OR and SE in JSON configuration for trait '", opt$trait, "'.")
   }
 }
 
@@ -148,7 +111,7 @@ if (!is.null(json_map$z) && nzchar(json_map$z)) {
   if (!is.null(BETA) && !is.null(SE)) {
     Z <- BETA / SE
   } else if (!is.null(OR) && !is.null(SE)) {
-    // Guard against non-positive OR
+    # Guard against non-positive OR
     OR[!is.finite(OR) | OR <= 0] <- NA_real_
     Z <- log(OR) / SE
   } else {
