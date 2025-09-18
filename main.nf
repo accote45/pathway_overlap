@@ -87,7 +87,8 @@ trait_data = Channel.fromList(phenoConfig.collect { content ->
         content.effect_allele,                   // [8] Effect allele column
         content.other_allele,                    // [9] Other allele column
         content.summary_statistic_name,          // [10] Summary statistic column name
-        content.summary_statistic_type           // [11] Summary statistic type (beta/or)
+        content.summary_statistic_type,          // [11] Summary statistic type (beta/or)
+        content.se_col                            // [12] Standard error column
     )
 })
 

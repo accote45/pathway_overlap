@@ -59,7 +59,8 @@ json_map <- list(
   a1   = as.character(trait_row$effect_allele),
   a2   = as.character(trait_row$other_allele),
   n    = as.character(trait_row$n_col),
-  beta = as.character(trait_row$summary_statistic_name)
+  beta = as.character(trait_row$summary_statistic_name),
+  se   = ifelse(is.null(trait_row$se_col), "", as.character(trait_row$se_col))
   # Add other fields as needed
 )
 
