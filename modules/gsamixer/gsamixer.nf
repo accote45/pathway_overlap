@@ -104,7 +104,6 @@ process gsamixer_plsa_base {
     --trait1-file ${trait}.chr@.sumstats.gz \\
     --out ${trait}_base \\
     --bim-file ${params.mixer_ref_bim} \\
-    --use-complete-tag-indices \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
     --go-file ${baseline_txt} \\
     --annot-file ${params.mixer_ref_annot} \\
@@ -143,6 +142,7 @@ process gsamixer_plsa_full {
     --go-file ${full_gene_txt} \\
     --go-file-test ${full_gene_set_txt} \\
     --annot-file ${params.mixer_ref_annot} \\
+    --go-extend-bp 35000 \\
     --load-params-file ${base_json} \\
     ${params.mixer_extra_flags:-}
   """
