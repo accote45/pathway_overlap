@@ -51,24 +51,16 @@ if (nrow(trait_row) == 0) {
                opt$trait, paste(rows$trait, collapse=", ")))
 }
 
-# Accept multiple common field names
-getv <- function(...) {
-  for (k in list(...)) {
-    if (!is.null(trait_row[[k]]) && nzchar(as.character(trait_row[[k]]))) return(as.character(trait_row[[k]]))
-  }
-  return(NULL)
-}
+# Direct mapping from JSON structure (no fallbacks needed)
 json_map <- list(
-  rsid = getv("rsid_col","snp_col","snp","rsid","id"),
-  chr  = getv("chr_col","chr","chrom","chromosome"),
-  pos  = getv("pos_col","bp_col","pos","bp","position"),
-  a1   = getv("a1_col","effect_allele","effectallele","a1"),
-  a2   = getv("a2_col","other_allele","otherallele","a2"),
-  n    = getv("n_col","n","neff","samplesize"),
-  z    = getv("z_col","z"),
-  beta = getv("beta_col","beta"),
-  se   = getv("se_col","se"),
-  or   = getv("or_col","or","odds_ratio","oddsratio")
+  rsid = as.character(trait_row$rsid_col),
+  chr  = as.character(trait_row$chr_col),
+  pos  = as.character(trait_row$pos_col),
+  a1   = as.character(trait_row$effect_allele),
+  a2   = as.character(trait_row$other_allele),
+  n    = as.character(trait_row$n_col),
+  beta = as.character(trait_row$summary_statistic_name)
+  # Add other fields as needed
 )
 
 # Validate presence of required fields (allow Z or BETA+SE)
