@@ -22,15 +22,27 @@ if (is.null(opt$`traits-config`) || !nzchar(opt$`traits-config`)) {
 }
 
 # Load GWAS
-dt <- fread(opt$input, sep = "\t", header = TRUE, nThread = 1, showProgress = FALSE)
+dt <- fread(opt$input, header = TRUE, nThread = 1, showProgress = FALSE)
 
 # Helpers
-to_key <- function(x) gsub("[^a-z0-9]", "", tolower(x))
-cn <- to_key(names(dt))
-name_by_key <- setNames(names(dt), cn)
+# Extract columns safely by display name (exact match)
+col_get <- function(colname) {
+  if (is.null(colname) || !nzchar(colname)) {
+    return(NULL)
+  }
+  
+  # Just check if the column exists directly without any transformation
+  if (!colname %in% names(dt)) {
+    warning(sprintf("Column '%s' not found in data. Available columns: %s", 
+                   colname, paste(names(dt), collapse=", ")))
+    return(NULL)
+  }
+  
+  # Return the column data using exact name
+  return(dt[[colname]])
+}
 
 # Load JSON mapping (required)
-json_map <- list()
 cfg <- jsonlite::fromJSON(opt$`traits-config`, simplifyVector = TRUE)
 # cfg can be a list of objects or a named list; try to find by "trait" name (case-insensitive)
 rows <- NULL
@@ -60,9 +72,7 @@ json_map <- list(
   a2   = as.character(trait_row$other_allele),
   n    = as.character(trait_row$n_col),
   beta = as.character(trait_row$summary_statistic_name),
-  se   = ifelse(is.null(trait_row$se_col), "", as.character(trait_row$se_col))
-  # Add other fields as needed
-)
+  se   = as.character(trait_row$se_col))
 
 # Validate presence of required fields (allow Z or BETA+SE)
 missing_basic <- c()
@@ -83,15 +93,24 @@ if (is.null(json_map$z) || !nzchar(json_map$z)) {
   }
 }
 
-# Extract columns safely by display name (case-insensitive)
-col_get <- function(colname) if (is.null(colname) || !nzchar(colname)) NULL else dt[[ name_by_key[[ to_key(colname) ]] ]]
-
+# Extract columns with better error handling
 RSID <- as.character(col_get(json_map$rsid))
+if(length(RSID) == 0) cat("RSID is empty! Column name used:", json_map$rsid, "\n")
+
 CHR  <- suppressWarnings(as.integer(col_get(json_map$chr)))
+if(length(CHR) == 0) cat("CHR is empty! Column name used:", json_map$chr, "\n")
+
 POS  <- suppressWarnings(as.integer(col_get(json_map$pos)))
+if(length(POS) == 0) cat("POS is empty! Column name used:", json_map$pos, "\n")
+
 A1   <- toupper(as.character(col_get(json_map$a1)))
+if(length(A1) == 0) cat("A1 is empty! Column name used:", json_map$a1, "\n")
+
 A2   <- toupper(as.character(col_get(json_map$a2)))
+if(length(A2) == 0) cat("A2 is empty! Column name used:", json_map$a2, "\n")
+
 N    <- suppressWarnings(as.numeric(col_get(json_map$n)))
+if(length(N) == 0) cat("N is empty! Column name used:", json_map$n, "\n")
 
 Z <- NULL
 if (!is.null(json_map$z) && nzchar(json_map$z)) {

@@ -62,6 +62,12 @@ include {
     gsamixer_plsa_full;
 } from './modules/gsamixer/gsamixer.nf'
 
+include {
+    convert_random_gmt_for_gsamixer;
+    gsamixer_plsa_base_random;
+    gsamixer_plsa_full_random;
+} from './modules/gsamixer/gsamixer_random.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -611,5 +617,49 @@ workflow {
         }
 
       gsamixer_full = gsamixer_plsa_full(ch_full_in)
+    }
+    
+    if (params.run_gsamixer && params.run_empirical) {
+        log.info "Running GSA-MiXeR for random pathways"
+        
+        // Create a channel of random GMT files
+        random_gmt_files = Channel
+            .fromList(params.randomization_methods)
+            .flatMap { rand_method -> 
+                (1..params.num_random_sets).collect { perm ->
+                    def gmt_file = file("${params.gmt_dirs[rand_method]}/GeneSet.random${perm}.gmt")
+                    [rand_method, perm, gmt_file]
+                }
+            }
+        
+        // Create a channel for each trait with the random GMTs
+        trait_random_gmt = gsamixer_prepared
+            .map { trait, sumstats_gz -> trait }
+            .combine(random_gmt_files)
+            .map { trait, rand_method, perm, gmt_file -> 
+                [trait, rand_method, perm, gmt_file, file(params.gtf_reference)]
+            }
+        
+        // Convert random GMTs to GSA-MiXeR format
+        random_gmt_converted = convert_random_gmt_for_gsamixer(trait_random_gmt)
+        
+        // Combine with chromosome-specific sumstats files
+        random_gmt_base_inputs = random_gmt_converted
+            .combine(gsamixer_split, by: 0) // Join by trait
+            .map { trait, rand_method, perm, baseline, full_gene, full_gene_set, chrom_sumstats -> 
+                [trait, rand_method, perm, baseline, full_gene, full_gene_set, chrom_sumstats]
+            }
+        
+        // Run GSA-MiXeR base model for random GMTs
+        random_gmt_base_results = gsamixer_plsa_base_random(random_gmt_base_inputs)
+        
+        // Run GSA-MiXeR full model for random GMTs
+        random_gmt_full_inputs = random_gmt_converted
+            .join(random_gmt_base_results, by: [0, 1, 2]) // Join by trait, rand_method, perm
+            .map { trait, rand_method, perm, baseline, full_gene, full_gene_set, base_json, base_log -> 
+                [trait, rand_method, perm, baseline, full_gene, full_gene_set, base_json, base_log]
+            }
+        
+        random_gmt_full_results = gsamixer_plsa_full_random(random_gmt_full_inputs)
     }
 }
