@@ -74,6 +74,7 @@ process split_gsamixer_sumstats {
   script:
   """
   module load singularity
+  ml python
   ${params.mixer_py} split_sumstats \\
     --trait1-file ${sumstats_gz} \\
     --out ${trait}.chr@.sumstats.gz
@@ -99,6 +100,7 @@ process gsamixer_plsa_base {
   script:
   """
   module load singularity
+  ml python
   ${params.mixer_py} plsa --gsa-base \\
     --trait1-file ${trait}.chr@.sumstats.gz \\
     --out ${trait}_base \\
@@ -131,6 +133,7 @@ process gsamixer_plsa_full {
   script:
   """
   module load singularity
+  ml python
   ${params.mixer_py} plsa --gsa-full \\
     --trait1-file ${trait}.chr@.sumstats.gz \\
     --out ${trait}_full \\
