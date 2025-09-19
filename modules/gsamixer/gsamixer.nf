@@ -1,5 +1,3 @@
-nextflow.enable.dsl=2
-
 process convert_gmt_for_gsamixer {
   executor 'lsf'
   tag "convert_gmt_for_gsamixer"
