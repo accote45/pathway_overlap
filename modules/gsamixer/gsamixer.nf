@@ -108,7 +108,7 @@ process gsamixer_plsa_base {
     --loadlib-file ${params.mixer_ref_loadlib} \\
     --go-file ${baseline_txt} \\
     --annot-file ${params.mixer_ref_annot} \\
-    ${params.mixer_extra_flags:-}
+    ${params.mixer_extra_flags}
   """
 }
 
