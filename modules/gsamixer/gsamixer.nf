@@ -102,7 +102,7 @@ process gsamixer_plsa_base {
   """
   module load singularity
   ${params.mixer_py} plsa --gsa-base \\
-    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --trait1-file ${trait}.chr\@.sumstats.gz \\
     --out ${trait}_base \\
     --bim-file ${params.mixer_ref_bim} \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
