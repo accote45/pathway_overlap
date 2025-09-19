@@ -81,6 +81,8 @@ def phenoConfig = jsonSlurper.parseText(configFile.text)
 
 // Create a single comprehensive channel with all trait information
 trait_data = Channel.fromList(phenoConfig.collect { content ->
+    def neff = content.neff_col ?: content.n_col  // Use n_col as fallback if neff_col is missing
+    
     tuple(
         content.trait,                           // [0] Trait name
         content.gwas_file,                       // [1] GWAS file
@@ -94,7 +96,8 @@ trait_data = Channel.fromList(phenoConfig.collect { content ->
         content.other_allele,                    // [9] Other allele column
         content.summary_statistic_name,          // [10] Summary statistic column name
         content.summary_statistic_type,          // [11] Summary statistic type (beta/or)
-        content.se_col                            // [12] Standard error column
+        content.se_col,                          // [12] Standard error column
+        neff                                     // [13] Effective sample size (falls back to n_col)
     )
 })
 

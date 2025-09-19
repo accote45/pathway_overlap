@@ -39,7 +39,8 @@ process prepare_gsamixer_sumstats {
         val(other_allele),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(se_col) 
+        val(se_col),
+        val(neff_col)  // Add this parameter
 
   output:
   tuple val(trait),

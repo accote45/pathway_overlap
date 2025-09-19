@@ -63,7 +63,7 @@ if (nrow(trait_row) == 0) {
                opt$trait, paste(rows$trait, collapse=", ")))
 }
 
-# Direct mapping from JSON structure (no fallbacks needed)
+# Direct mapping from JSON structure (with fallbacks)
 json_map <- list(
   rsid = as.character(trait_row$rsid_col),
   chr  = as.character(trait_row$chr_col),
@@ -71,8 +71,10 @@ json_map <- list(
   a1   = as.character(trait_row$effect_allele),
   a2   = as.character(trait_row$other_allele),
   n    = as.character(trait_row$n_col),
+  neff = as.character(ifelse(is.null(trait_row$neff_col), trait_row$n_col, trait_row$neff_col)), # Add fallback
   beta = as.character(trait_row$summary_statistic_name),
-  se   = as.character(trait_row$se_col))
+  se   = as.character(trait_row$se_col)
+)
 
 # Validate presence of required fields (allow Z or BETA+SE)
 missing_basic <- c()
@@ -129,6 +131,13 @@ if (!is.null(json_map$z) && nzchar(json_map$z)) {
   } else {
     stop("Could not compute Z: need (BETA and SE) or (OR and SE).")
   }
+}
+
+# Extract columns with better error handling
+NEFF <- suppressWarnings(as.numeric(col_get(json_map$neff)))
+if(length(NEFF) == 0 || all(is.na(NEFF))) {
+  cat("NEFF is missing or empty. Using N instead\n")
+  NEFF <- N  # Fall back to N if NEFF is missing
 }
 
 out <- data.table(RSID=RSID, CHR=CHR, POS=POS, A1=A1, A2=A2, N=N, Z=Z)
