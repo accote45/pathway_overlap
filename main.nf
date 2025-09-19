@@ -215,7 +215,11 @@ workflow {
         
         // Run SNP deduplication ONCE per trait
         deduplicated_gwas = gwas_remove_dup_snps(
-            prset_dedup_data.map { it -> it + ["none"] }  // Add placeholder for rand_method
+            prset_dedup_data.map { tuple -> 
+                def items = tuple.toList()
+                items.add("none")  // Add placeholder for rand_method
+                tuple(*items)
+            }
         )
         
         // Now combine with randomization methods
