@@ -60,6 +60,7 @@ include {
     split_gsamixer_sumstats;
     gsamixer_plsa_base;
     gsamixer_plsa_full;
+    convert_gmt_for_gsamixer;
 } from './modules/gsamixer/gsamixer.nf'
 
 include {
