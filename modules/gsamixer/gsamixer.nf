@@ -77,7 +77,7 @@ process split_gsamixer_sumstats {
   ml python
   ${params.mixer_py} split_sumstats \\
     --trait1-file ${sumstats_gz} \\
-    --out ${trait}.chr@.sumstats.gz
+    --out ${trait}.chr\\@.sumstats.gz
   """
 }
 
@@ -102,7 +102,7 @@ process gsamixer_plsa_base {
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\
-    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --trait1-file ${trait}.chr\\@.sumstats.gz \\
     --out ${trait}_base \\
     --bim-file ${params.mixer_ref_bim} \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
@@ -135,7 +135,7 @@ process gsamixer_plsa_full {
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-full \\
-    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --trait1-file ${trait}.chr\\@.sumstats.gz \\
     --out ${trait}_full \\
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\
