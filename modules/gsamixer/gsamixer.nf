@@ -40,7 +40,7 @@ process prepare_gsamixer_sumstats {
         val(summary_statistic_name),
         val(summary_statistic_type),
         val(se_col),
-        val(neff_col)  // Add this parameter
+        val(neff_col)
 
   output:
   tuple val(trait),

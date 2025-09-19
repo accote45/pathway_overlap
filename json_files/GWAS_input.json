@@ -10,7 +10,9 @@
       "other_allele": "Allele2",
       "binary_target": "F",
       "summary_statistic_name": "Effect",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "StdErr",
+      "neff_col": "Neff"
     },
     {
       "trait": "scz",
@@ -26,7 +28,7 @@
       "summary_statistic_name": "BETA",
       "summary_statistic_type": "beta",
       "se_col": "SE",
-      "neff_col": "Neff"
+      "neff_col": "NEFF"
     },
     {
       "trait": "bmi",
@@ -41,8 +43,7 @@
       "binary_target": "F",
       "summary_statistic_name": "b",
       "summary_statistic_type": "beta",
-      "se_col": "se",
-      "neff_col": "Neff"
+      "se_col": "se"
     },
     {
       "trait": "cad",
@@ -56,7 +57,9 @@
       "other_allele": "a2",
       "binary_target": "F",
       "summary_statistic_name": "beta",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "se",
+      "neff_col": "Neff"
     },
     {
       "trait": "t2d",
@@ -70,7 +73,9 @@
       "other_allele": "Allele2",
       "binary_target": "F",
       "summary_statistic_name": "Effect",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "StdErr",
+      "neff_col": "Neff"
     },
     {
       "trait": "mdd",
@@ -84,7 +89,9 @@
       "other_allele": "NEA",
       "binary_target": "F",
       "summary_statistic_name": "BETA",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "SE",
+      "neff_col": "NEFF"
     },
     {
       "trait": "breast",
@@ -98,7 +105,9 @@
       "other_allele": "other_allele",
       "binary_target": "F",
       "summary_statistic_name": "beta",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "standard_error",
+      "neff_col": "Neff"
     },
     {
       "trait": "ad",
@@ -112,7 +121,9 @@
       "other_allele": "other_allele",
       "binary_target": "F",
       "summary_statistic_name": "beta",
-      "summary_statistic_type": "beta"
+      "summary_statistic_type": "beta",
+      "se_col": "standard_error",
+      "neff_col": "Neffective"
     },
   {
     "trait": "Alkaline_phosphatase",
@@ -126,7 +137,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Eosinophill_percentage",
@@ -140,7 +152,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "HDL_cholesterol",
@@ -154,7 +167,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Lymphocyte_count",
@@ -168,7 +182,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Mean_platelet_thrombocyte_volume",
@@ -182,7 +197,8 @@
     "other_allele": "A2",
     "binary_target": "F",
      "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
  {
     "trait": "Monocyte_percentage",
@@ -196,7 +212,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Platelet_crit",
@@ -210,7 +227,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Urea",
@@ -224,7 +242,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Vitamin_D",
@@ -238,7 +257,8 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   },
   {
     "trait": "Lipoprotein_A",
@@ -252,6 +272,7 @@
     "other_allele": "A2",
     "binary_target": "F",
     "summary_statistic_name": "BETA",
-    "summary_statistic_type": "beta"
+    "summary_statistic_type": "beta",
+    "se_col": "SE"
   }
 ]
