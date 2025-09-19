@@ -590,6 +590,28 @@ workflow {
     if (params.run_gsamixer) {
       log.info "Running GSA-MiXeR for all traits"
 
+      // Build required input tuple (must include neff_col because module expects it)
+      gsamixer_inputs = trait_data.map { trait, gwas_file, rsid_col, chr_col, pos_col, pval_col,
+                                         n_col, binary_target, effect_allele, other_allele,
+                                         summary_statistic_name, summary_statistic_type, se_col, neff_col ->
+        tuple(
+          trait,
+          file(gwas_file),
+          rsid_col,
+          chr_col,
+          pos_col,
+          pval_col,
+          n_col,
+          binary_target,
+          effect_allele,
+          other_allele,
+          summary_statistic_name,
+          summary_statistic_type,
+          se_col,
+          neff_col
+        )
+      }
+
       // One-time reference generation
       ch_refs = convert_gmt_for_gsamixer(
         file(params.geneset_real),

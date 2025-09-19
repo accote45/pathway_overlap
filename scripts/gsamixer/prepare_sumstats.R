@@ -140,7 +140,7 @@ if(length(NEFF) == 0 || all(is.na(NEFF))) {
   NEFF <- N  # Fall back to N if NEFF is missing
 }
 
-out <- data.table(RSID=RSID, CHR=CHR, POS=POS, A1=A1, A2=A2, N=N, Z=Z)
+out <- data.table(RSID=RSID, CHR=CHR, POS=POS, A1=A1, A2=A2, N=N, NEFF=NEFF, Z=Z)
 
 # Basic QC: drop missing, non-ACGT, identical alleles
 out <- out[complete.cases(out)]
@@ -149,4 +149,5 @@ out <- out[A1 != A2]
 
 # Write as TSV.gz (MiXeR accepts .gz)
 fwrite(out, opt$output, sep="\t")
-cat(sprintf("Trait %s: wrote %s with %d rows\n", opt$trait, opt$output, nrow(out)))
+cat(sprintf("Trait %s: wrote %s with %d rows and columns: %s\n",
+            opt$trait, opt$output, nrow(out), paste(names(out), collapse=", ")))
