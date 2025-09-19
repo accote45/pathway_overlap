@@ -89,7 +89,7 @@ process gsamixer_plsa_base {
   input:
   tuple val(trait),
         path(chrom_sumstats),
-        path(baseline_txt)   // NEW: baseline.txt comes from the reference step
+        path(baseline_txt)
 
   output:
   tuple val(trait),
@@ -120,9 +120,8 @@ process gsamixer_plsa_full {
   tuple val(trait),
         path(base_json),
         path(base_log),
-        path(full_gene_txt),       // NEW: full_gene.txt for background (design matrix)
-        path(full_gene_set_txt)    // NEW: full_gene_set.txt for tests
-  // NOTE: If you prefer a test-only file, see note below.
+        path(full_gene_txt),
+        path(full_gene_set_txt)
 
   output:
   tuple val(trait),
