@@ -52,7 +52,6 @@ include {
 
 include {
     convert_random_gmt_for_gsamixer;
-    gsamixer_plsa_base_random;
     gsamixer_plsa_full_random;
 } from './modules/gsamixer/gsamixer_random.nf'
 
