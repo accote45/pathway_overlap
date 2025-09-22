@@ -571,23 +571,22 @@ workflow {
         // Convert random GMTs to GSA-MiXeR format
         random_gmt_converted = convert_random_gmt_for_gsamixer(trait_random_gmt)
         
-        // Combine with chromosome-specific sumstats files
-        random_gmt_base_inputs = random_gmt_converted
-            .combine(gsamixer_split, by: 0) // Join by trait
-            .map { trait, rand_method, perm, baseline, full_gene, full_gene_set, chrom_sumstats -> 
-                [trait, rand_method, perm, baseline, full_gene, full_gene_set, chrom_sumstats]
-            }
+        // Create a channel with base model results from the real gene sets analysis
+        base_model_results = gsamixer_base.map { trait, base_json, base_log ->
+            [trait, base_json, base_log]
+        }
         
-        // Run GSA-MiXeR base model for random GMTs
-        random_gmt_base_results = gsamixer_plsa_base_random(random_gmt_base_inputs)
-        
-        // Run GSA-MiXeR full model for random GMTs
+        // Combine random gene sets with the appropriate base model results
         random_gmt_full_inputs = random_gmt_converted
-            .join(random_gmt_base_results, by: [0, 1, 2]) // Join by trait, rand_method, perm
-            .map { trait, rand_method, perm, baseline, full_gene, full_gene_set, base_json, base_log -> 
-                [trait, rand_method, perm, baseline, full_gene, full_gene_set, base_json, base_log]
+            .map { trait, rand_method, perm, full_gene, full_gene_set -> 
+                [trait, rand_method, perm, full_gene, full_gene_set]
+            }
+            .combine(base_model_results, by: 0) // Join by trait
+            .map { trait, rand_method, perm, full_gene, full_gene_set, base_json, base_log -> 
+                [trait, rand_method, perm, full_gene, full_gene_set, base_json, base_log]
             }
         
+        // Run GSA-MiXeR full model for random GMTs using the base model from real analysis
         random_gmt_full_results = gsamixer_plsa_full_random(random_gmt_full_inputs)
     }
 }
