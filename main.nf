@@ -19,6 +19,8 @@ include {
 
 include {
     calc_empirical_pvalues;
+    calc_empirical_pvalues as calc_empirical_pvalues_gsamixer;
+    calc_empirical_pvalues as calc_empirical_pvalues_prset;
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
@@ -243,7 +245,7 @@ workflow {
             }
             
             // Calculate empirical p-values for PRSet
-            prset_empirical_results = calc_empirical_pvalues(prset_for_empirical)
+            prset_empirical_results = calc_empirical_pvalues_prset(prset_for_empirical)
             
             // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(prset_empirical_results)
@@ -601,7 +603,7 @@ workflow {
                 .set { gsamixer_empirical_inputs }
         
             // Calculate empirical p-values
-            gsamixer_empirical_results = calc_empirical_pvalues(gsamixer_empirical_inputs)
+            gsamixer_empirical_results = calc_empirical_pvalues_gsamixer(gsamixer_empirical_inputs)
             
             // Add to collection of empirical results
             all_empirical_inputs = all_empirical_inputs.mix(gsamixer_empirical_results)
