@@ -58,17 +58,17 @@ process gsamixer_plsa_full_random {
   """
   module load singularity
   ml python
-  ${params.mixer_py} plsa --gsa-full \
-    --trait1-file ${trait}.chr@.sumstats.gz \
-    --out ${trait}_${rand_method}_random${perm}_full \
-    --bim-file ${params.mixer_ref_bim} \
-    --use-complete-tag-indices \
-    --loadlib-file ${params.mixer_ref_loadlib} \
-    --go-file ${full_gene_txt} \
-    --go-file-test ${full_gene_set_txt} \
-    --annot-file ${params.mixer_ref_annot} \
-    --load-params-file ${base_json} \
-    --go-extend-bp 35000 \
+  ${params.mixer_py} plsa --gsa-full \\
+    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --out ${trait}_${rand_method}_random${perm}_full \\
+    --bim-file ${params.mixer_ref_bim} \\
+    --use-complete-tag-indices \\
+    --loadlib-file ${params.mixer_ref_loadlib} \\
+    --go-file ${full_gene_txt} \\
+    --go-file-test ${full_gene_set_txt} \\
+    --annot-file ${params.mixer_ref_annot} \\
+    --load-params-file ${base_json} \\
+    --go-extend-bp 35000 \\
     ${params.mixer_extra_flags ?: ''}
   """
 }
