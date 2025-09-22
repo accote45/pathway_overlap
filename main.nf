@@ -569,8 +569,12 @@ workflow {
         gsamixer_trait_random_inputs = gsamixer_base
             .combine(random_gmt_converted)
             .map { trait, base_json, base_log, rand_method, perm, full_gene_txt, full_gene_set_txt ->
+                def base_dir = base_json.getParent()
+                def base_weights = file("${base_dir}/${trait}_base.weights")
+                
                 tuple(trait, file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
-                      rand_method, perm, full_gene_txt, full_gene_set_txt, base_json, base_log)
+                      rand_method, perm, full_gene_txt, full_gene_set_txt,
+                      base_json, base_log, base_weights)
             }
         
         // Run GSA-MiXeR full model for each trait-random set combination
