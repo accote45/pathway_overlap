@@ -101,13 +101,14 @@ process gsamixer_plsa_base {
   """
   module load singularity
   ml python
-  ${params.mixer_py} plsa --gsa-base \\
-    --trait1-file ${trait}.chr\\@.sumstats.gz \\
-    --out ${trait}_base \\
-    --bim-file ${params.mixer_ref_bim} \\
-    --loadlib-file ${params.mixer_ref_loadlib} \\
-    --go-file ${baseline_txt} \\
-    --annot-file ${params.mixer_ref_annot} \\
+  ${params.mixer_py} plsa --gsa-base \
+    --trait1-file ${trait}.chr\@.sumstats.gz \
+    --out ${trait}_base \
+    --bim-file ${params.mixer_ref_bim} \
+    --loadlib-file ${params.mixer_ref_loadlib} \
+    --go-file ${baseline_txt} \
+    --annot-file ${params.mixer_ref_annot} \
+    --go-extend-bp 35000 \
     ${params.mixer_extra_flags ?: ''}
   """
 }

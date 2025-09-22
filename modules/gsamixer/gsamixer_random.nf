@@ -57,6 +57,7 @@ process gsamixer_plsa_full_random {
   script:
   """
   module load singularity
+  ml python
   ${params.mixer_py} plsa --gsa-full \
     --trait1-file ${trait}.chr@.sumstats.gz \
     --out ${trait}_${rand_method}_random${perm}_full \
@@ -67,6 +68,7 @@ process gsamixer_plsa_full_random {
     --go-file-test ${full_gene_set_txt} \
     --annot-file ${params.mixer_ref_annot} \
     --load-params-file ${base_json} \
+    --go-extend-bp 35000 \
     ${params.mixer_extra_flags ?: ''}
   """
 }
