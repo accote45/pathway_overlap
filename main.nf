@@ -22,20 +22,8 @@ include {
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
-    tissue_specificity_analysis
-} from './modules/tissuespecificity/tissuespecificity.nf'
-
-include {
     tissue_correlation_analysis
 } from './modules/tissuespecificity/tissue_correlation.nf'
-
-include {
-    opentargets_statistics;
-} from './modules/opentargets/opentargets_stats.nf'
-
-include {
-    opentargets_visualization;
-} from './modules/opentargets/opentargets_viz.nf'
 
 include {
     opentargets_stats_correlation;
@@ -45,7 +33,6 @@ include {
     malacards_correlation;
 } from './modules/malacards/malacards_correlation.nf'
 
-// Add delta-rank modules
 include {
     delta_rank_ot_correlation
 } from './modules/opentargets/delta_rank_ot.nf'
@@ -112,7 +99,7 @@ workflow {
     log.info "  Run PRSet: ${params.run_prset}"
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     log.info "  Randomization methods: ${params.randomization_methods}"
-    log.info "  Run Tissue Specificity Analysis: ${params.run_tissue_specificity}"
+    log.info "  Run Tissue Specificity Analysis: ${params.tissue_correlation_analysis}"
     
     // Initialize empty channels
     all_empirical_inputs = Channel.empty()
@@ -359,65 +346,6 @@ workflow {
             if (params.run_ot_correlation) {
                 prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
             }
-        }
-    }
-    //////////////////////////////////////////
-    // TISSUE SPECIFICITY WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_empirical && params.run_tissue_specificity) {
-        
-        // Run tissue specificity analysis for MAGMA
-        if (params.run_magma) {
-            log.info "Setting up Tissue Specificity analysis for MAGMA"
-            
-            // Create a new channel for tissue specificity (similar to magma_for_opentargets but without trait filtering)
-            magma_for_tissue = magma_by_trait_method
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    
-                    // Only proceed if both randomization methods exist
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                // No OpenTargets trait filtering here
-            
-            // Run tissue specificity analysis for all MAGMA traits
-            tissue_specificity_analysis(magma_for_tissue)
-        }
-        
-        // Run tissue specificity analysis for PRSet
-        if (params.run_prset) {
-            log.info "Setting up Tissue Specificity analysis for PRSet"
-            
-            // Create a new channel for tissue specificity (similar to prset_for_opentargets but without trait filtering)
-            prset_for_tissue = prset_by_trait_method
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    
-                    // Only proceed if both randomization methods exist
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                // No OpenTargets trait filtering here
-            
-            // Run tissue specificity analysis for PRSet
-            tissue_specificity_analysis(prset_for_tissue)
         }
     }
     
