@@ -136,7 +136,7 @@ process gsamixer_plsa_full {
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-full \\
-    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --trait1-file ${params.outdir}/gsamixer/${trait}/${trait}.chr@.sumstats.gz \\
     --out ${trait}_full \\
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\

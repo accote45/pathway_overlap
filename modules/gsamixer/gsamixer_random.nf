@@ -58,7 +58,7 @@ process gsamixer_plsa_full_random {
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-full \\
-    --trait1-file ${trait}.chr@.sumstats.gz \\
+    --trait1-file ${params.outdir}/gsamixer/${trait}/${trait}.chr@.sumstats.gz \\
     --out ${trait}_${rand_method}_random${perm}_full \\
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\
