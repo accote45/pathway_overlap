@@ -308,7 +308,7 @@ workflow {
                 .filter { trait, tool, birewire, keeppathsize -> 
                     params.opentargets_supported_traits.contains(trait)
                 }
-            }
+            
             // Step 3: Run correlation statistics analysis (new)
             if (params.run_ot_correlation) {
                 magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
