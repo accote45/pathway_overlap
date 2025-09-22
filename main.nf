@@ -197,31 +197,19 @@ workflow {
             def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                  binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
             tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                 summary_statistic_name, summary_statistic_type)
+                 summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
         }
         
         // Run SNP deduplication ONCE per trait
-        deduplicated_gwas = gwas_remove_dup_snps(
-            prset_dedup_data.map { tuple -> 
-                def items = tuple.toList()
-                items.add("none")  // Add placeholder for rand_method
-                tuple(*items)
-            }
-        )
+        deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
         
         // Now combine with randomization methods
         prset_rand_inputs = deduplicated_gwas
-            .map { it -> 
-                // Remove the placeholder rand_method  
-                def items = it.toList()
-                items.removeLast()
-                tuple(*items)
-            }
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, rand_method ->
+                  summary_statistic_name, summary_statistic_type, _, rand_method ->
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                     summary_statistic_name, summary_statistic_type, rand_method)
+                      summary_statistic_name, summary_statistic_type, rand_method)
             }
         
         // Create random set inputs (one per permutation)
@@ -230,8 +218,8 @@ workflow {
             .combine(perms_ch)
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                   summary_statistic_name, summary_statistic_type, rand_method, perm ->
-                [trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                 summary_statistic_name, summary_statistic_type, rand_method, perm]
+                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                      summary_statistic_name, summary_statistic_type, rand_method, perm)
             }
         
         // Run PRSet for random sets
@@ -245,38 +233,24 @@ workflow {
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
-            prset_for_empirical = prset_rand_inputs
-                .map { tuple -> 
-                    def trait = tuple[0]
-                    def rand_method = tuple[9]
-                    [trait, rand_method]  // Create key for joining
-                }
-                .join(random_prset_grouped)
-                .map { tuple ->
-                    def trait = tuple[0]
-                    def rand_method = tuple[1]
-                    def random_files = tuple[2]  // List of random files
-                    
-                    def real_file = "${params.outdir}/prset_real/${trait}/${trait}_real.summary"
-                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                    [trait, "prset_${rand_method}", file(real_file), random_dir]
-                }
+            // Create a channel for empirical analysis with proper structure
+            prset_for_empirical = prset_rand_inputs.map { trait, gwas_file, binary_target, effect_allele, 
+                                                         other_allele, rsid_col, pval_col, summary_statistic_name, 
+                                                         summary_statistic_type, rand_method ->
+                def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+                def prset_results = "${params.outdir}/prset/${rand_method}/${params.background}/${trait}/${trait}_set.${rand_method}.summary"
+                
+                tuple(trait, "prset_${rand_method}", prset_results, random_dir)
+            }
             
             // Calculate empirical p-values for PRSet
             prset_empirical_results = calc_empirical_pvalues(prset_for_empirical)
             
             // Add to collection for combined results
-            all_empirical_inputs = all_empirical_inputs.mix(
-                prset_empirical_results.map { trait, tool, result_file -> result_file }
-            )
+            all_empirical_inputs = all_empirical_inputs.mix(prset_empirical_results)
             
             // Define channel for trait/method combinations from empirical results
             prset_by_trait_method = prset_empirical_results
-                .map { trait, tool, results_file ->
-                    def base_tool = tool.split('_')[0]
-                    def rand_method = tool.split('_')[1]
-                    [trait, base_tool, rand_method, results_file]
-                }
         }
     }
     
