@@ -515,15 +515,15 @@ workflow {
       }
 
       // One-time reference generation
-      ch_refs = convert_gmt_for_gsamixer(
+      ch_refs_result = convert_gmt_for_gsamixer(
         file(params.geneset_real),
         file(params.gtf_reference)
       )
 
-      // Fix using Nextflow's out object approach
-      ch_baseline      = ch_refs.map { return it[0] }
-      ch_full_gene     = ch_refs.map { return it[1] }
-      ch_full_gene_set = ch_refs.map { return it[2] }
+      // Create individual channels from the outputs using a more explicit approach
+      ch_baseline = Channel.fromPath("${params.outdir}/gsamixer_reference/baseline.txt")
+      ch_full_gene = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene.txt") 
+      ch_full_gene_set = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene_set.txt")
 
       // Prepare per-trait sumstats and split by chromosome (your existing logic)
       gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
