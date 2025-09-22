@@ -186,12 +186,17 @@ workflow {
         log.info "Running PRSet analysis for all traits"
         
         // Extract PRSet data without randomization (for deduplication)
-        prset_dedup_data = trait_data.map { trait_tuple ->
-            def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
-                 binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
-            tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                 summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
-        }
+        prset_dedup_data = trait_data
+            .filter { trait_tuple ->
+                // Filter out SCZ from PRSet analysis
+                return trait_tuple[0].toUpperCase() != "SCZ" 
+            }
+            .map { trait_tuple ->
+                def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
+                     binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
+                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                     summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
+            }
         
         // Run SNP deduplication ONCE per trait
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
