@@ -14,6 +14,7 @@ include {
 
 include { 
     gwas_remove_dup_snps;
+    run_real_prset;
     run_random_sets_prset;
 } from './modules/prset/prset.nf'
 
@@ -204,7 +205,19 @@ workflow {
         // Run SNP deduplication ONCE per trait
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
         
-        // Now combine with randomization methods
+        // Run real PRSet analysis for each randomization method
+        prset_real_inputs = deduplicated_gwas
+            .combine(Channel.fromList(params.randomization_methods))
+            .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                  summary_statistic_name, summary_statistic_type, _, rand_method ->
+                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                      summary_statistic_name, summary_statistic_type, rand_method)
+            }
+    
+        // Run PRSet for real pathway sets
+        real_prset_results = run_real_prset(prset_real_inputs)
+        
+        // Now combine with randomization methods for the random analysis
         prset_rand_inputs = deduplicated_gwas
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
