@@ -122,7 +122,8 @@ process gsamixer_plsa_full {
         path(base_json),
         path(base_log),
         path(full_gene_txt),
-        path(full_gene_set_txt)
+        path(full_gene_set_txt),
+        path(snps_file)  // Add the snps_file parameter
 
   output:
   tuple val(trait),

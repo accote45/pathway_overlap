@@ -547,7 +547,10 @@ workflow {
         .combine(ch_full_gene)                                   // adds full_gene.txt
         .combine(ch_full_gene_set)                               // adds full_gene_set.txt
         .map { trait, base_json, base_log, full_gene, full_gene_set ->
-            tuple(trait, base_json, base_log, full_gene, full_gene_set)
+            def base_dir = base_json.getParent()
+            def snps_file = file("${base_dir}/${trait}_base.snps.csv")
+            
+            tuple(trait, base_json, base_log, full_gene, full_gene_set, snps_file)
         }
 
       gsamixer_full = gsamixer_plsa_full(ch_full_in)
@@ -576,10 +579,11 @@ workflow {
             .map { trait, base_json, base_log, rand_method, perm, full_gene_txt, full_gene_set_txt ->
                 def base_dir = base_json.getParent()
                 def base_weights = file("${base_dir}/${trait}_base.weights")
+                def snps_file = file("${base_dir}/${trait}_base.snps.csv")
                 
                 tuple(trait, file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
                       rand_method, perm, full_gene_txt, full_gene_set_txt,
-                      base_json, base_log, base_weights)
+                      base_json, base_log, base_weights, snps_file)
             }
         
         // Run GSA-MiXeR full model for each trait-random set combination
