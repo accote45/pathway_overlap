@@ -22,7 +22,7 @@ if (is.null(opt$`traits-config`) || !nzchar(opt$`traits-config`)) {
 }
 
 # Load GWAS
-dt <- fread(opt$input, header = TRUE, nThread = 1, showProgress = FALSE)
+dt <- read.table(opt$input, header = TRUE)
 
 # Helpers
 # Extract columns safely by display name (exact match)
