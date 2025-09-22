@@ -99,7 +99,7 @@ workflow {
     log.info "  Run PRSet: ${params.run_prset}"
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     log.info "  Randomization methods: ${params.randomization_methods}"
-    log.info "  Run Tissue Specificity Analysis: ${params.tissue_correlation_analysis}"
+    log.info "  Run Tissue Specificity Analysis: ${params.run_tissue_correlation}"
     
     // Initialize empty channels
     all_empirical_inputs = Channel.empty()
@@ -308,15 +308,7 @@ workflow {
                 .filter { trait, tool, birewire, keeppathsize -> 
                     params.opentargets_supported_traits.contains(trait)
                 }
-            
-            // Step 1: Run statistical analysis
-            magma_opentargets_stats = opentargets_statistics(magma_for_opentargets)
-            
-            // Step 2: Generate visualizations
-            if (params.run_ot_viz) {
-                magma_opentargets_viz = opentargets_visualization(magma_opentargets_stats)
             }
-            
             // Step 3: Run correlation statistics analysis (new)
             if (params.run_ot_correlation) {
                 magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
@@ -328,19 +320,23 @@ workflow {
             // Filter traits supported by OpenTargets  
             prset_for_opentargets = prset_by_trait_method
                 .groupTuple(by: [0, 1])
-                .map { /* similar to MAGMA code above */ }
+                .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+
+                    // Only proceed if both randomization methods exist
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
                 .filter { it != null }
                 .filter { trait, tool, birewire, keeppathsize -> 
                     params.opentargets_supported_traits.contains(trait)
                 }
-            
-            // Step 1: Run statistical analysis
-            prset_opentargets_stats = opentargets_statistics(prset_for_opentargets)
-            
-            // Step 2: Generate visualizations only if enabled
-            if (params.run_ot_viz) {
-                prset_opentargets_viz = opentargets_visualization(prset_opentargets_stats)
-            }
             
             // Step 3: Run correlation statistics analysis (new)
             if (params.run_ot_correlation) {
