@@ -520,10 +520,10 @@ workflow {
         file(params.gtf_reference)
       )
 
-      // Turn the single tuple output into three singleton channels
-      ch_baseline      = ch_refs.map { baseline, full_gene, full_gene_set -> baseline }
-      ch_full_gene     = ch_refs.map { baseline, full_gene, full_gene_set -> full_gene }
-      ch_full_gene_set = ch_refs.map { baseline, full_gene, full_gene_set -> full_gene_set }
+      // Fix using Nextflow's out object approach
+      ch_baseline      = ch_refs.map { return it[0] }
+      ch_full_gene     = ch_refs.map { return it[1] }
+      ch_full_gene_set = ch_refs.map { return it[2] }
 
       // Prepare per-trait sumstats and split by chromosome (your existing logic)
       gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
