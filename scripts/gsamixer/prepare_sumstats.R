@@ -31,15 +31,16 @@ col_get <- function(colname) {
     return(NULL)
   }
   
-  # Just check if the column exists directly without any transformation
-  if (!colname %in% names(dt)) {
+  # Use exact matching by checking exact name is in column names
+  exact_match <- which(names(dt) == colname)
+  if (length(exact_match) == 0) {
     warning(sprintf("Column '%s' not found in data. Available columns: %s", 
                    colname, paste(names(dt), collapse=", ")))
     return(NULL)
   }
   
-  # Return the column data using exact name
-  return(dt[[colname]])
+  # Return the column data using exact position to ensure case sensitivity
+  return(dt[[exact_match[1]]])
 }
 
 # Load JSON mapping (required)
