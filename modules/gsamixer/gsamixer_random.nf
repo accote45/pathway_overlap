@@ -1,32 +1,30 @@
 nextflow.enable.dsl=2
 
-// Process to convert random GMT files to GSA-MiXeR format
+// Process to convert random GMT files to GSA-MiXeR format - no longer trait-specific
 process convert_random_gmt_for_gsamixer {
   executor 'lsf'
   tag "${rand_method}_random${perm}"
 
   input:
-  tuple val(trait),
-        val(rand_method),
+  tuple val(rand_method),
         val(perm),
         path(gmt_file),
         path(gtf_file)
 
   output:
-  tuple val(trait),
-        val(rand_method),
+  tuple val(rand_method),
         val(perm),
         path("${rand_method}_random${perm}_full_gene.txt"),
         path("${rand_method}_random${perm}_full_gene_set.txt")
 
-  publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/reference", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_random_reference/${rand_method}", mode: 'copy', overwrite: true
 
   script:
   """
   module load R
-  Rscript ${params.scripts_dir}/gsamixer/convert_random_gmt_for_gsamixer.R \
-    ${gmt_file} \
-    ${gtf_file} \
+  Rscript ${params.scripts_dir}/gsamixer/convert_random_gmt_for_gsamixer.R \\
+    ${gmt_file} \\
+    ${gtf_file} \\
     ${rand_method}_random${perm}
   """
 }
@@ -38,6 +36,7 @@ process gsamixer_plsa_full_random {
 
   input:
   tuple val(trait),
+        path(sumstats_files),
         val(rand_method),
         val(perm),
         path(full_gene_txt),

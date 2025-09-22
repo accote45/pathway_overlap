@@ -547,45 +547,64 @@ workflow {
     }
     
     if (params.run_gsamixer && params.run_empirical) {
-        log.info "Running GSA-MiXeR for random pathways"
+        log.info "Running GSA-MiXeR for random pathways - generating random gene sets once for all traits"
         
-        // Create a channel of random GMT files
+        // Create a channel of random GMT files - trait-independent
         random_gmt_files = Channel
             .fromList(params.randomization_methods)
             .flatMap { rand_method -> 
                 (1..params.num_random_sets).collect { perm ->
                     def gmt_file = file("${params.gmt_dirs[rand_method]}/GeneSet.random${perm}.gmt")
-                    [rand_method, perm, gmt_file]
+                    tuple(rand_method, perm, gmt_file, file(params.gtf_reference))
                 }
             }
         
-        // Create a channel for each trait with the random GMTs
-        trait_random_gmt = gsamixer_prepared
-            .map { trait, sumstats_gz -> trait }
-            .combine(random_gmt_files)
-            .map { trait, rand_method, perm, gmt_file -> 
-                [trait, rand_method, perm, gmt_file, file(params.gtf_reference)]
+        // Convert random GMTs to GSA-MiXeR format - ONCE, independent of traits
+        random_gmt_converted = convert_random_gmt_for_gsamixer(random_gmt_files)
+        
+        // For each trait's base model results, combine with ALL random set files
+        gsamixer_trait_random_inputs = gsamixer_base
+            .combine(random_gmt_converted)
+            .map { trait, base_json, base_log, rand_method, perm, full_gene, full_gene_set -> 
+                // Find chromosome-specific sumstats files for this trait (these should exist from the earlier analysis)
+                def sumstats_pattern = "${trait}.chr*.sumstats.gz" 
+                def sumstats_files = file("${params.outdir}/gsamixer/${trait}/${sumstats_pattern}")
+                
+                tuple(
+                    trait,                // trait name
+                    sumstats_files,       // chromosome-specific sumstats files
+                    rand_method,          // randomization method
+                    perm,                 // permutation number
+                    full_gene,            // full_gene.txt for this random set
+                    full_gene_set,        // full_gene_set.txt for this random set
+                    base_json,            // base model JSON from the trait
+                    base_log              // base model log from the trait
+                )
             }
         
-        // Convert random GMTs to GSA-MiXeR format
-        random_gmt_converted = convert_random_gmt_for_gsamixer(trait_random_gmt)
+        // Run GSA-MiXeR full model for each trait-random set combination
+        random_gmt_full_results = gsamixer_plsa_full_random(gsamixer_trait_random_inputs)
         
-        // Create a channel with base model results from the real gene sets analysis
-        base_model_results = gsamixer_base.map { trait, base_json, base_log ->
-            [trait, base_json, base_log]
+        // Optional: Calculate empirical p-values
+        if (params.run_empirical) {
+            random_gmt_full_results
+                .map { trait, rand_method, perm, json, log -> tuple(trait, rand_method, perm, json) }
+                .groupTuple(by: [0, 1])  // Group by trait and randomization method
+                .map { trait, rand_method, perms, json_files ->
+                    tuple(
+                        trait,
+                        "gsamixer_" + rand_method,
+                        "${params.outdir}/gsamixer/${trait}/${trait}_full.json",
+                        "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
+                    )
+                }
+                .set { gsamixer_empirical_inputs }
+        
+            // Calculate empirical p-values
+            gsamixer_empirical_results = calc_empirical_pvalues(gsamixer_empirical_inputs)
+            
+            // Add to collection of empirical results
+            all_empirical_inputs = all_empirical_inputs.mix(gsamixer_empirical_results)
         }
-        
-        // Combine random gene sets with the appropriate base model results
-        random_gmt_full_inputs = random_gmt_converted
-            .map { trait, rand_method, perm, full_gene, full_gene_set -> 
-                [trait, rand_method, perm, full_gene, full_gene_set]
-            }
-            .combine(base_model_results, by: 0) // Join by trait
-            .map { trait, rand_method, perm, full_gene, full_gene_set, base_json, base_log -> 
-                [trait, rand_method, perm, full_gene, full_gene_set, base_json, base_log]
-            }
-        
-        // Run GSA-MiXeR full model for random GMTs using the base model from real analysis
-        random_gmt_full_results = gsamixer_plsa_full_random(random_gmt_full_inputs)
     }
 }
