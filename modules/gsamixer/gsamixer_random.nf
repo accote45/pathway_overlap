@@ -43,7 +43,7 @@ process gsamixer_plsa_full_random {
         path(full_gene_set_txt),
         path(base_json),
         path(base_log),
-        path(base_weights)  // New input parameter
+        path(base_weights)  // Keep the weights file input
 
   output:
   tuple val(trait),
