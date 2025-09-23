@@ -544,13 +544,11 @@ workflow {
 
       // Wire full_gene + full_gene_set into every full job
       ch_full_in = gsamixer_base
-        .combine(ch_full_gene)                                   // adds full_gene.txt
-        .combine(ch_full_gene_set)                               // adds full_gene_set.txt
-        .map { trait, base_json, base_log, full_gene, full_gene_set ->
-            def base_dir = base_json.getParent()
-            def snps_file = file("${base_dir}/${trait}_base.snps.csv")
-            
-            tuple(trait, base_json, base_log, full_gene, full_gene_set, snps_file)
+        .combine(ch_full_gene)                               // adds full_gene.txt
+        .combine(ch_full_gene_set)                           // adds full_gene_set.txt
+        .map { trait, base_json, base_log, base_weights, full_gene, full_gene_set ->
+            // Make sure to include the base_weights in the tuple
+            tuple(trait, base_json, base_log, base_weights, full_gene, full_gene_set)
         }
 
       gsamixer_full = gsamixer_plsa_full(ch_full_in)
@@ -575,16 +573,19 @@ workflow {
         
         // For each trait's base model results, combine with ALL random set files
         gsamixer_trait_random_inputs = gsamixer_base
-            .combine(random_gmt_converted)
-            .map { trait, base_json, base_log, rand_method, perm, full_gene_txt, full_gene_set_txt ->
-                def base_dir = base_json.getParent()
-                def base_weights = file("${base_dir}/${trait}_base.weights")
-                def snps_file = file("${base_dir}/${trait}_base.snps.csv")
-                
-                tuple(trait, file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
-                      rand_method, perm, full_gene_txt, full_gene_set_txt,
-                      base_json, base_log, base_weights, snps_file)
-            }
+          .combine(random_gmt_converted)
+          .map { trait, base_json, base_log, base_weights, rand_method, perm, full_gene_txt, full_gene_set_txt ->
+              // Make sure all elements are properly ordered in the tuple
+              tuple(trait, 
+                    file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
+                    rand_method, 
+                    perm, 
+                    full_gene_txt, 
+                    full_gene_set_txt,
+                    base_json, 
+                    base_log, 
+                    base_weights)
+          }
         
         // Run GSA-MiXeR full model for each trait-random set combination
         random_gmt_full_results = gsamixer_plsa_full_random(gsamixer_trait_random_inputs)
