@@ -81,7 +81,7 @@
       "trait": "mdd",
       "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/pgc-mdd2025_no23andMe-noUKBB_eur_v3-49-24-11.forprset.tsv",
       "rsid_col": "ID",
-      "chr_col": "CHR",
+      "chr_col": "CHROM",
       "pos_col": "POS",
       "pval_col": "PVAL",
       "n_col": "N",
