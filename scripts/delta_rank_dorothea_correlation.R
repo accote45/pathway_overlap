@@ -72,7 +72,6 @@ summ <- rbindlist(lapply(names(subset_list), function(lbl) {
   d <- subset_list[[lbl]]
   sp_mean <- corr_one(d, "delta_rank", "score", "spearman")
   kd_mean <- corr_one(d, "delta_rank", "score", "kendall")
-  data.table(
     trait = trait,
     tool_base = tool_base,
     subset = lbl,
@@ -80,7 +79,7 @@ summ <- rbindlist(lapply(names(subset_list), function(lbl) {
     spearman_rho_mean = sp_mean$estimate,
     spearman_p_mean   = sp_mean$p,
     kendall_tau_mean   = kd_mean$estimate,
-    kendall_p_mean     = kd_mean$p,
+    kendall_p_mean     = kd_mean$p
   )
 }), fill = TRUE)
 
