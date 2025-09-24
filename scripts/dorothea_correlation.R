@@ -21,14 +21,6 @@ dorothea_path <- args[3]
 birewire_results_file <- args[4]
 keeppathsize_results_file <- args[5]
 
-
-trait <- "cad"
-tool_base <- "magma_birewire"
-dorothea_path <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/dorothea_pairwise_scores.csv"
-birewire_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
-keeppathsize_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
-
-
 # Top-N cutoffs
 top_ns <- c(100, 250, 500)
 
