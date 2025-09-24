@@ -125,7 +125,13 @@ library(tidyverse)
     cat("Reading random results from directory:", random_dir, "\n")
 
     # Set pattern based on tool type
-    file_pattern <- if(is_gsamixer) "*go_test_enrich.csv" else "*gsa.out"
+    file_pattern <- if(is_gsamixer) {
+      "*go_test_enrich.csv"
+    } else if(is_prset) {
+      "*.summary"
+    } else {
+      "*gsa.out"
+    }
     random_files <- list.files(random_dir, full.names = TRUE, pattern = file_pattern)
     cat("Found", length(random_files), "random result files\n")
 
