@@ -171,7 +171,7 @@ dev.off()
 relevant_tissue <- c(
   "AD" = "BrainCortex_mean",
   "BMI" = "AdiposeSubcutaneous_mean",
-  "Breast cancer" = "BreastMammaryTissue_mean",
+  "Breast" = "BreastMammaryTissue_mean",         # <-- change from "Breast cancer" to "Breast"
   "CAD" = "ArteryCoronary_mean",
   "IBD" = "ColonTransverse_mean",
   "MDD" = "BrainCortex_mean",
