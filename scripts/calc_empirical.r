@@ -16,7 +16,7 @@ library(tidyverse)
         pathway_col = "Set",
         pval_col = "P",
         beta_col = "Coefficient",
-        ngenes_col = "Num_SNPs",  # Use Num_SNPs as a proxy for number of genes
+        ngenes_col = "Num_SNP",  # Use Num_SNPs as a proxy for number of genes
         required_cols = c("Set", "P", "Coefficient", "PRS.R2", "Competitive.P"),
         calc_pvalue = TRUE
       ),
