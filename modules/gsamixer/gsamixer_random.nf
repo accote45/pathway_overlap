@@ -74,15 +74,3 @@ process gsamixer_plsa_full_random {
     ${params.mixer_extra_flags ?: ''}
   """
 }
-
-gsamixer_for_empirical = gsamixer_full
-    .map { trait, full_json, full_log -> 
-        tuple(trait, full_json)
-    }
-    .combine(
-        random_gmt_full_grouped, 
-        by: 0  // Join by trait
-    ).map { trait, real_json, rand_method, random_jsons ->
-        def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-        tuple(trait, "gsamixer", real_json, random_dir)
-    }
