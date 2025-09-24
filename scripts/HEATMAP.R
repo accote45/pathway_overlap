@@ -21,11 +21,12 @@ trait_map <- list(
 )
 
 traits <- names(trait_map)
-cor_vars <- c("Open Targets", "MalaCards", "TissueSpec")
+cor_vars <- c("Open Targets", "MalaCards", "DoRothEA", "TissueSpec")
 base_dir <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results"
 delta_rank_dirs <- list(
   "Open Targets" = file.path(base_dir, "delta_rank_ot_correlation"),
   "MalaCards"    = file.path(base_dir, "delta_rank_malacards_correlation"),
+  "DoRothEA"      = file.path(base_dir, "delta_rank_dorothea_correlation"),
   "TissueSpec"   = file.path(base_dir, "delta_rank_tissue_correlation")
 )
 
@@ -35,6 +36,7 @@ get_value <- function(trait, tool_base, cor_type) {
     cor_type,
     "Open Targets" = "ot",
     "MalaCards"    = "malacards",
+    "DoRothEA"      = "dorothea",
     "TissueSpec"   = "tissue"
   )
   file <- file.path(delta_rank_dirs[[cor_type]], trait,
