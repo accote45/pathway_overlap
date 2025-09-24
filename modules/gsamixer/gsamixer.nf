@@ -132,7 +132,7 @@ process gsamixer_plsa_full {
   tuple val(trait),
         path("${trait}_full.json"),
         path("${trait}_full.log"),
-        path("${trait}_go_test_enrich.csv")
+        path("${trait}_full.go_test_enrich.csv")
 
   publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
 
