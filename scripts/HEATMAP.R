@@ -9,7 +9,18 @@ library(grid)
 library(gridExtra)
 
 # ---- Config ----
-traits <- c("ad", "bmi", "breast", "cad", "ibd", "mdd", "scz", "t2d")  # adjust as needed
+trait_map <- list(
+  ad     = list(label = "AD",     tissue = "BrainCortex_mean"),
+  bmi    = list(label = "BMI",    tissue = "AdiposeSubcutaneous_mean"),
+  breast = list(label = "Breast cancer", tissue = "BreastMammaryTissue_mean"),
+  cad    = list(label = "CAD",    tissue = "ArteryCoronary_mean"),
+  ibd    = list(label = "IBD",    tissue = "ColonTransverse_mean"),
+  mdd    = list(label = "MDD",    tissue = "BrainCortex_mean"),
+  scz    = list(label = "SCZ",    tissue = "BrainCortex_mean"),
+  t2d    = list(label = "T2D",    tissue = "Pancreas_mean")
+)
+
+traits <- names(trait_map)
 cor_vars <- c("Open Targets", "MalaCards", "TissueSpec")
 base_dir <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results"
 delta_rank_dirs <- list(
@@ -167,18 +178,6 @@ grid.arrange(
 )
 dev.off()
 
-# ---- Define relevant tissue for each trait ----
-relevant_tissue <- c(
-  "AD" = "BrainCortex_mean",
-  "BMI" = "AdiposeSubcutaneous_mean",
-  "Breast" = "BreastMammaryTissue_mean",         # <-- change from "Breast cancer" to "Breast"
-  "CAD" = "ArteryCoronary_mean",
-  "IBD" = "ColonTransverse_mean",
-  "MDD" = "BrainCortex_mean",
-  "SCZ" = "BrainCortex_mean",
-  "T2D" = "Pancreas_mean"
-)
-
 # ---- Helper for tissue correlation ----
 get_tissue_value <- function(trait, tool_base, tissue_name) {
   trait_dir <- file.path(delta_rank_dirs[["TissueSpec"]], tolower(trait))
@@ -193,10 +192,9 @@ get_tissue_value <- function(trait, tool_base, tissue_name) {
 
 # ---- Add tissue results to long data frame ----
 add_tissue_results <- function(df, tool_base) {
-  for (i in seq_along(traits)) {
-    trait_code <- traits[i]           # e.g., "breast"
-    trait_label <- trait_labels[i]    # e.g., "Breast cancer"
-    tissue <- relevant_tissue[trait_label]
+  for (trait_code in traits) {
+    trait_label <- trait_map[[trait_code]]$label
+    tissue <- trait_map[[trait_code]]$tissue
     vals <- get_tissue_value(trait_code, tool_base, tissue)
     rho <- vals[1]
     p <- vals[2]
