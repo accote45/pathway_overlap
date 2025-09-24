@@ -169,12 +169,12 @@ dev.off()
 
 # ---- Define relevant tissue for each trait ----
 relevant_tissue <- c(
-  "AD" = "BrainFrontalCortexBA9_mean",
+  "AD" = "BrainCortex_mean",
   "BMI" = "AdiposeSubcutaneous_mean",
   "Breast cancer" = "BreastMammaryTissue_mean",
   "CAD" = "ArteryCoronary_mean",
   "IBD" = "ColonTransverse_mean",
-  "MDD" = "BrainAnteriorCingulateCortexBA24_mean",
+  "MDD" = "BrainCortex_mean",
   "SCZ" = "BrainCortex_mean",
   "T2D" = "Pancreas_mean"
 )
