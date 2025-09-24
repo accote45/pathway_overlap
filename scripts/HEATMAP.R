@@ -193,10 +193,11 @@ get_tissue_value <- function(trait, tool_base, tissue_name) {
 
 # ---- Add tissue results to long data frame ----
 add_tissue_results <- function(df, tool_base) {
-  for (i in seq_along(trait_labels)) {
-    trait <- trait_labels[i]
-    tissue <- relevant_tissue[trait]
-    vals <- get_tissue_value(trait, tool_base, tissue)
+  for (i in seq_along(traits)) {
+    trait_code <- traits[i]           # e.g., "breast"
+    trait_label <- trait_labels[i]    # e.g., "Breast cancer"
+    tissue <- relevant_tissue[trait_label]
+    vals <- get_tissue_value(trait_code, tool_base, tissue)
     rho <- vals[1]
     p <- vals[2]
     sig <- ""
@@ -205,7 +206,7 @@ add_tissue_results <- function(df, tool_base) {
       else if (p < 0.001) sig <- "**"
       else if (p < 0.05) sig <- "*"
     }
-    df <- rbind(df, data.frame(Trait=trait, Variable="TissueSpec", Rho=rho, P=p, Sig=sig, stringsAsFactors=FALSE))
+    df <- rbind(df, data.frame(Trait=trait_label, Variable="TissueSpec", Rho=rho, P=p, Sig=sig, stringsAsFactors=FALSE))
   }
   df
 }
