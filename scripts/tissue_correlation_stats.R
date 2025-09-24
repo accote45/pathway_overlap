@@ -70,8 +70,13 @@ pathway_tissue_scores <- masterfin %>%
 cat("Generated tissue expression profiles for", nrow(pathway_tissue_scores), "pathways\n")
 
 # 4. Load empirical results files
-birewire_data <- read.table(birewire_results_file, header=TRUE)
-keeppath_data <- read.table(keeppathsize_results_file, header=TRUE)
+birewire_data <- read.table(birewire_results_file, header = TRUE,fill=TRUE)
+# Remove "Base" pathway if present (not a real pathway)
+birewire_data <- birewire_data[!(birewire_data$pathway_name=="Base"),]
+
+keeppath_data <- read.table(keeppathsize_results_file, header = TRUE,fill=TRUE)
+# Remove "Base" pathway if present (not a real pathway)
+keeppath_data <- keeppath_data[!(keeppath_data$pathway_name=="Base"),]
 
 # Normalize column names to ensure consistency
 if(!"pathway_name" %in% colnames(birewire_data) && "FULL_NAME" %in% colnames(birewire_data)) {
