@@ -94,7 +94,8 @@ process gsamixer_plsa_base {
   tuple val(trait),
         path("${trait}_base.json"),
         path("${trait}_base.log"),
-        path("${trait}_base.weights")  // Added weights file to outputs
+        path("${trait}_base.weights"),
+        path("${trait}_base.snps.csv")
 
   publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
 
@@ -122,9 +123,10 @@ process gsamixer_plsa_full {
   tuple val(trait),
         path(base_json),
         path(base_log),
-        path(base_weights),  // Added weights file as input
+        path(base_weights),
         path(full_gene_txt),
-        path(full_gene_set_txt)
+        path(full_gene_set_txt),
+        path(base_snps)
 
   output:
   tuple val(trait),
