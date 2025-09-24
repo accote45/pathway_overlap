@@ -592,8 +592,8 @@ workflow {
         
         // Group random results by trait and randomization method
         random_gmt_full_grouped = random_gmt_full_results
-            .map { trait, rand_method, perm, json_file, log_file ->
-                tuple(trait, rand_method, json_file)
+            .map { trait, rand_method, perm, json_file, log_file, go_test_enrich ->
+                tuple(trait, rand_method, go_test_enrich)
             }
             .groupTuple(by: [0, 1])  // Group by trait and rand_method
         
@@ -601,15 +601,15 @@ workflow {
         if (params.run_empirical) {
             // Combine real results with grouped random results
             gsamixer_for_empirical = gsamixer_full
-                .map { trait, full_json, full_log -> 
-                    tuple(trait, full_json)
+                .map { trait, full_json, full_log, go_test_enrich -> 
+                    tuple(trait, go_test_enrich)
                 }
                 .combine(
                     random_gmt_full_grouped, 
                     by: 0  // Join by trait
-                ).map { trait, real_json, rand_method, random_jsons ->
+                ).map { trait, go_test_enrich, rand_method, random_jsons ->
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer", real_json, random_dir)
+                    tuple(trait, "gsamixer", go_test_enrich, random_dir)
                 }
             
             // Calculate empirical p-values for GSA-MiXeR
