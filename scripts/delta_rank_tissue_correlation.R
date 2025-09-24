@@ -20,14 +20,6 @@ tissue_scores_file <- args[[5]]
 top_ns <- if (length(args) >= 6) as.integer(strsplit(args[[6]], ",")[[1]]) else c(50,100,250,500)
 
 
-trait <- "cad"
-tool_base <- "magma_birewire"
-birewire_results_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results/empirical_pvalues/magma_birewire/cad/cad_magma_birewire_empirical_pvalues.txt"
-gmt_file <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
-tissue_scores_file <- "/sc/arion/projects/psychgen/cotea02_prset/judit_revisions/software/1kg_test/GeneExpressionLandscape/data/Exp_Spe_DataTables/specificity"
-top_ns <- if (length(args) >= 6) as.integer(strsplit(args[[6]], ",")[[1]]) else c(50,100,250,500)
-
-
 message("Trait: ", trait, "  Tool: ", tool_base)
 message("Reading GMT: ", gmt_file)
 
