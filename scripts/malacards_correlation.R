@@ -70,6 +70,13 @@ list_malacards_files <- function(base_path, trait) {
     candidates <- files[has_trait_token]
   }
 
+  # 3) If still none, try pattern matching files like malacards_<trait><number>_with_ensembl.csv
+  if (length(candidates) == 0) {
+    pattern <- sprintf("^malacards_%s[0-9]+", tci)
+    numbered_variants <- grepl(pattern, bns, perl = TRUE)
+    candidates <- files[numbered_variants]
+  }
+
   if (length(candidates) == 0) {
     stop("No MalaCards files matched trait '", trait, "'. Available: ",
          paste(basename(files), collapse = ", "))
