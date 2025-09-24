@@ -119,8 +119,13 @@ pathway_scores <- masterfin %>%
   as.data.frame()
 
 # 4. Load empirical results files
-birewire_data <- read.table(birewire_results_file, header=T)
-keeppath_data <- read.table(keeppathsize_results_file, header=T)
+birewire_data <- read.table(birewire_results_file, header = TRUE,fill=TRUE)
+# Remove "Base" pathway if present (not a real pathway)
+birewire_data <- birewire_data[!(birewire_data$pathway_name=="Base"),]
+
+keeppath_data <- read.table(keeppathsize_results_file, header = TRUE,fill=TRUE)
+# Remove "Base" pathway if present (not a real pathway)
+keeppath_data <- keeppath_data[!(keeppath_data$pathway_name=="Base"),]
 
 cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
 cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
