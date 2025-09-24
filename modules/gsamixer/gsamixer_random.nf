@@ -52,7 +52,7 @@ process gsamixer_plsa_full_random {
         val(perm),
         path("${trait}_${rand_method}_random${perm}_full.json"),
         path("${trait}_${rand_method}_random${perm}_full.log"),
-        path("${trait}_go_test_enrich.csv")
+        path("${trait}_full.go_test_enrich.csv")
 
   publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/random${perm}", mode: 'copy', overwrite: true
 
