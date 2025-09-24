@@ -6,6 +6,7 @@ library(GSA)
 library(data.table)
 library(AnnotationDbi)
 library(org.Hs.eg.db)
+library(parallel)
 
 map_symbols_to_ensembl <- function(symbols) {
   symbols <- as.character(symbols)
@@ -67,7 +68,7 @@ pairwise_pathway_score <- function(genes, dorothea_df,
                                    binary = FALSE                       # TRUE = unweighted (0/1) pairs
 ){
   pair_weight_fn <- match.arg(pair_weight_fn)
-
+  
   # Coerce to plain character vector (handles list/list-column/factor)
   G <- genes
   G <- as.character(G)
@@ -75,7 +76,14 @@ pairwise_pathway_score <- function(genes, dorothea_df,
   G <- unique(na.omit(G))
   m <- length(G)
   if (m < 2) return(0)
-
+  
+  # Create a gene index map for fast lookups
+  gene_to_idx <- setNames(seq_along(G), G)
+  
+  # Create matrices to store direct evidence and co-target evidence
+  direct_evidence <- matrix(0, m, m)
+  cotarget_evidence <- matrix(0, m, m)
+  
   D <- dorothea_df
   D$tf     <- toupper(D$tf_ensembl)
   D$target <- toupper(D$target_ensembl)
@@ -83,81 +91,93 @@ pairwise_pathway_score <- function(genes, dorothea_df,
   D$target <- sub("\\.\\d+$", "", D$target)
   if (length(keep_conf)) D <- D[D$confidence %in% keep_conf, , drop=FALSE]
   if (!nrow(D)) return(0)
-
+  
   # map confidence to weights
   wmap <- function(x) unname(conf_w[as.character(x)])
   D$w <- wmap(D$confidence); D$w[is.na(D$w)] <- 0
-
+  
   # --- (1) Direct TF->target evidence INSIDE the pathway ---
   Ein <- D[D$tf %in% G & D$target %in% G, c("tf","target","w"), drop=FALSE]
-  # combine multiple edges by taking the max weight
-  if (nrow(Ein)) {
-    Ein <- aggregate(Ein$w, by=list(tf=Ein$tf, target=Ein$target),
-                     FUN=max)
-  } else {
-    Ein <- data.frame(tf=character(0), target=character(0), x=numeric(0))
-  }
-
-  # quick lookup for direct evidence in either direction
-  key <- function(a,b) paste0(a,"||",b)
-  direct_map <- new.env(parent=emptyenv())
-  if (nrow(Ein)) {
-    for (k in seq_len(nrow(Ein))) {
-      assign(key(Ein$tf[k], Ein$target[k]), Ein$x[k], envir = direct_map)
+  
+  # Fill the direct evidence matrix
+  if (nrow(Ein) > 0) {
+    # Aggregate to get max weight for each TF-target pair
+    Ein <- as.data.table(Ein)[, .(x = max(w)), by = .(tf, target)]
+    
+    # Map to matrix indices and fill the matrix
+    for (i in 1:nrow(Ein)) {
+      tf_idx <- gene_to_idx[Ein$tf[i]]
+      target_idx <- gene_to_idx[Ein$target[i]]
+      direct_evidence[tf_idx, target_idx] <- Ein$x[i]
     }
   }
-
-  # --- (2) Co-target evidence: pairs of targets sharing ANY TF (TF may be outside the pathway) ---
+  
+  # --- (2) Co-target evidence ---
   Etarget <- D[D$target %in% G & !(D$tf %in% G), c("tf","target","w"), drop=FALSE]
-  cotarget_map <- new.env(parent=emptyenv())
-  if (nrow(Etarget)) {
-    # For each TF, get its targets ∩ G and their edge weights
-    split_tf <- split(Etarget, Etarget$tf)
-    for (t in names(split_tf)) {
-      df <- split_tf[[t]]
-      if (nrow(df) < 2) next
-      # take max weight for duplicate gene pairs
-      df <-df %>% group_by(target) %>% slice_max(w, n = 1, with_ties = FALSE) %>% ungroup()
-      tg <- df$target; wg <- df$w
-      if (length(tg) < 2) next
-      # all unordered pairs among tg
-      idx <- utils::combn(seq_along(tg), 2)
-      for (c in seq_len(ncol(idx))) {
-        i <- idx[1, c]; j <- idx[2, c]
-        a <- tg[i]; b <- tg[j]
-        # combine the two edges for this TF into one unit u_t
-        u_t <- switch(pair_weight_fn,
-                      min  = min(wg[i], wg[j]),
-                      geom = sqrt(wg[i] * wg[j]))
-            # max-accumulate across TFs: keep the strongest single-TF evidence
-            k <- if (a < b) key(a,b) else key(b,a)
-            prev <- if (exists(k, envir=cotarget_map, inherits=FALSE)) get(k, envir=cotarget_map) else 0
-            assign(k, max(prev, u_t), envir=cotarget_map)
+  
+  if (nrow(Etarget) > 0) {
+    # Process by TF groups more efficiently
+    tf_groups <- split(Etarget, Etarget$tf)
+    
+    for (tf_data in tf_groups) {
+      if (nrow(tf_data) < 2) next
+      
+      # Take max weight per target
+      tf_data <- tf_data %>% 
+        group_by(target) %>% 
+        slice_max(w, n = 1, with_ties = FALSE) %>% 
+        ungroup()
+      
+      targets <- tf_data$target
+      weights <- tf_data$w
+      
+      target_indices <- gene_to_idx[targets]
+      n_targets <- length(target_indices)
+      
+      if (n_targets < 2) next
+      
+      # Process all pairs for this TF
+      for (i in 1:(n_targets-1)) {
+        for (j in (i+1):n_targets) {
+          idx_i <- target_indices[i]
+          idx_j <- target_indices[j]
+          
+          # Combine weights based on method
+          combined_weight <- switch(pair_weight_fn,
+                                  min = min(weights[i], weights[j]),
+                                  geom = sqrt(weights[i] * weights[j]))
+          
+          # Update co-target evidence (symmetric matrix)
+          cotarget_evidence[idx_i, idx_j] <- max(cotarget_evidence[idx_i, idx_j], combined_weight)
+          cotarget_evidence[idx_j, idx_i] <- cotarget_evidence[idx_i, idx_j]
+        }
       }
     }
   }
-
-  # --- Combine per-pair
-  genes <- sort(G)
-  n_pairs <- choose(m, 2L)
-  acc <- 0
-  cnt <- 0
-  for (u in 1:(m-1)) {
-    for (v in (u+1):m) {
-      a <- genes[u]; b <- genes[v]
-      # direct in either direction:
-      d_ab <- if (exists(key(a,b), envir=direct_map, inherits=FALSE)) get(key(a,b), envir=direct_map) else 0
-      d_ba <- if (exists(key(b,a), envir=direct_map, inherits=FALSE)) get(key(b,a), envir=direct_map) else 0
-      d_pair <- max(d_ab, d_ba)
-      # co-target:
-      c_pair <- if (exists(key(a,b), envir=cotarget_map, inherits=FALSE)) get(key(a,b), envir=cotarget_map) else 0
-        s_ij <- max(d_pair, c_pair)
+  
+  # --- Combine evidence and calculate score ---
+  total_score <- 0
+  pair_count <- 0
+  
+  for (i in 1:(m-1)) {
+    for (j in (i+1):m) {
+      # Get maximum of direct evidence in either direction
+      d_pair <- max(direct_evidence[i,j], direct_evidence[j,i])
+      
+      # Get co-target evidence
+      c_pair <- cotarget_evidence[i,j]
+      
+      # Overall evidence for the pair
+      s_ij <- max(d_pair, c_pair)
       if (binary) s_ij <- as.numeric(s_ij > 0)
-      acc <- acc + s_ij
-      cnt <- cnt + 1L
+      
+      total_score <- total_score + s_ij
+      pair_count <- pair_count + 1
     }
   }
-  acc / cnt
+  
+  # Return average score
+  return(total_score / pair_count)
 }
 
 # Apply to all pathways
@@ -167,15 +187,25 @@ pairwise_score_all <- function(msigdb_list, dorothea_df,
                                pair_weight_fn = c("min","geom"),
                                binary = FALSE) {
   pair_weight_fn <- match.arg(pair_weight_fn)
-  data.frame(
+  n_pathways <- length(msigdb_list)
+  results <- data.frame(
     pathway = names(msigdb_list),
-    size    = vapply(msigdb_list, length, 1L),
-    score   = vapply(msigdb_list, function(gs)
-      pairwise_pathway_score(gs, dorothea_df, keep_conf, conf_w, pair_weight_fn, binary),
-      numeric(1)
-    ),
-    row.names = NULL
-  )[order(-.$score), ]
+    size = integer(n_pathways),
+    score = numeric(n_pathways)
+  )
+  
+  cores <- max(1, detectCores() - 1)  # Leave one core free
+  results <- mcmapply(function(gs, name) {
+    c(size = length(gs),
+      score = pairwise_pathway_score(gs, dorothea_df, keep_conf, conf_w, pair_weight_fn, binary))
+  }, msigdb_list, names(msigdb_list), mc.cores = cores, SIMPLIFY = FALSE)
+
+  # Convert to data frame
+  results_df <- as.data.frame(do.call(rbind, results))
+  results_df$pathway <- names(msigdb_list)
+  results_df <- results_df[order(-results_df$score), ]
+  
+  return(results_df)
 }
 
 # -------- Run analysis --------
