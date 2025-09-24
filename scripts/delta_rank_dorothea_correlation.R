@@ -72,6 +72,7 @@ summ <- rbindlist(lapply(names(subset_list), function(lbl) {
   d <- subset_list[[lbl]]
   sp_mean <- corr_one(d, "delta_rank", "score", "spearman")
   kd_mean <- corr_one(d, "delta_rank", "score", "kendall")
+  data.table(
     trait = trait,
     tool_base = tool_base,
     subset = lbl,
