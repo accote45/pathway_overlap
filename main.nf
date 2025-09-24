@@ -553,7 +553,7 @@ workflow {
       gsamixer_full = gsamixer_plsa_full(ch_full_in)
     }
     
-    if (params.run_gsamixer) {
+    if (params.run_gsamixer && params.run_empirical) {
         log.info "Running GSA-MiXeR for random pathways - generating random gene sets once for all traits"
         
         // Create a channel of random GMT files - trait-independent
