@@ -16,7 +16,7 @@ library(tidyverse)
         pathway_col = "Set",
         pval_col = "P",
         beta_col = "Coefficient",
-        ngenes_col = "nGenes",
+        ngenes_col = "Num_SNPs",  # Use Num_SNPs as a proxy for number of genes
         required_cols = c("Set", "P", "Coefficient", "PRS.R2", "Competitive.P"),
         calc_pvalue = TRUE
       ),
@@ -439,6 +439,22 @@ library(tidyverse)
                                       mean_beta_perm,
                                       sd_beta_perm,
                                       n_perms,
+                                      n_total_random)]
+    } else if (base_tool == "prset") {
+      empirical_results <- results_dt[!is.na(empirical_pval),
+                                    .(trait = trait, 
+                                      tool = full_tool,
+                                      pathway_name = get(pathway_col),
+                                      ngenes = get(ngenes_col),
+                                      p_value = get(pval_col),
+                                      beta_value = get(beta_col),
+                                      competitive_p = get("Competitive.P"),
+                                      empirical_pval,
+                                      std_effect_size,
+                                      mean_beta_perm,
+                                      sd_beta_perm,
+                                      n_perms,
+                                      n_more_extreme,
                                       n_total_random)]
     } else {
       empirical_results <- results_dt[!is.na(empirical_pval),
