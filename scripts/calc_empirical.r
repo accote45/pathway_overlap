@@ -17,7 +17,7 @@ library(tidyverse)
         pval_col = "P",
         beta_col = "Coefficient",
         ngenes_col = "nGenes",
-        required_cols = c("Set", "P", "Coefficient", "R2", "P.adj"),
+        required_cols = c("Set", "P", "Coefficient", "PRS.R2", "Competitive.P"),
         calc_pvalue = TRUE
       ),
       gsamixer = list(
