@@ -87,10 +87,8 @@ summ <- rbindlist(lapply(names(subset_list), function(lbl) {
 # 8) Write outputs
 out_prefix <- sprintf("%s_%s", trait, tool_base)
 fwrite(DR_scores[order(rank_pvaluebeta)],
-       sprintf("%s_delta_rank_with_OT_scores.csv", out_prefix))
-fwrite(summ, sprintf("%s_delta_rank_ot_correlation_summary.csv", out_prefix))
+       sprintf("%s_delta_rank_with_dorothea_scores.csv", out_prefix))
+fwrite(summ, sprintf("%s_delta_rank_dorothea_correlation_summary.csv", out_prefix))
 
-message("Wrote: ", sprintf("%s_delta_rank_with_OT_scores.csv", out_prefix))
-message("Wrote: ", sprintf("%s_delta_rank_ot_correlation_summary.csv", out_prefix))
-
-
+message("Wrote: ", sprintf("%s_delta_rank_with_dorothea_scores.csv", out_prefix))
+message("Wrote: ", sprintf("%s_delta_rank_dorothea_correlation_summary.csv", out_prefix))
