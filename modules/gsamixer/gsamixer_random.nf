@@ -56,8 +56,6 @@ process gsamixer_plsa_full_random {
 
   publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/random${perm}", mode: 'copy', overwrite: true
 
-Platelet_crit_keeppathsize_random10_full.go_test_enrich.csv
-
   script:
   """
   module load singularity
