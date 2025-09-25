@@ -149,7 +149,7 @@ asterisk_legend <- data.frame(
 heatmap_plot <- ggplot(combined_df, aes(x=Variable, y=Trait, fill=Rho)) +
   geom_tile(color="grey80") +
   geom_text(aes(label=Label), size=4, vjust=0.5, fontface="bold") +
-  scale_fill_gradient2(low="blue", mid="white", high="red", midpoint=0, na.value="grey", limits=c(-0.4, 0.4)) +
+  scale_fill_gradient2(low="blue", mid="white", high="red", midpoint=0, na.value="grey") +
   facet_grid(Method ~ ., switch="y") +
   labs(title="Delta-Rank Correlations (Top 500 Pathways)", x=NULL, y=NULL, fill="Spearman\nrho") +
   theme_minimal(base_size=14) +
@@ -227,7 +227,7 @@ combined_df$Label <- ifelse(is.na(combined_df$Rho), "",
 heatmap_plot <- ggplot(combined_df, aes(x=Variable, y=Trait, fill=Rho)) +
   geom_tile(color="grey80") +
   geom_text(aes(label=Label), size=4, vjust=0.5, fontface="bold") +
-  scale_fill_gradient2(low="blue", mid="white", high="red", midpoint=0, na.value="grey", limits=c(-0.4, 0.4)) +
+  scale_fill_gradient2(low="blue", mid="white", high="red", midpoint=0, na.value="grey") +
   facet_grid(Method ~ ., switch="y") +
   labs(title="Delta-Rank Correlations (Top 500 Pathways)", x=NULL, y=NULL, fill="Spearman\nrho") +
   theme_minimal(base_size=14) +
