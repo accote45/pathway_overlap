@@ -101,6 +101,8 @@ process gsamixer_plsa_base {
 
   script:
   """
+  # Symlink all chromosome sumstats files into the work directory
+  ln -s ${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz .
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\

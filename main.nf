@@ -537,9 +537,9 @@ workflow {
 
       // Wire baseline into every base job
       ch_base_in = gsamixer_split
-        .combine(ch_baseline)                                    // adds the singleton baseline file to each tuple
+        .combine(ch_baseline)
         .map { trait, sumstats_gz, baseline ->
-            // Instead of passing the actual files, pass the pattern string
+            // Pass the pattern string for symlinking in the process
             def pattern = "${trait}.chr@.sumstats.gz"
             tuple(trait, pattern, baseline)
         }
