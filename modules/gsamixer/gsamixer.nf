@@ -101,7 +101,6 @@ process gsamixer_plsa_base {
 
   script:
   """
-  for f in ${chrom_sumstats_files.join(' ')}; do ln -s \$f .; done
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\
