@@ -87,7 +87,7 @@ process gsamixer_plsa_base {
 
   input:
   tuple val(trait),
-        val(chrom_sumstats_pattern),
+        path(chrom_sumstats_files), // this is a list of files
         path(baseline_txt)
 
   output:
@@ -101,12 +101,11 @@ process gsamixer_plsa_base {
 
   script:
   """
-  # Symlink all chromosome sumstats files into the work directory
-  ln -s ${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz .
+  for f in ${chrom_sumstats_files.join(' ')}; do ln -s \$f .; done
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\
-    --trait1-file ${chrom_sumstats_pattern} \\
+    --trait1-file ${trait}.chr@.sumstats.gz \\
     --out ${trait}_base \\
     --bim-file ${params.mixer_ref_bim} \\
     --loadlib-file ${params.mixer_ref_loadlib} \\

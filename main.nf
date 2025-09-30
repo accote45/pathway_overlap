@@ -496,67 +496,66 @@ workflow {
     // GSA-MiXeR WORKFLOW
     //////////////////////////////////////////
     if (params.run_gsamixer) {
-      log.info "Running GSA-MiXeR for all traits"
+  log.info "Running GSA-MiXeR for all traits"
 
-      // Build required input tuple (must include neff_col because module expects it)
-      gsamixer_inputs = trait_data.map { trait, gwas_file, rsid_col, chr_col, pos_col, pval_col,
-                                         n_col, binary_target, effect_allele, other_allele,
-                                         summary_statistic_name, summary_statistic_type, se_col, neff_col ->
-        tuple(
-          trait,
-          file(gwas_file),
-          rsid_col,
-          chr_col,
-          pos_col,
-          pval_col,
-          n_col,
-          binary_target,
-          effect_allele,
-          other_allele,
-          summary_statistic_name,
-          summary_statistic_type,
-          se_col,
-          neff_col
-        )
-      }
+  // Build required input tuple (must include neff_col because module expects it)
+  gsamixer_inputs = trait_data.map { trait, gwas_file, rsid_col, chr_col, pos_col, pval_col,
+                                     n_col, binary_target, effect_allele, other_allele,
+                                     summary_statistic_name, summary_statistic_type, se_col, neff_col ->
+    tuple(
+      trait,
+      file(gwas_file),
+      rsid_col,
+      chr_col,
+      pos_col,
+      pval_col,
+      n_col,
+      binary_target,
+      effect_allele,
+      other_allele,
+      summary_statistic_name,
+      summary_statistic_type,
+      se_col,
+      neff_col
+    )
+  }
 
-      // One-time reference generation
-      ch_refs_result = convert_gmt_for_gsamixer(
-        file(params.geneset_real),
-        file(params.gtf_reference)
-      )
+  // One-time reference generation
+  ch_refs_result = convert_gmt_for_gsamixer(
+    file(params.geneset_real),
+    file(params.gtf_reference)
+  )
 
-      // Create individual channels from the outputs using a more explicit approach
-      ch_baseline = Channel.fromPath("${params.outdir}/gsamixer_reference/baseline.txt")
-      ch_full_gene = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene.txt") 
-      ch_full_gene_set = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene_set.txt")
+  // Create individual channels from the outputs using a more explicit approach
+  ch_baseline = Channel.fromPath("${params.outdir}/gsamixer_reference/baseline.txt")
+  ch_full_gene = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene.txt") 
+  ch_full_gene_set = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene_set.txt")
 
-      // Prepare per-trait sumstats and split by chromosome (your existing logic)
-      gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
-      gsamixer_split    = split_gsamixer_sumstats(gsamixer_prepared)
+  // Prepare per-trait sumstats and split by chromosome (your existing logic)
+  gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
+  gsamixer_split    = split_gsamixer_sumstats(gsamixer_prepared)
 
-      // Wire baseline into every base job
-      ch_base_in = gsamixer_split
-        .combine(ch_baseline)
-        .map { trait, sumstats_gz, baseline ->
-            // Pass the pattern string for symlinking in the process
-            def pattern = "${trait}.chr@.sumstats.gz"
-            tuple(trait, pattern, baseline)
-        }
-
-      gsamixer_base = gsamixer_plsa_base(ch_base_in)
-
-      // Wire full_gene + full_gene_set into every full job
-      ch_full_in = gsamixer_base
-        .combine(ch_full_gene)                               // adds full_gene.txt
-        .combine(ch_full_gene_set)                           // adds full_gene_set.txt
-        .map { trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps ->
-            tuple(trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps)
-        }
-
-      gsamixer_full = gsamixer_plsa_full(ch_full_in)
+  // Wire baseline into every base job
+  ch_base_in = gsamixer_split
+    .combine(ch_baseline)
+    .map { trait, chrom_sumstats_files, baseline ->
+        // Pass the actual list of files, not a pattern string
+        tuple(trait, chrom_sumstats_files, baseline)
     }
-    
+
+  gsamixer_base = gsamixer_plsa_base(ch_base_in)
+
+  // Wire full_gene + full_gene_set into every full job
+  ch_full_in = gsamixer_base
+    .combine(ch_full_gene)                               // adds full_gene.txt
+    .combine(ch_full_gene_set)                           // adds full_gene_set.txt
+    .map { trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps ->
+        tuple(trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps)
+    }
+
+  gsamixer_full = gsamixer_plsa_full(ch_full_in)
+}
+
     if (params.run_gsamixer && params.run_empirical) {
         log.info "Running GSA-MiXeR for random pathways - generating random gene sets once for all traits"
         
