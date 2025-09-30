@@ -538,7 +538,11 @@ workflow {
       // Wire baseline into every base job
       ch_base_in = gsamixer_split
         .combine(ch_baseline)                                    // adds the singleton baseline file to each tuple
-        .map { trait, chrom_sumstats, baseline -> tuple(trait, chrom_sumstats, baseline) }
+        .map { trait, sumstats_gz, baseline ->
+            // Instead of passing the actual files, pass the pattern string
+            def pattern = "${trait}.chr@.sumstats.gz"
+            tuple(trait, pattern, baseline)
+        }
 
       gsamixer_base = gsamixer_plsa_base(ch_base_in)
 
