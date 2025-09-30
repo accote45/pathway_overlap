@@ -87,7 +87,7 @@ process gsamixer_plsa_base {
 
   input:
   tuple val(trait),
-        path(chrom_sumstats),
+        val(chrom_sumstats_pattern),
         path(baseline_txt)
 
   output:
@@ -104,7 +104,7 @@ process gsamixer_plsa_base {
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\
-    --trait1-file ${chrom_sumstats} \\
+    --trait1-file ${chrom_sumstats_pattern} \\
     --out ${trait}_base \\
     --bim-file ${params.mixer_ref_bim} \\
     --loadlib-file ${params.mixer_ref_loadlib} \\
