@@ -546,7 +546,7 @@ workflow {
       ch_full_in = gsamixer_base
         .combine(ch_full_gene)                               // adds full_gene.txt
         .combine(ch_full_gene_set)                           // adds full_gene_set.txt
-        .map { trait, base_json, base_log, base_weights, base_snps, full_gene, full_gene_set ->
+        .map { trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps ->
             tuple(trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps)
         }
 
@@ -573,12 +573,13 @@ workflow {
         // For each trait's base model results, combine with ALL random set files
         gsamixer_trait_random_inputs = gsamixer_base
           .combine(random_gmt_converted)
-          .map { trait, base_json, base_log, base_weights, base_snps, rand_method, perm, full_gene_txt, full_gene_set_txt ->
+          .map { trait, base_json, base_log, base_weights, base_snps, rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt ->
               // Make sure all elements are properly ordered in the tuple
               tuple(trait, 
                     file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
                     rand_method, 
                     perm, 
+                    baseline_txt,
                     full_gene_txt, 
                     full_gene_set_txt,
                     base_json, 
