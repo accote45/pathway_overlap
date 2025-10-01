@@ -101,6 +101,9 @@ process gsamixer_plsa_base {
 
   script:
   """
+  # Touch all input files so Nextflow tracks them
+  ls ${chrom_sumstats_files} > /dev/null
+
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-base \\
