@@ -115,6 +115,11 @@ process gsamixer_plsa_base {
     --annot-file ${params.mixer_ref_annot} \\
     --go-extend-bp 35000 \\
     ${params.mixer_extra_flags ?: ''}
+
+  # Standardize the timestamp field in the JSON file
+sed 's/"time_started": *"[^"]*"/"time_started": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
+sed 's/"time_finished_fit": *"[^"]*"/"time_finished_fit": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
+sed 's/"time_finished": *"[^"]*"/"time_finished": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
   """
 }
 
