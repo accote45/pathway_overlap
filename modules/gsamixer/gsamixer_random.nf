@@ -44,7 +44,6 @@ process gsamixer_plsa_full_random {
         path(full_gene_txt),
         path(full_gene_set_txt),
         path(base_json),
-        path(base_log),
         path(base_weights),
         path(base_snps)
 
@@ -52,8 +51,6 @@ process gsamixer_plsa_full_random {
   tuple val(trait),
         val(rand_method),
         val(perm),
-        path("${trait}_${rand_method}_random${perm}_full.json"),
-        path("${trait}_${rand_method}_random${perm}_full.log"),
         path("${trait}_${rand_method}_random${perm}_full.go_test_enrich.csv")
 
   publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/random${perm}", mode: 'copy', overwrite: true
