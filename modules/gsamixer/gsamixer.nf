@@ -87,7 +87,7 @@ process gsamixer_plsa_base {
 
   input:
   tuple val(trait),
-        path(chrom_sumstats_files), // this is a list of files
+        path(chrom_sumstats),
         path(baseline_txt)
 
   output:
@@ -101,8 +101,6 @@ process gsamixer_plsa_base {
 
   script:
   """
-  # Touch all input files so Nextflow tracks them
-  ls ${chrom_sumstats_files} > /dev/null
 
   module load singularity
   ml python

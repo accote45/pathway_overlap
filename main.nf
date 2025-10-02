@@ -535,13 +535,10 @@ workflow {
   gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
   gsamixer_split    = split_gsamixer_sumstats(gsamixer_prepared)
 
-  // Wire baseline into every base job
-  ch_base_in = gsamixer_split
-    .combine(ch_baseline)
-    .map { trait, chrom_sumstats_files, baseline ->
-        // Pass the actual list of files, not a pattern string
-        tuple(trait, chrom_sumstats_files, baseline)
-    }
+// Wire baseline into every base job
+      ch_base_in = gsamixer_split
+        .combine(ch_baseline)  // adds the singleton baseline file to each tuple
+        .map { trait, chrom_sumstats, baseline -> tuple(trait, chrom_sumstats, baseline) }
 
   gsamixer_base = gsamixer_plsa_base(ch_base_in)
 
