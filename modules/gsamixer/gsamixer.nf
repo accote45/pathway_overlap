@@ -93,7 +93,6 @@ process gsamixer_plsa_base {
   output:
   tuple val(trait),
         path("${trait}_base.json"),
-        path("${trait}_base.log"),
         path("${trait}_base.weights"),
         path("${trait}_base.snps.csv")
 

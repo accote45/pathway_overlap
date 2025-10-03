@@ -546,7 +546,7 @@ workflow {
   ch_full_in = gsamixer_base
     .combine(ch_full_gene)                               // adds full_gene.txt
     .combine(ch_full_gene_set)                           // adds full_gene_set.txt
-    .map { trait, base_json, base_log, base_weights, full_gene, full_gene_set, base_snps ->
+    .map { trait, base_json, base_weights, base_snps, full_gene, full_gene_set ->
         tuple(trait, base_json, base_weights, full_gene, full_gene_set, base_snps)
     }
 
