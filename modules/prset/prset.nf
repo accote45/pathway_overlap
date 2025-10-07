@@ -159,7 +159,7 @@ process run_random_sets_prset {
     --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
-    --set-perm 100 \\
+    --set-perm 1000 \\
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
@@ -219,7 +219,7 @@ process run_real_prset {
     --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
-    --set-perm 100 \\
+    --set-perm 1000 \\
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
