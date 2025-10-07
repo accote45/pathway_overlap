@@ -93,7 +93,6 @@ process gsamixer_plsa_base {
   output:
   tuple val(trait),
         path("${trait}_base.json"),
-        path("${trait}_base.log"),
         path("${trait}_base.weights"),
         path("${trait}_base.snps.csv")
 
@@ -118,6 +117,8 @@ process gsamixer_plsa_base {
 sed 's/"time_started": *"[^"]*"/"time_started": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
 sed 's/"time_finished_fit": *"[^"]*"/"time_finished_fit": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
 sed 's/"time_finished": *"[^"]*"/"time_finished": "STANDARD_TIMESTAMP"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json
+# Standardize the func field in the JSON file
+sed 's/"func": *"[^"]*"/"func": "STANDARD_FUNC"/' ${trait}_base.json > tmp && mv tmp ${trait}_base.json  
   """
 }
 
