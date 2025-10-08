@@ -573,19 +573,20 @@ workflow {
         // For each trait's base model results, combine with ALL random set files
         gsamixer_trait_random_inputs = gsamixer_base
           .combine(random_gmt_converted)
-          .map { trait, base_json, base_log, base_weights, base_snps, rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt ->
-              // Make sure all elements are properly ordered in the tuple
-              tuple(trait, 
-                    file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
-                    rand_method, 
-                    perm, 
-                    baseline_txt,
-                    full_gene_txt, 
-                    full_gene_set_txt,
-                    base_json, 
-                    base_weights,
-                    base_snps)
-          }
+          .map { base_tuple, rand_tuple ->
+      def (trait, base_json, base_log, base_weights, base_snps) = base_tuple
+      def (rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt) = rand_tuple
+      tuple(trait, 
+            file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
+            rand_method, 
+            perm, 
+            baseline_txt,
+            full_gene_txt, 
+            full_gene_set_txt,
+            base_json, 
+            base_weights,
+            base_snps)
+  }
         
         // Run GSA-MiXeR full model for each trait-random set combination
         random_gmt_full_results = gsamixer_plsa_full_random(gsamixer_trait_random_inputs)
