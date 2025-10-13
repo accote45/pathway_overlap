@@ -43,9 +43,7 @@ process gsamixer_plsa_full_random {
         path(baseline_txt),
         path(full_gene_txt),
         path(full_gene_set_txt),
-        path(base_json),
-        path(base_weights),
-        path(base_snps)
+        path(base_json)
 
   output:
   tuple val(trait),
