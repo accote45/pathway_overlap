@@ -575,7 +575,9 @@ workflow {
           .combine(random_gmt_converted)
           .map { trait, base_json, base_weights, base_snps, rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt ->
       tuple(trait, 
-            base_json,
+            base_json,       
+            base_weights,
+            base_snps,    // Include the weights file
             rand_method, 
             perm, 
             baseline_txt,

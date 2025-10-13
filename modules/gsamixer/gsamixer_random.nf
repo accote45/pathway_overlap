@@ -38,6 +38,8 @@ process gsamixer_plsa_full_random {
   input:
   tuple val(trait),
         path(base_json),
+        path(base_weights),
+        path(base_snps),  // Added this line to accept weights
         val(rand_method),
         val(perm),
         path(baseline_txt),
