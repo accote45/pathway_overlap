@@ -574,7 +574,7 @@ workflow {
         gsamixer_trait_random_inputs = gsamixer_base
           .combine(random_gmt_converted)
           .map { base_tuple, rand_tuple ->
-      def (trait, base_json, _, _) = base_tuple  // We still need to destructure all values but will only use base_json
+      def (trait, base_json, base_weights, base_snps) = base_tuple  // We still need to destructure all values but will only use base_json
       def (rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt) = rand_tuple
       tuple(trait, 
             file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
