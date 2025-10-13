@@ -130,12 +130,13 @@ process gsamixer_plsa_full {
   tuple val(trait),
         path(base_json),
         path(base_weights),
+        path(base_snps),
         path(full_gene_txt),
-        path(full_gene_set_txt),
-        path(base_snps)
+        path(full_gene_set_txt)
 
   output:
   tuple val(trait),
+        path("${trait}_full.json"),
         path("${trait}_full.go_test_enrich.csv")
 
   publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true

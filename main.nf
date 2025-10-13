@@ -544,11 +544,11 @@ workflow {
 
   // Wire full_gene + full_gene_set into every full job
   ch_full_in = gsamixer_base
-    .combine(ch_full_gene)                               // adds full_gene.txt
-    .combine(ch_full_gene_set)                           // adds full_gene_set.txt
-    .map { trait, base_json, base_weights, base_snps, full_gene, full_gene_set ->
-        tuple(trait, base_json, base_weights, full_gene, full_gene_set, base_snps)
-    }
+  .combine(ch_full_gene)                               // adds full_gene.txt
+  .combine(ch_full_gene_set)                           // adds full_gene_set.txt
+  .map { trait, base_json, base_weights, base_snps, full_gene, full_gene_set ->
+      tuple(trait, base_json, base_weights, base_snps, full_gene, full_gene_set)
+  }
 
   gsamixer_full = gsamixer_plsa_full(ch_full_in)
 }
@@ -573,17 +573,14 @@ workflow {
         // For each trait's base model results, combine with ALL random set files
         gsamixer_trait_random_inputs = gsamixer_base
           .combine(random_gmt_converted)
-          .map { base_tuple, rand_tuple ->
-      def (trait, base_json, base_weights, base_snps) = base_tuple  // We still need to destructure all values but will only use base_json
-      def (rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt) = rand_tuple
+          .map { trait, base_json, base_weights, base_snps, rand_method, perm, baseline_txt, full_gene_txt, full_gene_set_txt ->
       tuple(trait, 
-            file("${params.outdir}/gsamixer/${trait}/${trait}.chr*.sumstats.gz"), 
+            base_json,
             rand_method, 
             perm, 
             baseline_txt,
             full_gene_txt, 
-            full_gene_set_txt,
-            base_json)
+            full_gene_set_txt)
   }
         
         // Run GSA-MiXeR full model for each trait-random set combination
@@ -591,7 +588,7 @@ workflow {
         
         // Group random results by trait and randomization method
         random_gmt_full_grouped = random_gmt_full_results
-            .map { trait, rand_method, perm, json_file, log_file, go_test_enrich ->
+            .map { trait, rand_method, perm, json_file, go_test_enrich ->
                 tuple(trait, rand_method, go_test_enrich)
             }
             .groupTuple(by: [0, 1])  // Group by trait and rand_method
@@ -600,7 +597,7 @@ workflow {
         if (params.run_empirical) {
             // Combine real results with grouped random results
             gsamixer_for_empirical = gsamixer_full
-                .map { trait, full_json, full_log, go_test_enrich -> 
+                .map { trait, full_json, go_test_enrich -> 
                     tuple(trait, go_test_enrich)
                 }
                 .combine(

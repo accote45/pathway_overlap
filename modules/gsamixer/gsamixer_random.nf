@@ -37,18 +37,18 @@ process gsamixer_plsa_full_random {
 
   input:
   tuple val(trait),
-        path(sumstats_files),
+        path(base_json),
         val(rand_method),
         val(perm),
         path(baseline_txt),
         path(full_gene_txt),
-        path(full_gene_set_txt),
-        path(base_json)
+        path(full_gene_set_txt)
 
   output:
   tuple val(trait),
         val(rand_method),
         val(perm),
+        path("${trait}_${rand_method}_random${perm}_full.json"),
         path("${trait}_${rand_method}_random${perm}_full.go_test_enrich.csv")
 
   publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/random${perm}", mode: 'copy', overwrite: true
