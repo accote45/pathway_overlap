@@ -132,7 +132,7 @@ library(tidyverse)
     } else {
       "*gsa.out"
     }
-    random_files <- list.files(random_dir, full.names = TRUE, pattern = file_pattern)
+    random_files <- list.files(random_dir, full.names = TRUE, pattern = file_pattern,recursive=TRUE)
     cat("Found", length(random_files), "random result files\n")
 
     if (length(random_files) == 0) {
