@@ -128,7 +128,7 @@ process run_random_sets_prset {
   
   output:
   tuple val(trait),
-        path("${trait}_set_random${perm}.${rand_method}.*"),
+        path("${trait}_set_random${perm}.${rand_method}.{summary,log,prsice}"),
         val(rand_method)
 
   publishDir "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
@@ -170,6 +170,7 @@ process run_random_sets_prset {
     --wind-5 35kb
 
   rm ${trait}_set_random${perm}.${rand_method}.best
+  rm ${trait}_set_random${perm}.${rand_method}.snp
   """
 }
 
