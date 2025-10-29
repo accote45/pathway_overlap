@@ -58,6 +58,10 @@ include {
     gsamixer_plsa_full_random;
 } from './modules/gsamixer/gsamixer_random.nf'
 
+include {
+    calculate_fpr
+} from './modules/fpr/fpr_calculation.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -615,6 +619,56 @@ workflow {
             
             // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(gsamixer_empirical_results)
+        }
+    }
+    
+    //////////////////////////////////////////
+    // FPR CALCULATION WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_fpr_analysis) {
+        log.info "Setting up FPR analysis for random pathway results"
+        
+        // MAGMA FPR Analysis
+        if (params.run_magma) {
+            log.info "Calculating FPR for MAGMA random results"
+            
+            // Create FPR input channel from random results structure
+            magma_fpr_inputs = Channel.fromList(params.randomization_methods)
+                .combine(trait_data.map { it[0] })  // Get trait names
+                .map { rand_method, trait ->
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "magma", rand_method, random_dir)
+                }
+            
+            magma_fpr_results = calculate_fpr(magma_fpr_inputs)
+        }
+        
+        // PRSet FPR Analysis  
+        if (params.run_prset) {
+            log.info "Calculating FPR for PRSet random results"
+            
+            prset_fpr_inputs = Channel.fromList(params.randomization_methods)
+                .combine(trait_data.map { it[0] }.filter { it.toUpperCase() != "SCZ" })  // Exclude SCZ like in PRSet workflow
+                .map { rand_method, trait ->
+                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "prset", rand_method, random_dir)
+                }
+            
+            prset_fpr_results = calculate_fpr(prset_fpr_inputs)
+        }
+        
+        // GSA-MiXeR FPR Analysis
+        if (params.run_gsamixer) {
+            log.info "Calculating FPR for GSA-MiXeR random results"
+            
+            gsamixer_fpr_inputs = Channel.fromList(params.randomization_methods)
+                .combine(trait_data.map { it[0] })
+                .map { rand_method, trait ->
+                    def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
+                    tuple(trait, "gsamixer", rand_method, random_dir)
+                }
+            
+            gsamixer_fpr_results = calculate_fpr(gsamixer_fpr_inputs)
         }
     }
 }
