@@ -253,7 +253,7 @@ workflow {
                 by: [0, 2]  // Join by trait and rand_method
             ).map { trait, result_files, rand_method, random_files ->
                 def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "prset", result_files, random_dir)
+                tuple(trait, "prset_${rand_method}", result_files, random_dir)
             }
             
             // Calculate empirical p-values for PRSet
