@@ -132,13 +132,6 @@ tryCatch({
   cat("FPR calculated for", nrow(fpr_results), "pathways\n")
   cat("Results written to:", output_file, "\n")
   
-  # Print summary statistics
-  cat("\nSummary statistics:\n")
-  cat("Mean FPR:", round(mean(fpr_results$fpr), 4), "\n")
-  cat("Median FPR:", round(median(fpr_results$fpr), 4), "\n")
-  cat("Max FPR:", round(max(fpr_results$fpr), 4), "\n")
-  cat("Number of pathways with FPR > 0.05:", sum(fpr_results$fpr > 0.05), "\n")
-  
 }, error = function(e) {
   cat("Error in FPR calculation:", e$message, "\n")
   quit(status = 1)
