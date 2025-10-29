@@ -24,8 +24,3 @@ process calc_empirical_pvalues {
     Rscript ${params.scripts_dir}/calc_empirical.r "${trait}" "${tool}" "${real_results}" "${random_dir}" "${gmt_path}"
     """
 }
-
-).map { trait, result_files, rand_method, random_files ->
-    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-    tuple(trait, "prset_${rand_method}", result_files, random_dir)
-}
