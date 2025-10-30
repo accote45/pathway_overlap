@@ -217,6 +217,11 @@ workflow {
         // Run PRSet for real pathway sets
         real_prset_results = run_real_prset(prset_real_inputs)
         
+        // Rearrange real results to match random results structure for combination
+        real_prset_for_combine = real_prset_results.map { trait, summary_file, log_file, prsice_file, rand_method ->
+            tuple(trait, summary_file, rand_method)  // [trait, summary_file, rand_method] to match random structure
+        }
+        
         // Now combine with randomization methods for the random analysis
         prset_rand_inputs = deduplicated_gwas
             .combine(Channel.fromList(params.randomization_methods))
@@ -248,13 +253,13 @@ workflow {
             log.info "Setting up PRSet empirical p-value calculation"
             
             // Combine real results with grouped random results for empirical p-value calculation
-            prset_for_empirical = real_prset_results.combine(
+            prset_for_empirical = real_prset_for_combine.combine(
                 random_prset_grouped,
-                by: [0, 4]  // Join by trait and rand_method (rand_method is now at index 4)
-            ).map { trait, summary_file, log_file, prsice_file, rand_method, random_files ->
+                by: [0, 2]  // Join by trait and rand_method (both at index 2 now)
+            ).map { trait, summary_file, rand_method, random_files ->
                 def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
                 
-                // summary_file is now directly the .summary file (first path output)
+                // summary_file is now directly the .summary file
                 tuple(trait, "prset_${rand_method}", summary_file, random_dir)
             }
             
