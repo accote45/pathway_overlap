@@ -178,6 +178,8 @@ process run_real_prset {
   executor 'lsf'
   tag "${trait}_set_${rand_method}"
   
+  publishDir "${params.outdir}/prset/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  
   input:
   tuple val(trait),
         path(gwas_file),
@@ -192,10 +194,10 @@ process run_real_prset {
   
   output:
   tuple val(trait),
-        path("${trait}_set.${rand_method}.*"),
+        path("${trait}_set.${rand_method}.summary"),
+        path("${trait}_set.${rand_method}.log"),
+        path("${trait}_set.${rand_method}.prsice"),
         val(rand_method)
-
-  publishDir "${params.outdir}/prset/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
 
   script:
   """

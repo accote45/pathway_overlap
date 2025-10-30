@@ -250,11 +250,11 @@ workflow {
             // Combine real results with grouped random results for empirical p-value calculation
             prset_for_empirical = real_prset_results.combine(
                 random_prset_grouped,
-                by: [0, 2]  // Join by trait and rand_method
-            ).map { trait, result_files, rand_method, random_files ->
+                by: [0, 4]  // Join by trait and rand_method (rand_method is now at index 4)
+            ).map { trait, summary_file, log_file, prsice_file, rand_method, random_files ->
                 def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                // Extract the .summary file from the result_files array
-                def summary_file = result_files.find { it.toString().endsWith('.summary') }
+                
+                // summary_file is now directly the .summary file (first path output)
                 tuple(trait, "prset_${rand_method}", summary_file, random_dir)
             }
             
