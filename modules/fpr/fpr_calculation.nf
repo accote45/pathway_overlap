@@ -10,7 +10,8 @@ process calculate_fpr {
     tuple val(trait),
           val(tool_base),
           val(rand_method),
-          val(random_dir)
+          path(random_files),  // Accept the actual random result files
+          val(random_dir)      // Keep random_dir for compatibility with R script
     
     output:
     tuple val(trait),
