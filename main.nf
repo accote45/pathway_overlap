@@ -165,9 +165,9 @@ workflow {
             magma_for_empirical = real_geneset_results.combine(
                 random_results_grouped, 
                 by: [0, 2]  // Join by trait and rand_method
-            ).map { trait, result_file, rand_method, random_files ->
+            ).map { trait, rand_method, real_result_file, random_files ->
                 def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "magma_${rand_method}", result_file, random_dir)
+                tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
             }
             
             // Calculate empirical p-values for MAGMA
