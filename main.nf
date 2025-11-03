@@ -167,7 +167,7 @@ workflow {
                 by: [0, 2]  // Join by trait and rand_method
             ).map { trait, result_file, rand_method, random_files ->
                 def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "magma", result_file, random_dir)
+                tuple(trait, "magma_${rand_method}", result_file, random_dir)
             }
             
             // Calculate empirical p-values for MAGMA
