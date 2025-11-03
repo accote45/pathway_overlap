@@ -641,10 +641,10 @@ workflow {
             
             // Use the grouped random results from MAGMA workflow
             magma_fpr_inputs = random_results_grouped
-                .map { trait, rand_method, random_files ->
-                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "magma", rand_method, random_files, random_dir)
-                }
+    .map { trait, random_files, rand_method ->  // Fix parameter order
+        def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+        tuple(trait, "magma", rand_method, random_files, random_dir)
+    }
             
             magma_fpr_results = calculate_fpr(magma_fpr_inputs)
         }
@@ -655,10 +655,10 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-                .map { trait, rand_method, random_files ->
-                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "prset", rand_method, random_files, random_dir)
-                }
+    .map { trait, random_files, rand_method ->  // Fix parameter order
+        def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+        tuple(trait, "prset", rand_method, random_files, random_dir)
+    }
             
             prset_fpr_results = calculate_fpr(prset_fpr_inputs)
         }
@@ -669,10 +669,10 @@ workflow {
             
             // Use the grouped random results from GSA-MiXeR workflow
             gsamixer_fpr_inputs = random_gmt_full_grouped
-                .map { trait, rand_method, random_files ->
-                    def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer", rand_method, random_files, random_dir)
-                }
+    .map { trait, random_files, rand_method ->  // Fix parameter order
+        def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
+        tuple(trait, "gsamixer", rand_method, random_files, random_dir)
+    }
             
             gsamixer_fpr_results = calculate_fpr(gsamixer_fpr_inputs)
         }
