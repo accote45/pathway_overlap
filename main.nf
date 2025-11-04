@@ -792,10 +792,12 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-    .map { trait, rand_method, random_files ->  // Corrected parameter order
-        def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-        tuple(trait, "prset", rand_method, random_files, random_dir)
-    }
+        .map { trait, rand_method, random_files_list ->  
+            // Flatten the list of file lists and filter for .summary files only
+            def summary_files = random_files_list.flatten().findAll { it.toString().endsWith('.summary') }
+            def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+            tuple(trait, "prset", rand_method, summary_files, random_dir)
+        }
             
             prset_fpr_results = calculate_fpr(prset_fpr_inputs)
         }
