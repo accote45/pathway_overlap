@@ -278,7 +278,7 @@ workflow {
     //////////////////////////////////////////
     // OPENTARGETS COMPARISON WORKFLOW
     //////////////////////////////////////////
-    if (params.run_empirical && params.run_opentargets) {
+    if (params.run_empirical && params.run_ot_correlation) {
         log.info "Setting up OpenTargets comparison with multiple ranking methods"
         
         // Run OpenTargets comparison for MAGMA (if enabled)
@@ -305,9 +305,7 @@ workflow {
                 }
             
             // Step 3: Run correlation statistics analysis (new)
-            if (params.run_ot_correlation) {
                 magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
-            }
         }
         
         // Run OpenTargets comparison for PRSet (if enabled)
@@ -334,9 +332,7 @@ workflow {
                 }
             
             // Step 3: Run correlation statistics analysis (new)
-            if (params.run_ot_correlation) {
                 prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
-            }
         }
     }
     
