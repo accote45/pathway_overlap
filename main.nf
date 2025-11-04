@@ -284,8 +284,14 @@ workflow {
         // Run OpenTargets comparison for MAGMA (if enabled)
         if (params.run_magma) {
             // Filter traits supported by OpenTargets
-            magma_for_opentargets = magma_by_trait_method
-                .groupTuple(by: [0, 1])
+            magma_for_opentargets = magma_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
                     // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
@@ -311,8 +317,14 @@ workflow {
         // Run OpenTargets comparison for PRSet (if enabled)
         if (params.run_prset) {
             // Filter traits supported by OpenTargets  
-            prset_for_opentargets = prset_by_trait_method
-                .groupTuple(by: [0, 1])
+            prset_for_opentargets = prset_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
                     // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
@@ -346,8 +358,14 @@ workflow {
         if (params.run_magma) {
             log.info "Tissue correlation for MAGMA"
 
-            magma_for_tissue_corr = magma_by_trait_method
-                .groupTuple(by: [0, 1]) // [trait, base_tool]
+            magma_for_tissue_corr = magma_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
@@ -368,8 +386,14 @@ workflow {
         if (params.run_prset) {
             log.info "Tissue correlation for PRSet"
 
-            prset_for_tissue_corr = prset_by_trait_method
-                .groupTuple(by: [0, 1]) // [trait, base_tool]
+            prset_for_tissue_corr = prset_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
