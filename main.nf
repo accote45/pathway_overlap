@@ -66,6 +66,14 @@ include {
     delta_rank_tissue_correlation
 } from './modules/tissuespecificity/delta_rank_tissue.nf'
 
+include {
+    dorothea_correlation
+} from './modules/dorothea/dorothea_correlation.nf'
+
+include {
+    delta_rank_dorothea_correlation
+} from './modules/dorothea/delta_rank_dorothea.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -484,7 +492,7 @@ workflow {
     //////////////////////////////////////////
     // DELTA-RANK CORRELATION WORKFLOW
     //////////////////////////////////////////
-    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards || params.run_delta_rank_tissue)) {
+    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards || params.run_delta_rank_tissue || params.run_delta_rank_dorothea)) {
         log.info "Setting up delta-rank correlation analyses"
 
         // Convert malacards_traits string to list for filtering
@@ -523,6 +531,10 @@ workflow {
                 log.info "Delta-rank MalaCards correlation for MAGMA (malacards_traits only)"
                 delta_rank_malacards_correlation(magma_bw_malacards)
             }
+            if (params.run_delta_rank_dorothea) {
+                log.info "Delta-rank Dorothea correlation for MAGMA"
+                delta_rank_dorothea_correlation(magma_bw)
+            }
             if (params.run_delta_rank_tissue) {
                 log.info "Delta-rank Tissue correlation for MAGMA"
                 delta_rank_tissue_correlation(magma_bw)
@@ -551,10 +563,74 @@ workflow {
                 log.info "Delta-rank MalaCards correlation for PRSet (malacards_traits only)"
                 delta_rank_malacards_correlation(prset_bw_malacards)
             }
+            if (params.run_delta_rank_dorothea) {
+                log.info "Delta-rank Dorothea correlation for PRSet"
+                delta_rank_dorothea_correlation(prset_bw)
+            }
             if (params.run_delta_rank_tissue) {
                 log.info "Delta-rank Tissue correlation for PRSet"
                 delta_rank_tissue_correlation(prset_bw)
             }
+        }
+    }
+
+    //////////////////////////////////////////
+    // DOROTHEA CORRELATION WORKFLOW
+    //////////////////////////////////////////
+    if (params.run_empirical && params.run_dorothea_correlation) {
+        log.info "Setting up Dorothea correlation analysis"
+
+        // MAGMA
+        if (params.run_magma) {
+            log.info "Dorothea correlation for MAGMA"
+
+            magma_for_dorothea_corr = magma_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+
+            dorothea_correlation(magma_for_dorothea_corr)
+        }
+
+        // PRSet
+        if (params.run_prset) {
+            log.info "Dorothea correlation for PRSet"
+
+            prset_for_dorothea_corr = prset_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+
+            dorothea_correlation(prset_for_dorothea_corr)
         }
     }
     
