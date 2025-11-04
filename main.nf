@@ -265,16 +265,19 @@ workflow {
             log.info "Setting up PRSet empirical p-value calculation"
             
             // Combine real results with grouped random results for empirical p-value calculation
-            prset_for_empirical = real_prset_for_combine.combine(
-                random_prset_grouped,
-                by: [0, 2]  // Join by trait and rand_method (both at index 2 now)
-            ).map { trait, summary_file, rand_method, random_files ->
-                def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                
-                // summary_file is now directly the .summary file
-                tuple(trait, "prset_${rand_method}", summary_file, random_dir)
-            }
-            
+            prset_for_empirical = real_prset_for_combine
+    .map { trait, summary_file, rand_method ->
+        [trait, rand_method, summary_file]  // Reorder to match random_prset_grouped structure
+    }
+    .combine(
+        random_prset_grouped, 
+        by: [0, 1]  // Join by trait (index 0) and rand_method (index 1)
+    )
+    .map { trait, rand_method, summary_file, random_files ->
+        def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+        tuple(trait, "prset_${rand_method}", summary_file, random_dir)
+    }
+    
             // Calculate empirical p-values for PRSet
             prset_empirical_results = calc_empirical_pvalues_prset(prset_for_empirical)
             
