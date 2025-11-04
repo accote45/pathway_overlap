@@ -447,7 +447,7 @@ workflow {
     //////////////////////////////////////////
     // DELTA-RANK CORRELATION WORKFLOW
     //////////////////////////////////////////
-    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards)) {
+    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards || params.run_delta_rank_tissue)) {
         log.info "Setting up delta-rank correlation analyses"
 
         // Convert malacards_traits string to list for filtering
