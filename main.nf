@@ -62,6 +62,10 @@ include {
     calculate_fpr
 } from './modules/fpr/fpr_calculation.nf'
 
+include {
+    delta_rank_tissue_correlation
+} from './modules/tissuespecificity/delta_rank_tissue.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -337,24 +341,20 @@ workflow {
     }
     
     //////////////////////////////////////////
-    // TISSUE CORRELATION WORKFLOW - Independent of Tissue Specificity
+    // TISSUE CORRELATION WORKFLOW
     //////////////////////////////////////////
     if (params.run_empirical && params.run_tissue_correlation) {
-        log.info "Setting up Tissue Correlation analysis (independent of Tissue Specificity)"
-        
-        // Run tissue correlation analysis for MAGMA
+        log.info "Setting up Tissue Correlation analysis"
+
+        // MAGMA
         if (params.run_magma) {
-            log.info "Setting up Tissue Correlation analysis for MAGMA"
-            
-            // Create a channel for tissue correlation, identical setup to tissue specificity
+            log.info "Tissue correlation for MAGMA"
+
             magma_for_tissue_corr = magma_by_trait_method
-                .groupTuple(by: [0, 1])
+                .groupTuple(by: [0, 1]) // [trait, base_tool]
                 .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    
-                    // Only proceed if both randomization methods exist
                     if (birewire_idx != -1 && keeppathsize_idx != -1) {
                         [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
                     } else {
@@ -367,20 +367,16 @@ workflow {
             // Run tissue correlation analysis for all MAGMA traits
             tissue_correlation_analysis(magma_for_tissue_corr)
         }
-        
-        // Run tissue correlation analysis for PRSet
+
+        // PRSet
         if (params.run_prset) {
-            log.info "Setting up Tissue Correlation analysis for PRSet"
-            
-            // Create a channel for tissue correlation, identical setup to tissue specificity
+            log.info "Tissue correlation for PRSet"
+
             prset_for_tissue_corr = prset_by_trait_method
-                .groupTuple(by: [0, 1])
+                .groupTuple(by: [0, 1]) // [trait, base_tool]
                 .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    
-                    // Only proceed if both randomization methods exist
                     if (birewire_idx != -1 && keeppathsize_idx != -1) {
                         [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
                     } else {
@@ -494,6 +490,10 @@ workflow {
                 log.info "Delta-rank MalaCards correlation for MAGMA (malacards_traits only)"
                 delta_rank_malacards_correlation(magma_bw_malacards)
             }
+            if (params.run_delta_rank_tissue) {
+                log.info "Delta-rank Tissue correlation for MAGMA"
+                delta_rank_tissue_correlation(magma_bw)
+            }
         }
 
         // PRSet
@@ -517,6 +517,10 @@ workflow {
             if (params.run_delta_rank_malacards) {
                 log.info "Delta-rank MalaCards correlation for PRSet (malacards_traits only)"
                 delta_rank_malacards_correlation(prset_bw_malacards)
+            }
+            if (params.run_delta_rank_tissue) {
+                log.info "Delta-rank Tissue correlation for PRSet"
+                delta_rank_tissue_correlation(prset_bw)
             }
         }
     }
