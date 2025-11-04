@@ -401,6 +401,9 @@ workflow {
     if (params.run_empirical && params.run_malacards_correlation) {
         log.info "Setting up MalaCards correlation analysis"
 
+        // Convert malacards_traits string to list for filtering
+        def malacards_trait_list = params.malacards_traits.tokenize(',').collect { it.trim().toLowerCase() }
+
         // MAGMA
         if (params.run_magma) {
             log.info "MalaCards correlation for MAGMA"
@@ -418,6 +421,9 @@ workflow {
                     }
                 }
                 .filter { it != null }
+                .filter { trait, tool, birewire, keeppathsize -> 
+                    malacards_trait_list.contains(trait.toLowerCase())
+                }
 
             malacards_correlation(magma_for_malacards_corr)
         }
@@ -439,6 +445,9 @@ workflow {
                     }
                 }
                 .filter { it != null }
+                .filter { trait, tool, birewire, keeppathsize -> 
+                    malacards_trait_list.contains(trait.toLowerCase())
+                }
 
             malacards_correlation(prset_for_malacards_corr)
         }
@@ -448,6 +457,9 @@ workflow {
     //////////////////////////////////////////
     if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards)) {
         log.info "Setting up delta-rank correlation analyses"
+
+        // Convert malacards_traits string to list for filtering
+        def malacards_trait_list = params.malacards_traits.tokenize(',').collect { it.trim().toLowerCase() }
 
         // Helper to extract BireWire results with file paths
         def birewire_only = { ch ->
@@ -469,13 +481,18 @@ workflow {
                 params.opentargets_supported_traits.contains(trait)
             }
 
+            // Restrict MalaCards delta-rank to malacards_traits list
+            def magma_bw_malacards = magma_bw.filter { trait, tool_base, birewire_file ->
+                malacards_trait_list.contains(trait.toLowerCase())
+            }
+
             if (params.run_delta_rank_ot) {
                 log.info "Delta-rank OT correlation for MAGMA (whitelist only)"
                 delta_rank_ot_correlation(magma_bw_ot)
             }
             if (params.run_delta_rank_malacards) {
-                log.info "Delta-rank MalaCards correlation for MAGMA"
-                delta_rank_malacards_correlation(magma_bw)  // unfiltered
+                log.info "Delta-rank MalaCards correlation for MAGMA (malacards_traits only)"
+                delta_rank_malacards_correlation(magma_bw_malacards)
             }
         }
 
@@ -488,13 +505,18 @@ workflow {
                 params.opentargets_supported_traits.contains(trait)
             }
 
+            // Restrict MalaCards delta-rank to malacards_traits list
+            def prset_bw_malacards = prset_bw.filter { trait, tool_base, birewire_file ->
+                malacards_trait_list.contains(trait.toLowerCase())
+            }
+
             if (params.run_delta_rank_ot) {
                 log.info "Delta-rank OT correlation for PRSet (whitelist only)"
                 delta_rank_ot_correlation(prset_bw_ot)
             }
             if (params.run_delta_rank_malacards) {
-                log.info "Delta-rank MalaCards correlation for PRSet"
-                delta_rank_malacards_correlation(prset_bw)  // unfiltered
+                log.info "Delta-rank MalaCards correlation for PRSet (malacards_traits only)"
+                delta_rank_malacards_correlation(prset_bw_malacards)
             }
         }
     }
