@@ -258,7 +258,10 @@ workflow {
         
         // Group random results by trait and randomization method
         random_prset_grouped = random_prset_results
-            .groupTuple(by: [0, 2])  // Group by trait and rand_method
+            .map { trait, summary_files, rand_method ->
+                tuple(trait, rand_method, summary_files)  // Reorder to put rand_method at index 1
+            }
+            .groupTuple(by: [0, 1])  // Group by trait AND rand_method
 
         // Calculate empirical p-values with explicit dependency
         if (params.run_empirical) {
