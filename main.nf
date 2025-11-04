@@ -792,7 +792,7 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-    .map { trait, random_files, rand_method ->  // Fix parameter order
+    .map { trait, rand_method, random_files ->  // Corrected parameter order
         def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
         tuple(trait, "prset", rand_method, random_files, random_dir)
     }
