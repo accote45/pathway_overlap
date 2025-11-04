@@ -449,24 +449,20 @@ workflow {
     if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards)) {
         log.info "Setting up delta-rank correlation analyses"
 
-        // Helper channel (BireWire-only result per trait/tool)
+        // Helper to extract BireWire results with file paths
         def birewire_only = { ch ->
-            ch.groupTuple(by: [0, 1])
-              .map { trait, base_tool, rand_methods, result_files ->
-                  def idx = rand_methods.findIndexOf { it == 'birewire' }
-                  if (idx != -1) {
-                      [trait, base_tool, result_files[idx]]
-                  } else {
-                      log.warn "Missing BireWire results for ${trait} with ${base_tool}"
-                      return null
-                  }
-              }
-              .filter { it != null }
+            ch.filter { trait, tool, emp_file ->
+                tool.contains('birewire')
+            }
+            .map { trait, tool, emp_file ->
+                def base_tool = tool.replace('_birewire', '')
+                [trait, base_tool, emp_file]
+            }
         }
 
         // MAGMA
         if (params.run_magma) {
-            def magma_bw = birewire_only(magma_by_trait_method)
+            def magma_bw = birewire_only(magma_empirical_results)
 
             // Restrict OT delta-rank to whitelist only
             def magma_bw_ot = magma_bw.filter { trait, tool_base, birewire_file ->
@@ -485,7 +481,7 @@ workflow {
 
         // PRSet
         if (params.run_prset) {
-            def prset_bw = birewire_only(prset_by_trait_method)
+            def prset_bw = birewire_only(prset_empirical_results)
 
             // Restrict OT delta-rank to whitelist only
             def prset_bw_ot = prset_bw.filter { trait, tool_base, birewire_file ->
