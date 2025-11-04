@@ -333,18 +333,14 @@ workflow {
             // Filter traits supported by OpenTargets  
             prset_for_opentargets = prset_empirical_results
                 .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
                     [trait, base_tool, rand_method, emp_file]
                 }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
+                .groupTuple(by: [0, 1])
                 .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-
-                    // Only proceed if both randomization methods exist
                     if (birewire_idx != -1 && keeppathsize_idx != -1) {
                         [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
                     } else {
@@ -359,6 +355,35 @@ workflow {
             
             // Step 3: Run correlation statistics analysis (new)
                 prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
+        }
+
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            log.info "OpenTargets correlation for GSA-MiXeR"
+
+            gsamixer_for_opentargets = gsamixer_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+                .filter { trait, tool, birewire, keeppathsize -> 
+                    params.opentargets_supported_traits.contains(trait)
+                }
+            
+            gsamixer_opentargets_correlation = opentargets_stats_correlation(gsamixer_for_opentargets)
         }
     }
     
@@ -422,6 +447,32 @@ workflow {
             
             // Run tissue correlation analysis for PRSet
             tissue_correlation_analysis(prset_for_tissue_corr)
+        }
+
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            log.info "Tissue correlation for GSA-MiXeR"
+
+            gsamixer_for_tissue_corr = gsamixer_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+            
+            tissue_correlation_analysis(gsamixer_for_tissue_corr)
         }
     }
     
@@ -493,6 +544,35 @@ workflow {
                 }
 
             malacards_correlation(prset_for_malacards_corr)
+        }
+
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            log.info "MalaCards correlation for GSA-MiXeR"
+
+            gsamixer_for_malacards_corr = gsamixer_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+                .filter { trait, tool, birewire, keeppathsize -> 
+                    malacards_trait_list.contains(trait.toLowerCase())
+                }
+
+            malacards_correlation(gsamixer_for_malacards_corr)
         }
     }
     //////////////////////////////////////////
@@ -578,8 +658,40 @@ workflow {
                 delta_rank_tissue_correlation(prset_bw)
             }
         }
-    }
 
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            def gsamixer_bw = birewire_only(gsamixer_empirical_results)
+
+            // Restrict OT delta-rank to whitelist only
+            def gsamixer_bw_ot = gsamixer_bw.filter { trait, tool_base, birewire_file ->
+                params.opentargets_supported_traits.contains(trait)
+            }
+
+            // Restrict MalaCards delta-rank to malacards_traits list
+            def gsamixer_bw_malacards = gsamixer_bw.filter { trait, tool_base, birewire_file ->
+                malacards_trait_list.contains(trait.toLowerCase())
+            }
+
+            if (params.run_delta_rank_ot) {
+                log.info "Delta-rank OT correlation for GSA-MiXeR (whitelist only)"
+                delta_rank_ot_correlation(gsamixer_bw_ot)
+            }
+            if (params.run_delta_rank_malacards) {
+                log.info "Delta-rank MalaCards correlation for GSA-MiXeR (malacards_traits only)"
+                delta_rank_malacards_correlation(gsamixer_bw_malacards)
+            }
+            if (params.run_delta_rank_dorothea) {
+                log.info "Delta-rank Dorothea correlation for GSA-MiXeR"
+                delta_rank_dorothea_correlation(gsamixer_bw)
+            }
+            if (params.run_delta_rank_tissue) {
+                log.info "Delta-rank Tissue correlation for GSA-MiXeR"
+                delta_rank_tissue_correlation(gsamixer_bw)
+            }
+        }
+    }
+    
     //////////////////////////////////////////
     // DOROTHEA CORRELATION WORKFLOW
     //////////////////////////////////////////
@@ -637,6 +749,32 @@ workflow {
                 .filter { it != null }
 
             dorothea_correlation(prset_for_dorothea_corr)
+        }
+
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            log.info "Dorothea correlation for GSA-MiXeR"
+
+            gsamixer_for_dorothea_corr = gsamixer_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
+                .map { trait, base_tool, rand_methods, result_files ->
+                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                    } else {
+                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                        return null
+                    }
+                }
+                .filter { it != null }
+
+            dorothea_correlation(gsamixer_for_dorothea_corr)
         }
     }
     
