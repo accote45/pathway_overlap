@@ -400,8 +400,15 @@ workflow {
         if (params.run_magma) {
             log.info "MalaCards correlation for MAGMA"
 
-            magma_for_malacards_corr = magma_by_trait_method
-                .groupTuple(by: [0, 1]) // [trait, base_tool]
+            // Fix: Extract base tool and create proper grouping structure
+            magma_for_malacards_corr = magma_empirical_results
+                .map { trait, tool, emp_file ->
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
@@ -424,8 +431,14 @@ workflow {
         if (params.run_prset) {
             log.info "MalaCards correlation for PRSet"
 
-            prset_for_malacards_corr = prset_by_trait_method
-                .groupTuple(by: [0, 1]) // [trait, base_tool]
+            // Apply same fix for PRSet
+            prset_for_malacards_corr = prset_empirical_results
+                .map { trait, tool, emp_file ->
+                    def base_tool = tool.replaceAll(/_.*$/, '')
+                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    [trait, base_tool, rand_method, emp_file]
+                }
+                .groupTuple(by: [0, 1])
                 .map { trait, base_tool, rand_methods, result_files ->
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
