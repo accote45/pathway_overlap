@@ -107,6 +107,37 @@ trait_data = Channel.fromList(phenoConfig.collect { content ->
     )
 })
 
+def createEmpiricalInputs(real_results, random_grouped, tool_prefix, outdir_path) {
+    return real_results.combine(
+        random_grouped, 
+        by: [0, 2]  // Join by trait and rand_method
+    ).map { trait, rand_method, real_result_file, random_files ->
+        def random_dir = "${outdir_path}/${tool_prefix}_random/${rand_method}/${params.background}/${trait}"
+        tuple(trait, "${tool_prefix}_${rand_method}", real_result_file, random_dir)
+    }
+}
+
+def groupByTraitAndTool(empirical_results) {
+    return empirical_results
+        .map { trait, tool, emp_file ->
+            def base_tool = tool.replaceAll(/_.*$/, '')
+            def rand_method = tool.replaceAll(/^.*_/, '')
+            [trait, base_tool, rand_method, emp_file]
+        }
+        .groupTuple(by: [0, 1])
+        .map { trait, base_tool, rand_methods, result_files ->
+            def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+            def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+            if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+            } else {
+                log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                return null
+            }
+        }
+        .filter { it != null }
+}
+
 ////////////////////////////////////////////////////////////////////
 //                  Main Workflow
 ////////////////////////////////////////////////////////////////////
@@ -171,27 +202,18 @@ workflow {
 
         // Calculate empirical p-values - with explicit dependency on ALL random results
         if (params.run_empirical) {
-            log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
+            log.info "Setting up MAGMA empirical p-value calculation"
             
-            // Combine real results with grouped random results for empirical p-value calculation
-            magma_for_empirical = real_geneset_results.combine(
+            magma_for_empirical = createEmpiricalInputs(
+                real_geneset_results, 
                 random_results_grouped, 
-                by: [0, 2]  // Join by trait and rand_method
-            ).map { trait, rand_method, real_result_file, random_files ->
-                def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
-            }
+                "magma", 
+                params.outdir
+            )
             
-            // Calculate empirical p-values for MAGMA
             magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
-            
-            // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(magma_empirical_results)
-            
-            // Define channel for trait/method combinations from empirical results
-            magma_by_trait_method = magma_empirical_results.map { trait, tool, emp_file ->
-                tuple(trait, tool)
-            }
+        }
         }
     }
     
