@@ -173,14 +173,13 @@ workflow {
         if (params.run_empirical) {
             log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
             
-            // Combine real results with grouped random results for empirical p-value calculation
-            magma_for_empirical = real_geneset_results.combine(
-                random_results_grouped, 
-                by: [0, 2]  // Join by trait and rand_method
-            ).map { trait, rand_method, real_result_file, random_files ->
-                def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
-            }
+            // Check for existing random files instead of waiting for processes
+            magma_for_empirical = real_geneset_results
+                .combine(Channel.fromList(params.randomization_methods))
+                .map { trait, real_result_file, rand_method, _ ->
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
+                }
             
             // Calculate empirical p-values for MAGMA
             magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
@@ -267,20 +266,14 @@ workflow {
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
-            // Combine real results with grouped random results for empirical p-value calculation
+            // Check for existing random files instead of waiting for processes
             prset_for_empirical = real_prset_for_combine
-    .map { trait, summary_file, rand_method ->
-        [trait, rand_method, summary_file]  // Reorder to match random_prset_grouped structure
-    }
-    .combine(
-        random_prset_grouped, 
-        by: [0, 1]  // Join by trait (index 0) and rand_method (index 1)
-    )
-    .map { trait, rand_method, summary_file, random_files ->
-        def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-        tuple(trait, "prset_${rand_method}", summary_file, random_dir)
-    }
-    
+                .combine(Channel.fromList(params.randomization_methods))
+                .map { trait, summary_file, _, rand_method ->
+                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "prset_${rand_method}", summary_file, random_dir)
+                }
+            
             // Calculate empirical p-values for PRSet
             prset_empirical_results = calc_empirical_pvalues_prset(prset_for_empirical)
             
@@ -883,17 +876,15 @@ workflow {
         
         // Calculate empirical p-values
         if (params.run_empirical) {
-            // Combine real results with grouped random results
+            // Check for existing random files instead of waiting for processes
             gsamixer_for_empirical = gsamixer_full
                 .map { trait, full_json, go_test_enrich -> 
                     tuple(trait, go_test_enrich)
                 }
-                .combine(
-                    random_gmt_full_grouped, 
-                    by: 0  // Join by trait
-                ).map { trait, go_test_enrich, rand_method, random_jsons ->
+                .combine(Channel.fromList(params.randomization_methods))
+                .map { trait, go_test_enrich, rand_method ->
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer", go_test_enrich, random_dir)
+                    tuple(trait, "gsamixer_${rand_method}", go_test_enrich, random_dir)
                 }
             
             // Calculate empirical p-values for GSA-MiXeR
