@@ -136,18 +136,7 @@ library(tidyverse)
     cat("Found", length(random_files), "random result files\n")
 
     if (length(random_files) == 0) {
-      warning("No random result files found - skipping empirical calculation")
-      # Create empty results file with appropriate structure
-      empty_results <- data.frame(
-        trait = character(0),
-        tool = character(0), 
-        pathway_name = character(0),
-        empirical_pval = numeric(0),
-        std_effect_size = numeric(0)
-      )
-      output_file <- paste0(trait, "_", full_tool, "_empirical_pvalues.txt")
-      write.table(empty_results, output_file, sep = "\t", row.names = FALSE)
-      quit(status = 0)
+      stop("No random result files found")
     }
 
     # Read and combine random data - now including beta values
