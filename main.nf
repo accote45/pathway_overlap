@@ -936,3 +936,4 @@ def create_gsamixer_entry_channels() {
     
     return [gsamixer_real_files, gsamixer_random_files]
 }
+}
