@@ -173,13 +173,14 @@ workflow {
         if (params.run_empirical) {
             log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
             
-            // Check for existing random files instead of waiting for processes
-            magma_for_empirical = real_geneset_results
-                .combine(Channel.fromList(params.randomization_methods))
-                .map { trait, real_result_file, rand_method, _ ->
-                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
-                }
+            // Combine real results with grouped random results for empirical p-value calculation
+            magma_for_empirical = real_geneset_results.combine(
+                random_results_grouped, 
+                by: [0, 2]  // Join by trait and rand_method
+            ).map { trait, rand_method, real_result_file, random_files ->
+                def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
+            }
             
             // Calculate empirical p-values for MAGMA
             magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
@@ -266,14 +267,20 @@ workflow {
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
-            // Check for existing random files instead of waiting for processes
+            // Combine real results with grouped random results for empirical p-value calculation
             prset_for_empirical = real_prset_for_combine
-                .combine(Channel.fromList(params.randomization_methods))
-                .map { trait, summary_file, _, rand_method ->
-                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "prset_${rand_method}", summary_file, random_dir)
-                }
-            
+    .map { trait, summary_file, rand_method ->
+        [trait, rand_method, summary_file]  // Reorder to match random_prset_grouped structure
+    }
+    .combine(
+        random_prset_grouped, 
+        by: [0, 1]  // Join by trait (index 0) and rand_method (index 1)
+    )
+    .map { trait, rand_method, summary_file, random_files ->
+        def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+        tuple(trait, "prset_${rand_method}", summary_file, random_dir)
+    }
+    
             // Calculate empirical p-values for PRSet
             prset_empirical_results = calc_empirical_pvalues_prset(prset_for_empirical)
             
@@ -326,14 +333,18 @@ workflow {
             // Filter traits supported by OpenTargets  
             prset_for_opentargets = prset_empirical_results
                 .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
+                    // Extract randomization method and base tool
+                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
                     [trait, base_tool, rand_method, emp_file]
                 }
-                .groupTuple(by: [0, 1])
+                .groupTuple(by: [0, 1]) // Group by trait and base_tool
                 .map { trait, base_tool, rand_methods, result_files ->
+                    // Find indices for each randomization method
                     def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
                     def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+
+                    // Only proceed if both randomization methods exist
                     if (birewire_idx != -1 && keeppathsize_idx != -1) {
                         [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
                     } else {
@@ -348,35 +359,6 @@ workflow {
             
             // Step 3: Run correlation statistics analysis (new)
                 prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
-        }
-
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            log.info "OpenTargets correlation for GSA-MiXeR"
-
-            gsamixer_for_opentargets = gsamixer_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    params.opentargets_supported_traits.contains(trait)
-                }
-            
-            gsamixer_opentargets_correlation = opentargets_stats_correlation(gsamixer_for_opentargets)
         }
     }
     
@@ -440,32 +422,6 @@ workflow {
             
             // Run tissue correlation analysis for PRSet
             tissue_correlation_analysis(prset_for_tissue_corr)
-        }
-
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            log.info "Tissue correlation for GSA-MiXeR"
-
-            gsamixer_for_tissue_corr = gsamixer_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-            
-            tissue_correlation_analysis(gsamixer_for_tissue_corr)
         }
     }
     
@@ -537,35 +493,6 @@ workflow {
                 }
 
             malacards_correlation(prset_for_malacards_corr)
-        }
-
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            log.info "MalaCards correlation for GSA-MiXeR"
-
-            gsamixer_for_malacards_corr = gsamixer_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    malacards_trait_list.contains(trait.toLowerCase())
-                }
-
-            malacards_correlation(gsamixer_for_malacards_corr)
         }
     }
     //////////////////////////////////////////
@@ -651,40 +578,8 @@ workflow {
                 delta_rank_tissue_correlation(prset_bw)
             }
         }
-
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            def gsamixer_bw = birewire_only(gsamixer_empirical_results)
-
-            // Restrict OT delta-rank to whitelist only
-            def gsamixer_bw_ot = gsamixer_bw.filter { trait, tool_base, birewire_file ->
-                params.opentargets_supported_traits.contains(trait)
-            }
-
-            // Restrict MalaCards delta-rank to malacards_traits list
-            def gsamixer_bw_malacards = gsamixer_bw.filter { trait, tool_base, birewire_file ->
-                malacards_trait_list.contains(trait.toLowerCase())
-            }
-
-            if (params.run_delta_rank_ot) {
-                log.info "Delta-rank OT correlation for GSA-MiXeR (whitelist only)"
-                delta_rank_ot_correlation(gsamixer_bw_ot)
-            }
-            if (params.run_delta_rank_malacards) {
-                log.info "Delta-rank MalaCards correlation for GSA-MiXeR (malacards_traits only)"
-                delta_rank_malacards_correlation(gsamixer_bw_malacards)
-            }
-            if (params.run_delta_rank_dorothea) {
-                log.info "Delta-rank Dorothea correlation for GSA-MiXeR"
-                delta_rank_dorothea_correlation(gsamixer_bw)
-            }
-            if (params.run_delta_rank_tissue) {
-                log.info "Delta-rank Tissue correlation for GSA-MiXeR"
-                delta_rank_tissue_correlation(gsamixer_bw)
-            }
-        }
     }
-    
+
     //////////////////////////////////////////
     // DOROTHEA CORRELATION WORKFLOW
     //////////////////////////////////////////
@@ -742,32 +637,6 @@ workflow {
                 .filter { it != null }
 
             dorothea_correlation(prset_for_dorothea_corr)
-        }
-
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            log.info "Dorothea correlation for GSA-MiXeR"
-
-            gsamixer_for_dorothea_corr = gsamixer_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-
-            dorothea_correlation(gsamixer_for_dorothea_corr)
         }
     }
     
@@ -876,15 +745,17 @@ workflow {
         
         // Calculate empirical p-values
         if (params.run_empirical) {
-            // Check for existing random files instead of waiting for processes
+            // Combine real results with grouped random results
             gsamixer_for_empirical = gsamixer_full
                 .map { trait, full_json, go_test_enrich -> 
                     tuple(trait, go_test_enrich)
                 }
-                .combine(Channel.fromList(params.randomization_methods))
-                .map { trait, go_test_enrich, rand_method ->
+                .combine(
+                    random_gmt_full_grouped, 
+                    by: 0  // Join by trait
+                ).map { trait, go_test_enrich, rand_method, random_jsons ->
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer_${rand_method}", go_test_enrich, random_dir)
+                    tuple(trait, "gsamixer", go_test_enrich, random_dir)
                 }
             
             // Calculate empirical p-values for GSA-MiXeR
