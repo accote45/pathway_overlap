@@ -156,8 +156,8 @@ workflow {
             // Run gene analysis steps ONCE per trait
             prepared = prepare_input(magma_gene_data)
             
-            def selected_gene_file = params.gene_files[params.background]
-            def snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
+            selected_gene_file = params.gene_files[params.background]
+            snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
             
             annotated = annotate_genes(snp_loc_with_gene_file)
             gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
@@ -242,7 +242,7 @@ workflow {
                     return trait_tuple[0].toUpperCase() != "SCZ" 
                 }
                 .map { trait_tuple ->
-                    def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
+                    def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col,
                          binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
                     tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                          summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
