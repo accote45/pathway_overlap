@@ -74,6 +74,91 @@ include {
     delta_rank_dorothea_correlation
 } from './modules/dorothea/delta_rank_dorothea.nf'
 
+    //////////////////////////////////////////
+    // CREATE ENTRY CHANNELS FOR EXISTING RESULTS
+    //////////////////////////////////////////
+    // Function to create MAGMA entry channels from existing results
+def create_magma_entry_channels() {
+    log.info "Reading existing MAGMA results from output directories"
+    
+    // Read real results
+    def magma_real_pattern = "${params.outdir}/magma_real/*/*.gsa.out"
+    def magma_real_files = Channel.fromPath(magma_real_pattern)
+        .map { file ->
+            def trait = file.parent.name
+            def filename = file.name
+            // Extract randomization method from filename pattern: {trait}_real_set.{method}.gsa.out
+            def method = filename.replaceAll(/.*_real_set\.([^.]+)\.gsa\.out/, '$1')
+            tuple(trait, file, method)
+        }
+    
+    // Read random results - grouped by trait and method
+    def magma_random_pattern = "${params.outdir}/magma_random/*/*/*/*_set_random*.gsa.out"
+    def magma_random_files = Channel.fromPath(magma_random_pattern)
+        .map { file ->
+            def pathParts = file.toString().split('/')
+            def trait = pathParts[-2] // trait directory
+            def method = pathParts[-3] // method directory (birewire/keeppathsize)
+            tuple(trait, file, method)
+        }
+        .groupTuple(by: [0, 2]) // Group by trait and method
+    
+    return [magma_real_files, magma_random_files]
+}
+
+// Function to create PRSet entry channels from existing results  
+def create_prset_entry_channels() {
+    log.info "Reading existing PRSet results from output directories"
+    
+    // Read real results
+    def prset_real_pattern = "${params.outdir}/prset_real/*/[0-9]*/msigdbgenes/*/\${trait}_set.\${method}.summary"
+    def prset_real_files = Channel.fromPath("${params.outdir}/prset_real/*/*/msigdbgenes/*/*.summary")
+        .map { file ->
+            def pathParts = file.toString().split('/')
+            def trait = pathParts[-2]
+            def filename = file.name
+            // Extract method from filename: {trait}_set.{method}.summary
+            def method = filename.replaceAll(/.*_set\.([^.]+)\.summary/, '$1')
+            tuple(trait, file, method)
+        }
+    
+    // Read random results - grouped by trait and method
+    def prset_random_files = Channel.fromPath("${params.outdir}/prset_random/*/*/*/*_set_random*.summary")
+        .map { file ->
+            def pathParts = file.toString().split('/')
+            def trait = pathParts[-2]
+            def method = pathParts[-3]
+            tuple(trait, file, method)
+        }
+        .groupTuple(by: [0, 2])
+    
+    return [prset_real_files, prset_random_files]
+}
+
+// Function to create GSA-MiXeR entry channels from existing results
+def create_gsamixer_entry_channels() {
+    log.info "Reading existing GSA-MiXeR results from output directories"
+    
+    // Read real results (full model outputs)
+    def gsamixer_real_files = Channel.fromPath("${params.outdir}/gsamixer/*/*_full.go_test_enrich.csv")
+        .map { file ->
+            def trait = file.parent.name
+            tuple(trait, file)
+        }
+    
+    // Read random results - grouped by trait and method
+    def gsamixer_random_files = Channel.fromPath("${params.outdir}/gsamixer_random/*/*/random*/*_full.go_test_enrich.csv")
+        .map { file ->
+            def pathParts = file.toString().split('/')
+            def trait = pathParts[-4] // gsamixer_random/{method}/{trait}/random{N}
+            def method = pathParts[-3]
+            tuple(trait, file, method)
+        }
+        .groupTuple(by: [0, 2])
+    
+    return [gsamixer_real_files, gsamixer_random_files]
+    }
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -156,8 +241,8 @@ workflow {
             // Run gene analysis steps ONCE per trait
             prepared = prepare_input(magma_gene_data)
             
-            selected_gene_file = params.gene_files[params.background]
-            snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
+            def selected_gene_file = params.gene_files[params.background]
+            def snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
             
             annotated = annotate_genes(snp_loc_with_gene_file)
             gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
@@ -242,7 +327,7 @@ workflow {
                     return trait_tuple[0].toUpperCase() != "SCZ" 
                 }
                 .map { trait_tuple ->
-                    def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col,
+                    def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                          binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
                     tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                          summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
@@ -851,89 +936,4 @@ workflow {
             gsamixer_fpr_results = calculate_fpr(gsamixer_fpr_inputs)
         }
     }
-    
-    //////////////////////////////////////////
-    // CREATE ENTRY CHANNELS FOR EXISTING RESULTS
-    //////////////////////////////////////////
-    // Function to create MAGMA entry channels from existing results
-def create_magma_entry_channels() {
-    log.info "Reading existing MAGMA results from output directories"
-    
-    // Read real results
-    def magma_real_pattern = "${params.outdir}/magma_real/*/*.gsa.out"
-    def magma_real_files = Channel.fromPath(magma_real_pattern)
-        .map { file ->
-            def trait = file.parent.name
-            def filename = file.name
-            // Extract randomization method from filename pattern: {trait}_real_set.{method}.gsa.out
-            def method = filename.replaceAll(/.*_real_set\.([^.]+)\.gsa\.out/, '$1')
-            tuple(trait, file, method)
-        }
-    
-    // Read random results - grouped by trait and method
-    def magma_random_pattern = "${params.outdir}/magma_random/*/*/*/*_set_random*.gsa.out"
-    def magma_random_files = Channel.fromPath(magma_random_pattern)
-        .map { file ->
-            def pathParts = file.toString().split('/')
-            def trait = pathParts[-2] // trait directory
-            def method = pathParts[-3] // method directory (birewire/keeppathsize)
-            tuple(trait, file, method)
-        }
-        .groupTuple(by: [0, 2]) // Group by trait and method
-    
-    return [magma_real_files, magma_random_files]
-}
-
-// Function to create PRSet entry channels from existing results  
-def create_prset_entry_channels() {
-    log.info "Reading existing PRSet results from output directories"
-    
-    // Read real results
-    def prset_real_pattern = "${params.outdir}/prset_real/*/[0-9]*/msigdbgenes/*/\${trait}_set.\${method}.summary"
-    def prset_real_files = Channel.fromPath("${params.outdir}/prset_real/*/*/msigdbgenes/*/*.summary")
-        .map { file ->
-            def pathParts = file.toString().split('/')
-            def trait = pathParts[-2]
-            def filename = file.name
-            // Extract method from filename: {trait}_set.{method}.summary
-            def method = filename.replaceAll(/.*_set\.([^.]+)\.summary/, '$1')
-            tuple(trait, file, method)
-        }
-    
-    // Read random results - grouped by trait and method
-    def prset_random_files = Channel.fromPath("${params.outdir}/prset_random/*/*/*/*_set_random*.summary")
-        .map { file ->
-            def pathParts = file.toString().split('/')
-            def trait = pathParts[-2]
-            def method = pathParts[-3]
-            tuple(trait, file, method)
-        }
-        .groupTuple(by: [0, 2])
-    
-    return [prset_real_files, prset_random_files]
-}
-
-// Function to create GSA-MiXeR entry channels from existing results
-def create_gsamixer_entry_channels() {
-    log.info "Reading existing GSA-MiXeR results from output directories"
-    
-    // Read real results (full model outputs)
-    def gsamixer_real_files = Channel.fromPath("${params.outdir}/gsamixer/*/*_full.go_test_enrich.csv")
-        .map { file ->
-            def trait = file.parent.name
-            tuple(trait, file)
-        }
-    
-    // Read random results - grouped by trait and method
-    def gsamixer_random_files = Channel.fromPath("${params.outdir}/gsamixer_random/*/*/random*/*_full.go_test_enrich.csv")
-        .map { file ->
-            def pathParts = file.toString().split('/')
-            def trait = pathParts[-4] // gsamixer_random/{method}/{trait}/random{N}
-            def method = pathParts[-3]
-            tuple(trait, file, method)
-        }
-        .groupTuple(by: [0, 2])
-    
-    return [gsamixer_real_files, gsamixer_random_files]
-}
 }
