@@ -216,6 +216,9 @@ workflow {
             log.info "Using existing MAGMA results"
             def (magma_real_existing, magma_random_existing) = create_magma_entry_channels()
             
+            // Create random_results_grouped for FPR analysis when using existing results
+            random_results_grouped = magma_random_existing
+            
             if (params.run_empirical) {
                 // Prepare for empirical calculation directly
                 magma_for_empirical = magma_real_existing.combine(
