@@ -27,7 +27,8 @@ trait_mapping <- list(
   "mdd" = "MONDO_0002050",
   "scz" = "MONDO_0005090",
   "ibd" = "EFO_0000555",
-  "breast" = "MONDO_0007254"
+  "breast" = "MONDO_0007254",
+  "bmi" = "EFO_0001073"
 )
 disease_id <- trait_mapping[[trait]]
 if (is.null(disease_id)) stop(sprintf("No OpenTargets ID mapping for trait '%s'", trait))
