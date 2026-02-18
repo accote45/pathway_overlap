@@ -110,25 +110,35 @@ workflow {
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     
     //////////////////////////////////////////
-    // RANDOMIZATION SETUP
+    // RANDOMIZATION SETUP - MUST COMPLETE FIRST
     //////////////////////////////////////////
+    def birewire_dir
+    def keeppathsize_dir
+    
     if (params.generate_random_gmts) {
         log.info "========================================="
         log.info "BiRewire Randomization Setup"
         log.info "========================================="
-        log.info "Generating ${params.num_random_sets} randomized GMT files from:"
-        log.info "  ${params.geneset_real}"
-        log.info "Output will be saved to:"
-        log.info "  ${params.outdir}/randomized_gene_sets/random_birewire/"
-        log.info ""
-        log.info "Note: This process will use cached results if already completed"
-        log.info "      Run with -resume to skip if files already exist"
+        log.info "Generating ${params.num_random_sets} randomized GMT files"
+        log.info "This MUST complete before random enrichment analyses"
         log.info "========================================="
         
         birewire_gmts = generate_birewire_random_gmts(
             file(params.geneset_real),
             params.num_random_sets
         )
+        
+        // Wait for GMT generation to complete and get the directory path
+        birewire_dir = birewire_gmts.birewire_dir
+    } else {
+        // Use existing GMT directories
+        birewire_dir = Channel.value(params.gmt_dirs['birewire'])
+    }
+    
+    // Create a completion signal channel that emits after GMT generation
+    gmt_ready_signal = birewire_dir.map { dir -> 
+        log.info "Random GMT files ready at: ${dir}"
+        return "ready"
     }
     
     // Initialize channels
@@ -137,39 +147,42 @@ workflow {
     prset_empirical_results = Channel.empty()
     
     //////////////////////////////////////////
-    // MAGMA WORKFLOW
+    // MAGMA WORKFLOW - WAIT FOR GMTs
     //////////////////////////////////////////
     if (params.run_magma) {
         log.info "Running MAGMA analysis for all traits"
         
-        // Extract fields needed for MAGMA gene analysis (once per trait)
+        // Extract fields for gene analysis (independent of GMTs)
         magma_gene_data = trait_data.map { trait_tuple ->
             def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col) = trait_tuple
             tuple(trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col)
         }
         
-        // Run gene analysis steps ONCE per trait
+        // Run gene analysis (doesn't need GMTs)
         prepared = prepare_input(magma_gene_data)
-        
         def selected_gene_file = params.gene_files[params.background]
         def snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
-        
         annotated = annotate_genes(snp_loc_with_gene_file)
         gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
         
-        // Combine gene results with randomization methods for pathway analysis
+        // Combine gene results with randomization methods
         gene_results_with_methods = gene_analysis_results.gene_results
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gene_result, rand_method -> 
                 [trait, gene_result, rand_method]
             }
         
-        // Run pathway analysis for real data (once per trait-randomization pair)
+        // Run real pathway analysis (uses params.geneset_real, not random GMTs)
         real_geneset_results = run_real_geneset(gene_results_with_methods)
         
-        // Run random sets analysis (once per trait-randomization-permutation)
+        // **KEY FIX**: Wait for GMT generation before starting random sets
         perms_ch = Channel.from(1..params.num_random_sets)
+        
         random_sets_inputs = gene_results_with_methods
+            .combine(gmt_ready_signal)  // Wait for GMTs to be ready
+            .map { trait, gene_result, rand_method, ready_signal -> 
+                [trait, gene_result, rand_method]
+            }
             .combine(perms_ch)
             .map { trait, gene_result, rand_method, perm -> 
                 [trait, gene_result, rand_method, perm]
@@ -179,57 +192,40 @@ workflow {
         
         // Group random results by trait and randomization method
         random_results_grouped = random_sets_results
-            .groupTuple(by: [0, 2])  // Group by trait and rand_method
+            .groupTuple(by: [0, 2])
 
-        // Calculate empirical p-values - with explicit dependency on ALL random results
         if (params.run_empirical) {
-            log.info "Setting up MAGMA empirical p-value calculation for each randomization method"
-            
-            // Combine real results with grouped random results for empirical p-value calculation
             magma_for_empirical = real_geneset_results.combine(
                 random_results_grouped, 
-                by: [0, 2]  // Join by trait and rand_method
+                by: [0, 2]
             ).map { trait, rand_method, real_result_file, random_files_list ->
                 def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
                 tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
             }
             
-            // Calculate empirical p-values for MAGMA
             magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
-            
-            // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(magma_empirical_results)
-            
-            // Define channel for trait/method combinations from empirical results
-            magma_by_trait_method = magma_empirical_results.map { trait, tool, emp_file ->
-                tuple(trait, tool)
-            }
         }
     }
     
     //////////////////////////////////////////
-    // PRSET WORKFLOW  
+    // PRSET WORKFLOW - WAIT FOR GMTs
     //////////////////////////////////////////
     if (params.run_prset) {
         log.info "Running PRSet analysis for all traits"
         
-        // Extract PRSet data without randomization (for deduplication)
         prset_dedup_data = trait_data
-            .filter { trait_tuple ->
-                // Filter out SCZ from PRSet analysis
-                return trait_tuple[0].toUpperCase() != "SCZ" 
-            }
+            .filter { trait_tuple -> trait_tuple[0].toUpperCase() != "SCZ" }
             .map { trait_tuple ->
                 def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                      binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                     summary_statistic_name, summary_statistic_type, "common")  // Add a placeholder for rand_method
+                     summary_statistic_name, summary_statistic_type, "common")
             }
         
-        // Run SNP deduplication ONCE per trait
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
         
-        // Run real PRSet analysis for each randomization method
+        // Real PRSet (doesn't need random GMTs)
         prset_real_inputs = deduplicated_gwas
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
@@ -238,24 +234,23 @@ workflow {
                       summary_statistic_name, summary_statistic_type, rand_method)
             }
     
-        // Run PRSet for real pathway sets
         real_prset_results = run_real_prset(prset_real_inputs)
         
-        // Rearrange real results to match random results structure for combination
-        real_prset_for_combine = real_prset_results.map { trait, summary_file, log_file, prsice_file, rand_method ->
-            tuple(trait, summary_file, rand_method)  // [trait, summary_file, rand_method] to match random structure
-        }
-        
-        // Now combine with randomization methods for the random analysis
+        // **KEY FIX**: Wait for GMT generation before PRSet random sets
         prset_rand_inputs = deduplicated_gwas
+            .combine(gmt_ready_signal)  // Wait for GMTs
+            .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                  summary_statistic_name, summary_statistic_type, _, ready_signal ->
+                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
+                      summary_statistic_name, summary_statistic_type)
+            }
             .combine(Channel.fromList(params.randomization_methods))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, _, rand_method ->
+                  summary_statistic_name, summary_statistic_type, rand_method ->
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                       summary_statistic_name, summary_statistic_type, rand_method)
             }
         
-        // Create random set inputs (one per permutation)
         perms_ch = Channel.from(1..params.num_random_sets)
         prset_random_inputs = prset_rand_inputs
             .combine(perms_ch)
@@ -265,7 +260,6 @@ workflow {
                       summary_statistic_name, summary_statistic_type, rand_method, perm)
             }
         
-        // Run PRSet for random sets
         random_prset_results = run_random_sets_prset(prset_random_inputs)
         
         // Group random results by trait and randomization method
@@ -275,7 +269,6 @@ workflow {
             }
             .groupTuple(by: [0, 1])  // Group by trait AND rand_method
 
-        // Calculate empirical p-values with explicit dependency
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
@@ -302,337 +295,12 @@ workflow {
     }
     
     //////////////////////////////////////////
-    // OPENTARGETS COMPARISON WORKFLOW
+    // GSA-MiXeR WORKFLOW - WAIT FOR GMTs
     //////////////////////////////////////////
-    if (params.run_empirical && params.run_ot_correlation) {
-        log.info "Setting up OpenTargets comparison with multiple ranking methods"
-        
-        // Run OpenTargets comparison for MAGMA (if enabled)
-        if (params.run_magma) {
-            // Filter traits supported by OpenTargets
-            magma_for_opentargets = magma_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    
-                    // Only proceed if both randomization methods exist
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    params.opentargets_supported_traits.contains(trait)
-                }
-            
-            // Step 3: Run correlation statistics analysis (new)
-            magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
-        }
-        
-        // Run OpenTargets comparison for PRSet (if enabled)
-        if (params.run_prset) {
-            // Filter traits supported by OpenTargets  
-            prset_for_opentargets = prset_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    // Find indices for each randomization method
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-
-                    // Only proceed if both randomization methods exist
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    params.opentargets_supported_traits.contains(trait)
-                }
-            
-            // Step 3: Run correlation statistics analysis (new)
-            prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
-        }
-    }
-    
-    //////////////////////////////////////////
-    // TISSUE CORRELATION WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_empirical && params.run_tissue_correlation) {
-        log.info "Setting up Tissue Correlation analysis"
-
-        // MAGMA
-        if (params.run_magma) {
-            log.info "Tissue correlation for MAGMA"
-
-            magma_for_tissue_corr = magma_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-            
-            // Run tissue correlation analysis for all MAGMA traits
-            tissue_correlation_analysis(magma_for_tissue_corr)
-        }
-
-        // PRSet
-        if (params.run_prset) {
-            log.info "Tissue correlation for PRSet"
-
-            prset_for_tissue_corr = prset_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-            
-            // Run tissue correlation analysis for PRSet
-            tissue_correlation_analysis(prset_for_tissue_corr)
-        }
-    }
-    
-    //////////////////////////////////////////
-    // MALACARDS CORRELATION WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_empirical && params.run_malacards_correlation) {
-        log.info "Setting up MalaCards correlation analysis"
-
-        // Convert malacards_traits string to list for filtering
-        def malacards_trait_list = params.malacards_traits.tokenize(',').collect { it.trim().toLowerCase() }
-
-        // MAGMA
-        if (params.run_magma) {
-            log.info "MalaCards correlation for MAGMA"
-
-            // Fix: Extract base tool and create proper grouping structure
-            magma_for_malacards_corr = magma_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    malacards_trait_list.contains(trait.toLowerCase())
-                }
-
-            malacards_correlation(magma_for_malacards_corr)
-        }
-
-        // PRSet
-        if (params.run_prset) {
-            log.info "MalaCards correlation for PRSet"
-
-            // Apply same fix for PRSet
-            prset_for_malacards_corr = prset_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-                .filter { trait, tool, birewire, keeppathsize -> 
-                    malacards_trait_list.contains(trait.toLowerCase())
-                }
-
-            malacards_correlation(prset_for_malacards_corr)
-        }
-    }
-    
-    //////////////////////////////////////////
-    // DOROTHEA CORRELATION WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_empirical && params.run_dorothea_correlation) {
-        log.info "Setting up Dorothea correlation analysis"
-
-        // MAGMA
-        if (params.run_magma) {
-            log.info "Dorothea correlation for MAGMA"
-
-            magma_for_dorothea_corr = magma_empirical_results
-                .map { trait, tool, emp_file ->
-                    // Extract randomization method and base tool
-                    def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
-                    def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1]) // Group by trait and base_tool
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-
-            dorothea_correlation(magma_for_dorothea_corr)
-        }
-
-        // PRSet
-        if (params.run_prset) {
-            log.info "Dorothea correlation for PRSet"
-
-            prset_for_dorothea_corr = prset_empirical_results
-                .map { trait, tool, emp_file ->
-                    def base_tool = tool.replaceAll(/_.*$/, '')
-                    def rand_method = tool.replaceAll(/^.*_/, '')
-                    [trait, base_tool, rand_method, emp_file]
-                }
-                .groupTuple(by: [0, 1])
-                .map { trait, base_tool, rand_methods, result_files ->
-                    def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
-                    def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
-                    if (birewire_idx != -1 && keeppathsize_idx != -1) {
-                        [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
-                    } else {
-                        log.warn "Missing randomization method for ${trait} with ${base_tool}"
-                        return null
-                    }
-                }
-                .filter { it != null }
-
-            dorothea_correlation(prset_for_dorothea_corr)
-        }
-    }
-    
-    //////////////////////////////////////////
-    // GSA-MiXeR WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_gsamixer) {
-        log.info "Running GSA-MiXeR for all traits"
-
-        // Build required input tuple (must include neff_col because module expects it)
-        gsamixer_inputs = trait_data.map { trait, gwas_file, rsid_col, chr_col, pos_col, pval_col,
-                                           n_col, binary_target, effect_allele, other_allele,
-                                           summary_statistic_name, summary_statistic_type, se_col, neff_col ->
-            tuple(
-                trait,
-                file(gwas_file),
-                rsid_col,
-                chr_col,
-                pos_col,
-                pval_col,
-                n_col,
-                binary_target,
-                effect_allele,
-                other_allele,
-                summary_statistic_name,
-                summary_statistic_type,
-                se_col,
-                neff_col
-            )
-        }
-
-        // One-time reference generation
-        ch_refs_result = convert_gmt_for_gsamixer(
-            file(params.geneset_real),
-            file(params.gtf_reference)
-        )
-
-        // Create individual channels from the outputs using a more explicit approach
-        ch_baseline = Channel.fromPath("${params.outdir}/gsamixer_reference/baseline.txt")
-        ch_full_gene = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene.txt") 
-        ch_full_gene_set = Channel.fromPath("${params.outdir}/gsamixer_reference/full_gene_set.txt")
-
-        // Prepare per-trait sumstats and split by chromosome (your existing logic)
-        gsamixer_prepared = prepare_gsamixer_sumstats(gsamixer_inputs)
-        gsamixer_split    = split_gsamixer_sumstats(gsamixer_prepared)
-
-        // Wire baseline into every base job
-        ch_base_in = gsamixer_split
-            .combine(ch_baseline)  // adds the singleton baseline file to each tuple
-            .map { trait, chrom_sumstats, baseline -> tuple(trait, chrom_sumstats, baseline) }
-
-        gsamixer_base = gsamixer_plsa_base(ch_base_in)
-
-        // Wire full_gene + full_gene_set into every full job
-        ch_full_in = gsamixer_base
-            .combine(ch_full_gene)                               // adds full_gene.txt
-            .combine(ch_full_gene_set)                           // adds full_gene_set.txt
-            .map { trait, base_json, base_weights, base_snps, full_gene, full_gene_set ->
-                tuple(trait, base_json, base_weights, base_snps, full_gene, full_gene_set)
-            }
-
-        gsamixer_full = gsamixer_plsa_full(ch_full_in)
-    }
-
     if (params.run_gsamixer && params.run_empirical) {
-        log.info "Running GSA-MiXeR for random pathways - generating random gene sets once for all traits"
+        log.info "Running GSA-MiXeR for random pathways"
         
-        // Create a channel of random GMT files - trait-independent
+        // **KEY FIX**: Wait for GMT generation before converting to GSA-MiXeR format
         random_gmt_files = Channel.fromList(
             params.randomization_methods.collect { rand_method ->
                 (1..params.num_random_sets).collect { perm ->
@@ -641,9 +309,11 @@ workflow {
                     tuple(rand_method, perm, file(gmt_path), file(gtf_path))
                 }
             }.flatten().collate(4)
-        )
+        ).combine(gmt_ready_signal)  // Wait for GMTs
+         .map { rand_method, perm, gmt_file, gtf_file, ready_signal ->
+             tuple(rand_method, perm, gmt_file, gtf_file)
+         }
         
-        // Convert random GMTs to GSA-MiXeR format - ONCE, independent of traits
         random_gmt_converted = convert_random_gmt_for_gsamixer(random_gmt_files)
         
         // For each trait's base model results, combine with ALL random set files
