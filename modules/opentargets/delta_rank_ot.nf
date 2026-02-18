@@ -19,7 +19,7 @@ process delta_rank_ot_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/delta_rank_ot_correlation.R \\
+    Rscript ${params.scripts_dir}/validation/delta_rank_ot_correlation.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${birewire_results}" \\

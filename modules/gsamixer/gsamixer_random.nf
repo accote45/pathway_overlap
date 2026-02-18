@@ -23,7 +23,7 @@ process convert_random_gmt_for_gsamixer {
   script:
   """
   module load R
-  Rscript ${params.scripts_dir}/gsamixer/convert_random_gmt_for_gsamixer.R \\
+  Rscript ${params.scripts_dir}/tool_specific/gsamixer/convert_random_gmt_for_gsamixer.R \\
     ${gmt_file} \\
     ${gtf_file} \\
     ${rand_method}_random${perm}

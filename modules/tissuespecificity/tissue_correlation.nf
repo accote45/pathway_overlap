@@ -24,8 +24,12 @@ process tissue_correlation_analysis {
     script:
     """
     module load R
-    
-    # Run the tissue correlation statistics R script
-    Rscript ${params.scripts_dir}/tissue_correlation_stats.R "${trait}" "${tool_base}" "${birewire_results}" "${keeppathsize_results}" "${params.geneset_real}" "${params.tissue_expression_data}" "${params.opentargets_n_values}"
+    Rscript ${params.scripts_dir}/validation/tissue_correlation_stats.R \\
+      "${trait}" \\
+      "${tool_base}" \\
+      "${params.tissue_expression_data}" \\
+      "${birewire_results}" \\
+      "${keeppathsize_results}" \\
+      "${params.geneset_real}"
     """
 }

@@ -26,12 +26,12 @@ process malacards_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/malacards_correlation.R \
-      "${trait}" \
-      "${tool_base}" \
-      "${params.malacards_path}" \
-      "${birewire_results}" \
-      "${keeppathsize_results}" \
+    Rscript ${params.scripts_dir}/validation/malacards_correlation.R \\
+      "${trait}" \\
+      "${tool_base}" \\
+      "${params.malacards_path}" \\
+      "${birewire_results}" \\
+      "${keeppathsize_results}" \\
       "${params.geneset_real}"
     """
 }

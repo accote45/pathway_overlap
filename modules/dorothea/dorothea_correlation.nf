@@ -6,8 +6,8 @@ process dorothea_correlation {
 
     input:
     tuple val(trait),
-          val(tool_base),          // 'magma' or 'prset' (base tool name)
-          path(birewire_results),  // empirical p-values for birewire
+          val(tool_base),
+          path(birewire_results),
           path(keeppathsize_results)
 
     output:
@@ -18,7 +18,7 @@ process dorothea_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/dorothea_correlation.R \\
+    Rscript ${params.scripts_dir}/validation/dorothea_correlation.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${params.dorothea_scores_path}" \\

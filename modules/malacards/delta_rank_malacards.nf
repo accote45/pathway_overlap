@@ -19,7 +19,7 @@ process delta_rank_malacards_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/delta_rank_malacards_correlation.r \\
+    Rscript ${params.scripts_dir}/validation/delta_rank_malacards_correlation.r \\
       "${trait}" \\
       "${tool_base}" \\
       "${birewire_results}" \\

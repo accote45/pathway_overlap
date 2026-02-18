@@ -18,10 +18,11 @@ process delta_rank_dorothea_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/delta_rank_dorothea_correlation.R \\
+    Rscript ${params.scripts_dir}/validation/delta_rank_dorothea_correlation.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${birewire_results}" \\
+      "${params.geneset_real}" \\
       "${params.dorothea_scores_path}" \\
       "${params.delta_rank_top_ns}"
     """

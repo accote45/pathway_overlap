@@ -16,7 +16,7 @@ process convert_gmt_for_gsamixer {
   script:
   """
   module load R
-  Rscript ${params.scripts_dir}/convert_geneset_gsamixer.R ${gmt_file} ${gtf_file}
+  Rscript ${params.scripts_dir}/tool_specific/gsamixer/convert_geneset_gsamixer.R ${gmt_file} ${gtf_file}
   """
 }
 
@@ -49,7 +49,7 @@ process prepare_gsamixer_sumstats {
   script:
   """
   module load R
-  Rscript ${params.scripts_dir}/gsamixer/prepare_sumstats.R \\
+  Rscript ${params.scripts_dir}/tool_specific/gsamixer/prepare_sumstats.R \\
     --trait "${trait}" \\
     --traits-config "${params.traits_config}" \\
     --input "${gwas_file}" \\
