@@ -14,7 +14,7 @@ library(pheatmap)
 library(UpSetR)
 
 # Define constants
-TOP_N <- 20 # Number of top pathways to examine
+TOP_N <- 500 # Number of top pathways to examine
 BASE_RESULT_DIR <- "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/results"
 OUTPUT_DIR <- "cross_trait_comparison"
 METHODS <- c("original", "birewire", "keeppathsize")

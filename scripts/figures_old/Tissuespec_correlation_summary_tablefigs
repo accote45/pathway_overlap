@@ -1,0 +1,399 @@
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+})
+
+# Root folder that contains the *_tissue_correlation_summary.csv files
+root <- "/Users/cotea02/Desktop/pathway_overlap"
+
+# Only look at these subsets on the x-axis
+subset_levels <- c("Top 50 Pathways", "Top 100 Pathways", "Top 250 Pathways", "Top 500 Pathways")
+
+# Recursively find summary CSVs (robust on macOS)
+files <- list.files(
+  path = root,
+  pattern = "_tissue_correlation_summary\\.csv$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+stopifnot("No *_tissue_correlation_summary.csv files found" = length(files) > 0)
+
+# Load and harmonize
+DT <- rbindlist(lapply(files, function(f) {
+  dt <- tryCatch(fread(f), error = function(e) NULL)
+  if (is.null(dt)) return(NULL)
+
+  # Use Spearman columns only; be robust to naming/types
+  if ("spearman_pvalue" %in% names(dt) && !"correlation_pvalue" %in% names(dt)) {
+    setnames(dt, "spearman_pvalue", "correlation_pvalue")
+  }
+  if (!is.numeric(dt$correlation_pvalue)) dt[, correlation_pvalue := as.numeric(correlation_pvalue)]
+  if (!is.numeric(dt$spearman_rho))       dt[, spearman_rho       := as.numeric(spearman_rho)]
+
+  dt
+}), fill = TRUE, use.names = TRUE)
+
+# Keep only desired methods
+method_order <- c("PvalueBeta", "BireWire_EmpPvalStdBeta", "KeepPathSize_EmpPvalStdBeta")
+DT <- DT[method %in% method_order]
+DT[, method := factor(method, levels = method_order)]
+
+# Exclude "All Pathways" and keep only the Top-N subsets we want
+DT <- DT[subset != "All Pathways"]
+DT <- DT[subset %in% subset_levels]
+DT[, subset := factor(subset, levels = subset_levels)]
+
+# Safety: drop rows with missing essentials
+DT <- DT[!is.na(trait) & !is.na(tissue_metric) & is.finite(correlation_pvalue) & is.finite(spearman_rho)]
+
+# 1) Method-independent tissue selection: one predefined tissue per trait
+candidate_tissues <- list(
+  Eosinophill_percentage = c("WholeBlood"),
+  Lymphocyte_count       = c("WholeBlood"),
+  Monocyte_percentage    = c("WholeBlood"),
+  HDL_cholesterol        = c("Liver"),
+  Lipoprotein_A          = c("Liver"),
+  Alkaline_phosphatase   = c("Liver"),
+  Vitamin_D              = c("SkinSunExposedLowerleg","Liver"),
+  cad                    = c("ArteryCoronary","ArteryTibial","HeartAtrialAppendage"),
+  ibd                    = c("SmallIntestineTerminalIleum","ColonSigmoid","ColonTransverse"),
+  scz                    = c("BrainCortex","BrainFrontalCortexBA9","BrainAnteriorCingulateCortexBA24")
+)
+
+available_tissues <- unique(DT$tissue_metric)
+pick_first_present <- function(cands, avail) {
+  hit <- intersect(cands, avail)
+  if (length(hit) == 0) NA_character_ else hit[1]
+}
+
+rep_map <- rbindlist(lapply(names(candidate_tissues), function(tr) {
+  data.table(trait = tr, tissue_metric = pick_first_present(candidate_tissues[[tr]], available_tissues))
+}), fill = TRUE)
+
+# Keep only traits where the chosen tissue exists in DT
+rep_map <- rep_map[!is.na(tissue_metric)]
+if (nrow(rep_map) == 0) stop("None of the mapped tissues are present in the data.")
+missing_traits <- setdiff(names(candidate_tissues), rep_map$trait)
+if (length(missing_traits) > 0) {
+  message("Traits skipped (preferred tissues not present in your summaries): ",
+          paste(missing_traits, collapse = ", "))
+}
+
+# Save the fixed, method-independent tissue choices
+fwrite(rep_map, file.path(root, "method_independent_tissue_choices.csv"))
+
+# 2) Keep only rows for the chosen tissue per trait (but all methods, all subsets, all tools)
+REP_DT <- merge(DT, rep_map, by = c("trait","tissue_metric"), all.x = FALSE, all.y = TRUE)
+
+# 3) Plot per trait: grouped bars with x = Top N Pathways (subset), bars = methods, y = spearman_rho
+#    Asterisks: * p<0.05, ** p<0.001, *** Bonferroni significant (per trait across all its tests)
+
+# Bonferroni denominator per trait = number of tests for that trait in the entire (filtered-to-TopN) table
+trait_tests <- DT[, .N, by = trait]
+setnames(trait_tests, "N", "n_tests_trait")
+
+# Prepare output dir
+out_dir <- file.path(root, "figs_top_tissue")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Helper to compute stars with precedence: *** (Bonf) > ** (1e-3) > * (0.05)
+add_sig_stars <- function(d, bonf_thr) {
+  d[, star := fifelse(correlation_pvalue <= bonf_thr, "***",
+               fifelse(correlation_pvalue < 1e-3,      "**",
+               fifelse(correlation_pvalue < 0.05,      "*", "")))]
+  # Position stars slightly above/below each bar
+  d[, vjust := ifelse(spearman_rho >= 0, -0.25, 1.25)]
+  d
+}
+
+# Loop over traits and generate one PDF per trait
+for (t in unique(REP_DT$trait)) {
+  D <- REP_DT[trait == t]
+
+  if (nrow(D) == 0) next
+
+  # ensure subset order
+  D[, subset := factor(as.character(subset), levels = subset_levels)]
+
+  # Bonferroni threshold for this trait
+  n_tests <- trait_tests[trait == t, n_tests_trait]
+  bonf_thr <- 0.05 / n_tests
+
+  D <- add_sig_stars(copy(D), bonf_thr)
+
+  # Expand y-limits a bit for labels
+  y_rng <- range(D$spearman_rho, na.rm = TRUE)
+  pad <- 0.1 * max(1e-6, diff(y_rng))
+  ylim <- c(y_rng[1] - pad, y_rng[2] + pad)
+
+  # Always facet by tool if there are multiple tools; otherwise single panel
+  n_tools <- data.table::uniqueN(D$tool_base)
+  facet_layer <-
+    if (n_tools > 1) list(facet_wrap(~tool_base, ncol = 1)) else list()
+
+  tissue_name <- unique(D$tissue_metric)
+  pdf(file.path(out_dir,
+      sprintf("bars_%s_top_tissue_%s.pdf",
+              gsub("[^A-Za-z0-9._-]", "_", t),
+              gsub("[^A-Za-z0-9._-]", "_", tissue_name))),
+      width = 9, height = if (n_tools > 1) 6 + 1.8 * (n_tools - 1) else 6)
+
+  p <- ggplot(D, aes(x = subset, y = spearman_rho, fill = method)) +
+    geom_hline(yintercept = 0, linewidth = 0.3, color = "grey50") +
+    geom_col(position = position_dodge(width = 0.75), width = 0.65, color = "grey20") +
+    geom_text(aes(label = star, vjust = vjust, group = method),
+              position = position_dodge(width = 0.75),
+              fontface = "bold", size = 4, color = "black") +
+    facet_layer +
+    coord_cartesian(ylim = ylim) +
+    labs(
+      title = sprintf("%s — Representative tissue: %s", t, tissue_name),
+      subtitle = "x: Top-N Pathways; bars: ranking methods; y: Spearman rho\nStars: * p<0.05, ** p<0.001, *** Bonferroni (per trait)",
+      x = "Top-N Pathways",
+      y = "Spearman rho",
+      fill = "Ranking method"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      axis.text.x = element_text(angle = 30, hjust = 1)
+    )
+
+  print(p)
+  dev.off()
+}
+
+message("Done. Plots written to: ", out_dir)
+
+# ============================
+# Method-comparison tables
+# ============================
+tables_dir <- file.path(out_dir, "tables")
+dir.create(tables_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Only keep columns needed for comparison (representative tissue rows only)
+compDT <- REP_DT[, .(trait, subset, tool_base, method, spearman_rho, correlation_pvalue)]
+# Ensure we have the three methods only (already filtered earlier, but keep defensive)
+methods3 <- c("BireWire_EmpPvalStdBeta","KeepPathSize_EmpPvalStdBeta","PvalueBeta")
+compDT <- compDT[method %in% methods3]
+
+# Helper: summarise wins for BireWire vs others at a given alpha gate.
+# Gate: keep trait × subset × tool groups where ANY method has p < alpha.
+summarise_bw_wins <- function(df, alpha_gate) {
+  if (nrow(df) == 0) return(NULL)
+  DF <- copy(df)
+  DF[, any_sig := any(is.finite(correlation_pvalue) & correlation_pvalue < alpha_gate),
+     by = .(trait, subset, tool_base)]
+  DF <- DF[any_sig == TRUE][, any_sig := NULL]
+  if (nrow(DF) == 0) return(NULL)
+
+  # Wide by method (one row per trait × subset × tool)
+  wide <- dcast(
+    DF,
+    trait + subset + tool_base ~ method,
+    value.var = "spearman_rho",
+    fun.aggregate = function(x) x[1]  # should be one per cell already
+  )
+
+  # Require all three methods present
+  need <- methods3
+  wide <- wide[complete.cases(wide[, ..need])]
+  if (nrow(wide) == 0) return(NULL)
+
+  bw  <- wide[["BireWire_EmpPvalStdBeta"]]
+  kps <- wide[["KeepPathSize_EmpPvalStdBeta"]]
+  pvb <- wide[["PvalueBeta"]]
+
+  # Deltas: competitor − BireWire; positive => BireWire is more negative (better)
+  delta_bw_kps  <- kps - bw
+  delta_bw_pvb  <- pvb - bw
+  best_other    <- pmin(kps, pvb, na.rm = TRUE)
+  delta_bw_both <- best_other - bw
+
+  rows <- data.table(
+    trait  = wide$trait,
+    subset = wide$subset,
+    tool_base = wide$tool_base,
+    delta_bw_kps  = delta_bw_kps,
+    delta_bw_pvb  = delta_bw_pvb,
+    delta_bw_both = delta_bw_both,
+    win_over_both = delta_bw_both > 0
+  )
+
+  # Per-subset summary (also split by tool if you prefer; keep it aggregated across tools by default)
+  summary <- rows[, .(
+    N_trait_subset_tool              = .N,
+    wins_bw_over_keepsize            = sum(delta_bw_kps  > 0, na.rm = TRUE),
+    wins_bw_over_pvaluebeta          = sum(delta_bw_pvb  > 0, na.rm = TRUE),
+    wins_bw_over_both_competitors    = sum(delta_bw_both > 0, na.rm = TRUE),
+    ties_strict                      = sum(delta_bw_both == 0, na.rm = TRUE),
+    median_delta_vs_keepsize         = median(delta_bw_kps, na.rm = TRUE),
+    median_delta_vs_pvaluebeta       = median(delta_bw_pvb, na.rm = TRUE),
+    median_delta_vs_best_competitor  = median(delta_bw_both, na.rm = TRUE)
+  ), by = subset][order(factor(subset, levels = levels(DF$subset)))]
+
+  list(summary = summary, rows = rows)
+}
+
+# Alpha thresholds
+alphas <- list(
+  p05        = 0.05,
+  p05_div552 = 0.05 / 552,
+  p05_div552x18 = 0.05 / (552 * 18)
+)
+
+# Compute and write outputs for each alpha
+for (nm in names(alphas)) {
+  res <- summarise_bw_wins(compDT, alphas[[nm]])
+  if (is.null(res)) {
+    message("No rows for alpha '", nm, "'.")
+    next
+  }
+  # existing per-subset and row-level outputs
+  fwrite(res$summary, file.path(tables_dir, sprintf("bw_wins_spearman_subset_summary_%s.csv", nm)))
+  fwrite(res$rows,    file.path(tables_dir, sprintf("bw_wins_spearman_rows_%s.csv", nm)))
+
+  # NEW: per-trait summary (same metrics as subset summary)
+  trait_summary <- res$rows[, .(
+    N_trait_subset_tool              = .N,
+    wins_bw_over_keepsize            = sum(delta_bw_kps  > 0, na.rm = TRUE),
+    wins_bw_over_pvaluebeta          = sum(delta_bw_pvb  > 0, na.rm = TRUE),
+    wins_bw_over_both_competitors    = sum(delta_bw_both > 0, na.rm = TRUE),
+    ties_strict                      = sum(delta_bw_both == 0, na.rm = TRUE),
+    median_delta_vs_keepsize         = median(delta_bw_kps, na.rm = TRUE),
+    median_delta_vs_pvaluebeta       = median(delta_bw_pvb, na.rm = TRUE),
+    median_delta_vs_best_competitor  = median(delta_bw_both, na.rm = TRUE)
+  ), by = trait][order(trait)]
+
+  fwrite(trait_summary, file.path(tables_dir, sprintf("bw_wins_spearman_trait_summary_%s.csv", nm)))
+
+  message("Wrote tables for alpha '", nm, "' to: ", tables_dir)
+}
+
+message("All tables written to: ", tables_dir)
+
+# ============================
+# Principled paired comparisons
+# ============================
+
+eval_dir <- file.path(out_dir, "paired_tests")
+dir.create(eval_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Prepare a wide table per cell (trait x tissue(rep) x subset x tool)
+eval_long <- REP_DT[
+  spearman_rho < 0 & method %in% methods3,
+  .(trait, tissue_metric, subset, tool_base, n_pathways, method, spearman_rho, correlation_pvalue)
+]
+
+# wide: one row per cell with three methods as columns
+eval_wide <- dcast(
+  eval_long,
+  trait + tissue_metric + subset + tool_base + n_pathways ~ method,
+  value.var = c("spearman_rho","correlation_pvalue"),
+  fun.aggregate = function(x) x[1]
+)
+
+# keep rows that have all three methods present
+keep_rows <- complete.cases(
+  eval_wide[, .(spearman_rho_BireWire_EmpPvalStdBeta,
+                spearman_rho_KeepPathSize_EmpPvalStdBeta,
+                spearman_rho_PvalueBeta)]
+)
+eval_wide <- eval_wide[keep_rows]
+
+# deltas (competitor − BireWire); positive => BireWire more negative (better)
+eval_wide[, `:=`(
+  delta_vs_keepsize = spearman_rho_KeepPathSize_EmpPvalStdBeta - spearman_rho_BireWire_EmpPvalStdBeta,
+  delta_vs_pvaluebeta = spearman_rho_PvalueBeta - spearman_rho_BireWire_EmpPvalStdBeta
+)]
+
+# Fisher z for secondary (approximate) modeling
+eval_wide[, `:=`(
+  z_bw  = atanh(spearman_rho_BireWire_EmpPvalStdBeta),
+  z_kps = atanh(spearman_rho_KeepPathSize_EmpPvalStdBeta),
+  z_pvb = atanh(spearman_rho_PvalueBeta),
+  se_z  = 1 / sqrt(pmax(n_pathways, 10) - 3)  # floor to avoid inf/NaN
+)]
+eval_wide[, `:=`(
+  dz_vs_kps = z_kps - z_bw,
+  dz_vs_pvb = z_pvb - z_bw
+)]
+
+# ---------- Primary: paired tests (signed-rank and sign test) ----------
+paired_tests <- function(df, delta_col) {
+  x <- df[[delta_col]]
+  x <- x[is.finite(x)]
+  if (length(x) < 3) return(data.table(
+    N = length(x), median_delta = median(x, na.rm = TRUE),
+    wilcoxon_p = NA_real_, sign_p = NA_real_,
+    pos = sum(x > 0), neg = sum(x < 0), ties = sum(x == 0)
+  ))
+  wt <- suppressWarnings(wilcox.test(x, mu = 0, alternative = "greater", exact = FALSE, paired = FALSE))
+  # binomial sign test: Pr(#positive >= observed | p=0.5)
+  s <- sum(x > 0); n <- sum(x != 0)
+  sign_p <- if (n > 0) pbinom(s - 1, n, 0.5, lower.tail = FALSE) else NA_real_
+  data.table(
+    N = length(x),
+    median_delta = median(x, na.rm = TRUE),
+    wilcoxon_p = wt$p.value,
+    sign_p = sign_p,
+    pos = s, neg = sum(x < 0), ties = sum(x == 0)
+  )
+}
+
+# overall and per-subset tests
+tests_overall <- rbindlist(list(
+  keepsize = paired_tests(eval_wide, "delta_vs_keepsize")[, comparator := "KeepPathSize_EmpPvalStdBeta"],
+  pvalue   = paired_tests(eval_wide, "delta_vs_pvaluebeta")[, comparator := "PvalueBeta"]
+), use.names = TRUE, fill = TRUE)
+
+tests_by_subset <- rbindlist(lapply(levels(REP_DT$subset), function(ss) {
+  d <- eval_wide[subset == ss]
+  rbindlist(list(
+    keepsize = paired_tests(d, "delta_vs_keepsize")[, comparator := "KeepPathSize_EmpPvalStdBeta"],
+    pvalue   = paired_tests(d, "delta_vs_pvaluebeta")[, comparator := "PvalueBeta"]
+  ))[, subset := ss]
+}), fill = TRUE)
+
+fwrite(tests_overall, file.path(eval_dir, "paired_tests_overall.csv"))
+fwrite(tests_by_subset, file.path(eval_dir, "paired_tests_by_subset.csv"))
+
+# ---------- Secondary: mixed-effects on Fisher z differences ----------
+# Does BireWire have a systematically more negative correlation?
+suppressPackageStartupMessages({ library(lme4); library(broom.mixed) })
+
+# model dz ~ 1 + (1|trait) + (1|subset) + (1|tool)
+fit_kps <- tryCatch(lmer(dz_vs_kps ~ 1 + (1|trait) + (1|subset) + (1|tool_base),
+                         data = eval_wide[is.finite(dz_vs_kps)]), error = identity)
+fit_pvb <- tryCatch(lmer(dz_vs_pvb ~ 1 + (1|trait) + (1|subset) + (1|tool_base),
+                         data = eval_wide[is.finite(dz_vs_pvb)]), error = identity)
+
+summ_kps <- if (inherits(fit_kps, "merMod")) broom.mixed::tidy(fit_kps, effects = "fixed") else NULL
+summ_pvb <- if (inherits(fit_pvb, "merMod")) broom.mixed::tidy(fit_pvb, effects = "fixed") else NULL
+if (!is.null(summ_kps)) summ_kps$comparison <- "KeepPathSize_EmpPvalStdBeta"
+if (!is.null(summ_pvb)) summ_pvb$comparison <- "PvalueBeta"
+mix_summ <- rbindlist(list(summ_kps, summ_pvb), fill = TRUE)
+
+fwrite(mix_summ, file.path(eval_dir, "mixed_effects_fisherZ_summary.csv"))
+
+# ---------- Diagnostics: where do wins come from? ----------
+# Count cases where only BireWire is significant vs only competitor significant at each alpha
+alpha_grid <- c(0.05, 0.05/552, 0.05/(552*18))
+sig_diag <- rbindlist(lapply(alpha_grid, function(a) {
+  tmp <- copy(eval_wide)
+  tmp[, `:=`(
+    bw_sig  = correlation_pvalue_BireWire_EmpPvalStdBeta < a,
+    kps_sig = correlation_pvalue_KeepPathSize_EmpPvalStdBeta < a,
+    pvb_sig = correlation_pvalue_PvalueBeta < a
+  )]
+  rbind(
+    tmp[, .(alpha = a, comparator = "KeepPathSize_EmpPvalStdBeta",
+            BW_sig_only = sum(bw_sig & !kps_sig), Comp_sig_only = sum(!bw_sig & kps_sig),
+            Both_sig = sum(bw_sig & kps_sig), Neither_sig = sum(!bw_sig & !kps_sig))],
+    tmp[, .(alpha = a, comparator = "PvalueBeta",
+            BW_sig_only = sum(bw_sig & !pvb_sig), Comp_sig_only = sum(!bw_sig & pvb_sig),
+            Both_sig = sum(bw_sig & pvb_sig), Neither_sig = sum(!bw_sig & !pvb_sig))]
+  )
+}), fill = TRUE)
+
+fwrite(sig_diag, file.path(eval_dir, "significance_diagnostics.csv"))
