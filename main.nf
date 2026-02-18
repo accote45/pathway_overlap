@@ -37,14 +37,6 @@ include {
 } from './modules/malacards/malacards_correlation.nf'
 
 include {
-    delta_rank_ot_correlation
-} from './modules/opentargets/delta_rank_ot.nf'
-
-include {
-    delta_rank_malacards_correlation
-} from './modules/malacards/delta_rank_malacards.nf'
-
-include {
     // GSA-MiXeR
     prepare_gsamixer_sumstats;
     split_gsamixer_sumstats;
@@ -61,10 +53,6 @@ include {
 include {
     calculate_fpr
 } from './modules/fpr/fpr_calculation.nf'
-
-include {
-    delta_rank_tissue_correlation
-} from './modules/tissuespecificity/delta_rank_tissue.nf'
 
 include {
     dorothea_correlation
@@ -494,91 +482,6 @@ workflow {
         }
     }
     
-    //////////////////////////////////////////
-    // DELTA-RANK CORRELATION WORKFLOW
-    //////////////////////////////////////////
-    if (params.run_empirical && (params.run_delta_rank_ot || params.run_delta_rank_malacards || params.run_delta_rank_tissue || params.run_delta_rank_dorothea)) {
-        log.info "Setting up delta-rank correlation analyses"
-
-        // Convert malacards_traits string to list for filtering
-        def malacards_trait_list = params.malacards_traits.tokenize(',').collect { it.trim().toLowerCase() }
-
-        // Helper to extract BireWire results with file paths
-        def birewire_only = { ch ->
-            ch.filter { trait, tool, emp_file ->
-                tool.contains('birewire')
-            }
-            .map { trait, tool, emp_file ->
-                def base_tool = tool.replace('_birewire', '')
-                [trait, base_tool, emp_file]
-            }
-        }
-
-        // MAGMA
-        if (params.run_magma) {
-            def magma_bw = birewire_only(magma_empirical_results)
-
-            // Restrict OT delta-rank to whitelist only
-            def magma_bw_ot = magma_bw.filter { trait, tool_base, birewire_file ->
-                params.opentargets_supported_traits.contains(trait)
-            }
-
-            // Restrict MalaCards delta-rank to malacards_traits list
-            def magma_bw_malacards = magma_bw.filter { trait, tool_base, birewire_file ->
-                malacards_trait_list.contains(trait.toLowerCase())
-            }
-
-            if (params.run_delta_rank_ot) {
-                log.info "Delta-rank OT correlation for MAGMA (whitelist only)"
-                delta_rank_ot_correlation(magma_bw_ot)
-            }
-            if (params.run_delta_rank_malacards) {
-                log.info "Delta-rank MalaCards correlation for MAGMA (malacards_traits only)"
-                delta_rank_malacards_correlation(magma_bw_malacards)
-            }
-            if (params.run_delta_rank_dorothea) {
-                log.info "Delta-rank Dorothea correlation for MAGMA"
-                delta_rank_dorothea_correlation(magma_bw)
-            }
-            if (params.run_delta_rank_tissue) {
-                log.info "Delta-rank Tissue correlation for MAGMA"
-                delta_rank_tissue_correlation(magma_bw)
-            }
-        }
-
-        // PRSet
-        if (params.run_prset) {
-            def prset_bw = birewire_only(prset_empirical_results)
-
-            // Restrict OT delta-rank to whitelist only
-            def prset_bw_ot = prset_bw.filter { trait, tool_base, birewire_file ->
-                params.opentargets_supported_traits.contains(trait)
-            }
-
-            // Restrict MalaCards delta-rank to malacards_traits list
-            def prset_bw_malacards = prset_bw.filter { trait, tool_base, birewire_file ->
-                malacards_trait_list.contains(trait.toLowerCase())
-            }
-
-            if (params.run_delta_rank_ot) {
-                log.info "Delta-rank OT correlation for PRSet (whitelist only)"
-                delta_rank_ot_correlation(prset_bw_ot)
-            }
-            if (params.run_delta_rank_malacards) {
-                log.info "Delta-rank MalaCards correlation for PRSet (malacards_traits only)"
-                delta_rank_malacards_correlation(prset_bw_malacards)
-            }
-            if (params.run_delta_rank_dorothea) {
-                log.info "Delta-rank Dorothea correlation for PRSet"
-                delta_rank_dorothea_correlation(prset_bw)
-            }
-            if (params.run_delta_rank_tissue) {
-                log.info "Delta-rank Tissue correlation for PRSet"
-                delta_rank_tissue_correlation(prset_bw)
-            }
-        }
-    }
-
     //////////////////////////////////////////
     // DOROTHEA CORRELATION WORKFLOW
     //////////////////////////////////////////

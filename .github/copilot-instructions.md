@@ -173,7 +173,7 @@ results/
 
 3. **MalaCards Integration** (`modules/malacards/`):
    - Disease-gene association validation
-   - Runs delta-rank correlation analysis
+   - Runs correlation analysis
    - No trait restrictions (unlike OpenTargets)
 
 **Critical Validation Dependencies:**

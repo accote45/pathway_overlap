@@ -16,7 +16,6 @@ A Nextflow DSL2 pipeline for pathway enrichment analysis across GWAS traits with
 - **Dual randomization strategies**: BiReWire (degree-preserving) and KeepPathSize (size-preserving) null models
 - **Empirical statistics**: Standardized effect sizes and empirical p-values from 1000+ permutations per method
 - **Multi-database validation**: OpenTargets gene-disease evidence, MalaCards disease associations, tissue expression specificity, DoRothEA regulatory networks
-- **Delta-rank correlation analyses**: Compare pathway ranking consistency across methods and biological relevance
 - **False positive rate analysis**: Assess method-specific FPR across randomized gene sets
 - **Flexible GWAS input**: JSON-configured column mapping for heterogeneous GWAS formats
 - **Trait filtering**: Automatic filtering for tool compatibility (e.g., SCZ excluded from PRSet)
@@ -98,7 +97,6 @@ params.run_ot_correlation = true          // OpenTargets validation
 params.run_tissue_correlation = true      // Tissue specificity analysis
 params.run_malacards_correlation = true   // MalaCards validation
 params.run_dorothea_correlation = true    // DoRothEA regulatory analysis
-params.run_delta_rank_* = true           // Delta-rank correlation analyses
 params.run_fpr_analysis = false          // False positive rate analysis
 ```
 
@@ -221,7 +219,7 @@ nextflow run main.nf \
 **MalaCards Integration:**  
 - Disease-gene association validation
 - **⚠️ Restricted to `params.malacards_traits` list**
-- Delta-rank correlation analysis
+- Correlation analysis
 - Outputs: pathway scores, correlation summaries
 
 **DoRothEA Regulatory Networks:**
@@ -229,12 +227,7 @@ nextflow run main.nf \
 - Correlates pathway rankings with regulatory interaction scores
 - Outputs: regulatory relevance summaries
 
-### 6. Delta-Rank Correlation Analyses
-- **Cross-method comparison**: Ranking consistency between BiReWire vs raw p-values
-- **Biological relevance**: Top pathway performance across validation databases  
-- **Tool-specific outputs**: Method comparison plots and correlation tables
-
-### 7. False Positive Rate Analysis (Optional)
+### 6. False Positive Rate Analysis (Optional)
 - **Method-specific FPR** calculation across randomized gene sets
 - **Pathway size effects** on false discovery rates
 - **Quality control** for enrichment methods
@@ -252,7 +245,6 @@ results/
 ├── tissue_correlation/{trait}/             # Tissue specificity analysis  
 ├── malacards_correlation/{trait}/          # MalaCards validation
 ├── dorothea_correlation/{trait}/           # DoRothEA regulatory analysis
-├── delta_rank_{validation}/{trait}/        # Delta-rank comparisons
 └── fpr_analysis/{tool}/{method}/           # False positive rates
 ```
 
