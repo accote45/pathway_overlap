@@ -55,6 +55,7 @@ random_networks <- birewire.sampler.bipartite(
   max.iter = "n",
   accuracy = 0.00005,
   verbose = TRUE,
+  path = getwd(),
   K = num_random_sets
 )
 
