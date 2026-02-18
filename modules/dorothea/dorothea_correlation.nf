@@ -18,7 +18,7 @@ process dorothea_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/validation/dorothea_correlation.R \\
+    Rscript ${params.scripts_dir}/validation/dorothea/dorothea_correlation.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${params.dorothea_scores_path}" \\
