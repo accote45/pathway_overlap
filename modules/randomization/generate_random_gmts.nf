@@ -18,6 +18,8 @@ process generate_birewire_random_gmts {
   
   script:
   """
+  module load R
+  
   echo "========================================="
   echo "BiRewire GMT Generation Process"
   echo "========================================="
