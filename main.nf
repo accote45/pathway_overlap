@@ -62,6 +62,10 @@ include {
     delta_rank_dorothea_correlation
 } from './modules/dorothea/delta_rank_dorothea.nf'
 
+include {
+    generate_birewire_random_gmts;
+} from './modules/randomization/generate_random_gmts.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -104,6 +108,28 @@ workflow {
     log.info "  Run MAGMA: ${params.run_magma}"
     log.info "  Run PRSet: ${params.run_prset}"
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
+    
+    //////////////////////////////////////////
+    // RANDOMIZATION SETUP
+    //////////////////////////////////////////
+    if (params.generate_random_gmts) {
+        log.info "========================================="
+        log.info "BiRewire Randomization Setup"
+        log.info "========================================="
+        log.info "Generating ${params.num_random_sets} randomized GMT files from:"
+        log.info "  ${params.geneset_real}"
+        log.info "Output will be saved to:"
+        log.info "  ${params.outdir}/randomized_gene_sets/random_birewire/"
+        log.info ""
+        log.info "Note: This process will use cached results if already completed"
+        log.info "      Run with -resume to skip if files already exist"
+        log.info "========================================="
+        
+        birewire_gmts = generate_birewire_random_gmts(
+            file(params.geneset_real),
+            params.num_random_sets
+        )
+    }
     
     // Initialize channels
     all_empirical_inputs = Channel.empty()
