@@ -216,86 +216,40 @@ for(ranking in ranking_methods) {
     
     cat(paste("  Found", nrow(merged_ranks), "pathways for", subset_name, "\n"))
     
-    # Create multiple PDFs with a reasonable number of tissues per file
-    # Maximum 9 tissues per PDF to keep plots readable
-    tissues_per_file <- 9
-    num_tissue_files <- ceiling(length(tissue_metrics) / tissues_per_file)
-    
-    for(file_num in 1:num_tissue_files) {
-      start_idx <- (file_num - 1) * tissues_per_file + 1
-      end_idx <- min(file_num * tissues_per_file, length(tissue_metrics))
+    # Calculate correlations for each tissue metric without generating plots
+    for(tissue_metric in tissue_metrics) {
+      metric <- tissue_metric$metric
+      metric_name <- tissue_metric$name
       
-      # Create a subset of tissues for this file
-      current_tissues <- tissue_metrics[start_idx:end_idx]
-      
-      # Create PDF filename
-      pdf_filename <- paste0(trait, "_", tool_base, "_", gsub("[[:punct:]]", "_", method_name), 
-                            "_", tolower(gsub(" ", "_", subset_name)), 
-                            "_tissue_correlation_", file_num, ".pdf")
-      
-      pdf(pdf_filename, width=15, height=15)
-      
-      # Calculate grid dimensions for plots
-      plot_dim <- ceiling(sqrt(length(current_tissues)))
-      
-      # Set up plot layout
-      par(mfrow=c(plot_dim, plot_dim))
-      
-      # For each tissue metric, calculate correlation and create plot
-      for(tissue_metric in current_tissues) {
-        metric <- tissue_metric$metric
-        metric_name <- tissue_metric$name
-        
-        # Skip if metric not available
-        if(!metric %in% colnames(merged_ranks)) {
-          cat("  Metric", metric, "not found in data - skipping\n")
-          next
-        }
-        
-        # Calculate Spearman and Kendall correlations
-        spearman_cor <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
-                                                  merged_ranks[[metric]],
-                                                  method = "spearman"))
-        kendall_cor  <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
-                                                  merged_ranks[[metric]],
-                                                  method = "kendall"))
-
-        # Create plot
-        plot(merged_ranks$pathway_rank, merged_ranks[[metric]],
-             main=paste(metric_name),
-             xlab="Pathway Rank",
-             ylab="Expression Tissue Specificity",
-             pch=19, col=rgb(0,0,1,0.3),
-             cex.main=0.8, cex.lab=0.8, cex.axis=0.7)
-        abline(lm(as.formula(paste(metric, "~ pathway_rank")), data=merged_ranks), col="red", lwd=1.5)
-        legend("topright",
-               legend=c(
-                 paste("Spearman rho =", round(as.numeric(spearman_cor$estimate), 3)),
-                 paste("p =", format.pval(spearman_cor$p.value, digits=2)),
-                 paste("Kendall tau =", round(as.numeric(kendall_cor$estimate), 3)),
-                 paste("p =", format.pval(kendall_cor$p.value, digits=2))
-               ),
-               bty="n", cex=0.7)
-
-        # Add to results dataframe
-        method_result <- data.frame(
-          trait = trait,
-          tool_base = tool_base,
-          method = method_name,
-          subset = subset_name,
-          tissue_metric = metric_name,
-          n_pathways = nrow(merged_ranks),
-          spearman_rho = unname(spearman_cor$estimate),
-          correlation_pvalue = spearman_cor$p.value,     # Spearman p-value (kept for backward compatibility)
-          kendall_tau = unname(kendall_cor$estimate),
-          kendall_pvalue = kendall_cor$p.value
-        )
-        
-        rank_correlation_results <- rbind(rank_correlation_results, method_result)
+      # Skip if metric not available
+      if(!metric %in% colnames(merged_ranks)) {
+        cat("  Metric", metric, "not found in data - skipping\n")
+        next
       }
       
-      dev.off()
-      cat("  Created correlation plots (file", file_num, "of", num_tissue_files, ") for", subset_name, "using", method_name, "\n")
+      # Calculate Spearman and Kendall correlations
+      spearman_cor <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
+                                                merged_ranks[[metric]],
+                                                method = "spearman"))
+      kendall_cor  <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
+                                                merged_ranks[[metric]],
+                                                method = "kendall"))
+
+      # Add to results dataframe
+      method_result <- data.frame(
+        trait = trait,
+        tool_base = tool_base,
+        method = method_name,
+        subset = subset_name,
+        tissue_metric = metric_name,
+        n_pathways = nrow(merged_ranks),
+        spearman_rho = unname(spearman_cor$estimate),
+        correlation_pvalue = spearman_cor$p.value,     # Spearman p-value (kept for backward compatibility)
+        kendall_tau = unname(kendall_cor$estimate),
+        kendall_pvalue = kendall_cor$p.value
+      )
+      
+      rank_correlation_results <- rbind(rank_correlation_results, method_result)
     }
   }
 }
@@ -303,7 +257,7 @@ for(ranking in ranking_methods) {
 # Write correlation results to CSV
 if(nrow(rank_correlation_results) > 0) {
   write_results_csv(rank_correlation_results, trait, tool_base, "_tissue_correlation_summary")
-    }
+}
 
 # Create a table of best performing methods per tissue
 best_methods_by_tissue <- rank_correlation_results %>%

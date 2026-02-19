@@ -14,11 +14,6 @@ process tissue_correlation_analysis {
     tuple val(trait), 
           val(tool_base),
           path("${trait}_${tool_base}_tissue_correlation_summary.csv"),
-          path("${trait}_${tool_base}_*_all_pathways_tissue_correlation_*.pdf"),
-          path("${trait}_${tool_base}_*_top_500_pathways_tissue_correlation_*.pdf"),
-          path("${trait}_${tool_base}_*_top_250_pathways_tissue_correlation_*.pdf"),
-          path("${trait}_${tool_base}_*_top_100_pathways_tissue_correlation_*.pdf"),
-          path("${trait}_${tool_base}_*_top_50_pathways_tissue_correlation_*.pdf"),
           path("${trait}_${tool_base}_best_method_by_tissue.csv")
 
     script:
