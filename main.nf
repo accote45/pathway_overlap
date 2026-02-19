@@ -161,8 +161,8 @@ workflow {
     }
 
     // Create completion signal that waits for BOTH randomization methods
-    gmt_ready_signal = Channel.value(birewire_dir)
-        .combine(Channel.value(keeppathsize_dir))
+    gmt_ready_signal = birewire_dir
+        .combine(keeppathsize_dir)
         .map { bw_dir, kp_dir -> 
             log.info "All random GMT files ready:"
             log.info "  BiRewire: ${bw_dir}"
