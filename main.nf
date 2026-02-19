@@ -59,10 +59,6 @@ include {
 } from './modules/dorothea/dorothea_correlation.nf'
 
 include {
-    delta_rank_dorothea_correlation
-} from './modules/dorothea/delta_rank_dorothea.nf'
-
-include {
     generate_birewire_random_gmts;
     generate_keeppathsize_random_gmts;
 } from './modules/randomization/generate_random_gmts.nf'

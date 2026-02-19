@@ -13,7 +13,7 @@ process calc_empirical_pvalues {
           val(tool), 
           path("${trait}_${tool}_empirical_pvalues.txt")
     
-    publishDir "${params.outdir}/empirical_pvalues/${tool}/${trait}", mode: 'copy', overwrite: true
+    publishDir "${params.outdir}/empirical_stats/${tool}/${trait}", mode: 'copy', overwrite: true
     
     script:
     def gmt_path = params.geneset_real
