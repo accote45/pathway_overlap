@@ -160,11 +160,15 @@ workflow {
         keeppathsize_dir = params.gmt_dirs.keeppathsize
     }
 
-    // Create a completion signal channel that emits after GMT generation
-    gmt_ready_signal = birewire_dir.map { dir -> 
-        log.info "Random GMT files ready at: ${dir}"
-        return "ready"
-    }
+    // Create completion signal that waits for BOTH randomization methods
+    gmt_ready_signal = Channel.value(birewire_dir)
+        .combine(Channel.value(keeppathsize_dir))
+        .map { bw_dir, kp_dir -> 
+            log.info "All random GMT files ready:"
+            log.info "  BiRewire: ${bw_dir}"
+            log.info "  KeepPathSize: ${kp_dir}"
+            return "ready"
+        }
     
     // Initialize channels
     all_empirical_inputs = Channel.empty()
