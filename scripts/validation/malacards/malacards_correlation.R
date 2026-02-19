@@ -253,8 +253,8 @@ for (ranking in ranking_methods) {
       method = method_name,
       subset = subset_label,
       n_pathways = nrow(df),
-      rank_mean_score_correlation = unname(sp_mean$estimate),
-      rank_mean_score_pvalue = sp_mean$p.value,
+      spearman_rho = unname(sp_mean$estimate),      # Changed from rank_mean_score_correlation
+      spearman_pvalue = sp_mean$p.value,            # Changed from rank_mean_score_pvalue
       stringsAsFactors = FALSE
     )
   }
