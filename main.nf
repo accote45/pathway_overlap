@@ -63,6 +63,22 @@ include {
     generate_keeppathsize_random_gmts;
 } from './modules/randomization/generate_random_gmts.nf'
 
+include {
+    delta_rank_ot_correlation
+} from './modules/opentargets/delta_rank_ot.nf'
+
+include {
+    delta_rank_tissue_correlation
+} from './modules/tissuespecificity/delta_rank_tissue.nf'
+
+include {
+    delta_rank_malacards_correlation
+} from './modules/malacards/delta_rank_malacards.nf'
+
+include {
+    delta_rank_dorothea_correlation
+} from './modules/dorothea/delta_rank_dorothea.nf'
+
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
@@ -437,6 +453,150 @@ workflow {
                 }
             
             gsamixer_fpr_results = calculate_fpr(gsamixer_fpr_inputs)
+        }
+    }
+    
+    //////////////////////////////////////////
+    // VALIDATION WORKFLOWS
+    //////////////////////////////////////////
+    
+    if (params.run_empirical) {
+        log.info "Setting up validation workflows"
+        
+        // Helper function to group empirical results by trait and base tool
+        def group_by_trait_tool = { ch ->
+            ch.map { trait, tool, emp_file ->
+                // Extract randomization method and base tool
+                def base_tool = tool.replaceAll(/_.*$/, '')  // Remove everything after first underscore
+                def rand_method = tool.replaceAll(/^.*_/, '') // Get everything after last underscore
+                [trait, base_tool, rand_method, emp_file]
+            }
+            .groupTuple(by: [0, 1]) // Group by trait and base_tool
+            .map { trait, base_tool, rand_methods, result_files ->
+                // Find indices for each randomization method
+                def birewire_idx = rand_methods.findIndexOf { it == 'birewire' }
+                def keeppathsize_idx = rand_methods.findIndexOf { it == 'keeppathsize' }
+                
+                // Only proceed if both randomization methods exist
+                if (birewire_idx != -1 && keeppathsize_idx != -1) {
+                    [trait, base_tool, result_files[birewire_idx], result_files[keeppathsize_idx]]
+                } else {
+                    log.warn "Missing randomization method for ${trait} with ${base_tool}"
+                    return null
+                }
+            }
+            .filter { it != null }
+        }
+        
+        // Convert malacards_traits string to list for filtering
+        def malacards_trait_list = params.malacards_traits.tokenize(',').collect { it.trim().toLowerCase() }
+        
+        //////////////////////////////////////////
+        // OPENTARGETS CORRELATION
+        //////////////////////////////////////////
+        if (params.run_ot_correlation) {
+            log.info "Running OpenTargets correlation analysis"
+            
+            // MAGMA
+            if (params.run_magma) {
+                log.info "OpenTargets correlation for MAGMA"
+                
+                magma_for_opentargets = group_by_trait_tool(magma_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        params.opentargets_supported_traits.contains(trait)
+                    }
+                
+                magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
+            }
+            
+            // PRSet
+            if (params.run_prset) {
+                log.info "OpenTargets correlation for PRSet"
+                
+                prset_for_opentargets = group_by_trait_tool(prset_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        params.opentargets_supported_traits.contains(trait)
+                    }
+                
+                prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
+            }
+        }
+        
+        //////////////////////////////////////////
+        // TISSUE CORRELATION
+        //////////////////////////////////////////
+        if (params.run_tissue_correlation) {
+            log.info "Running Tissue Specificity correlation analysis"
+            
+            // MAGMA
+            if (params.run_magma) {
+                log.info "Tissue correlation for MAGMA"
+                
+                magma_for_tissue_corr = group_by_trait_tool(magma_empirical_results)
+                tissue_correlation_analysis(magma_for_tissue_corr)
+            }
+            
+            // PRSet
+            if (params.run_prset) {
+                log.info "Tissue correlation for PRSet"
+                
+                prset_for_tissue_corr = group_by_trait_tool(prset_empirical_results)
+                tissue_correlation_analysis(prset_for_tissue_corr)
+            }
+        }
+        
+        //////////////////////////////////////////
+        // MALACARDS CORRELATION
+        //////////////////////////////////////////
+        if (params.run_malacards_correlation) {
+            log.info "Running MalaCards correlation analysis"
+            
+            // MAGMA
+            if (params.run_magma) {
+                log.info "MalaCards correlation for MAGMA"
+                
+                magma_for_malacards_corr = group_by_trait_tool(magma_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        malacards_trait_list.contains(trait.toLowerCase())
+                    }
+                
+                malacards_correlation(magma_for_malacards_corr)
+            }
+            
+            // PRSet
+            if (params.run_prset) {
+                log.info "MalaCards correlation for PRSet"
+                
+                prset_for_malacards_corr = group_by_trait_tool(prset_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        malacards_trait_list.contains(trait.toLowerCase())
+                    }
+                
+                malacards_correlation(prset_for_malacards_corr)
+            }
+        }
+        
+        //////////////////////////////////////////
+        // DOROTHEA CORRELATION
+        //////////////////////////////////////////
+        if (params.run_dorothea_correlation) {
+            log.info "Running DoRothEA correlation analysis"
+            
+            // MAGMA
+            if (params.run_magma) {
+                log.info "DoRothEA correlation for MAGMA"
+                
+                magma_for_dorothea_corr = group_by_trait_tool(magma_empirical_results)
+                dorothea_correlation(magma_for_dorothea_corr)
+            }
+            
+            // PRSet
+            if (params.run_prset) {
+                log.info "DoRothEA correlation for PRSet"
+                
+                prset_for_dorothea_corr = group_by_trait_tool(prset_empirical_results)
+                dorothea_correlation(prset_for_dorothea_corr)
+            }
         }
     }
 }
