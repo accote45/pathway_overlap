@@ -1,31 +1,31 @@
 # Pathway Overlap Pipeline – Comprehensive Pathway Enrichment Analysis with Empirical Validation
 
-A **Nextflow DSL2 pipeline** for pathway enrichment analysis across GWAS traits with rigorous empirical p-value computation via null models. This pipeline coordinates **three complementary enrichment tools** (MAGMA, PRSet, GSA-MiXeR) and validates results against multiple biological databases (OpenTargets, MalaCards, GTEx tissue specificity, DoRothEA regulatory networks).
+A **Nextflow DSL2 pipeline** for pathway enrichment analysis across GWAS traits with rigorous empirical p-value computation via null models. This pipeline coordinates **three complementary enrichment tools** (MAGMA, PRSet, GSA-MiXeR) and validates results against multiple databases (OpenTargets, MalaCards, GTEx tissue specificity, DoRothEA regulatory networks).
 
 ## Core Methodology
 
-**Problem**: Standard pathway enrichment methods produce inflated false positive rates due to gene-gene correlations and pathway size biases.
+**Problem**: Standard GWAS pathway enrichment methods do not account for the sharing of genes across pathways.
 
-**Solution**: This pipeline generates empirical null distributions through two randomization strategies:
+**Solution**: This pipeline adjusts real enrichment statistics for empirical null distributions generated through two gene randomization strategies:
 
 1. **Real pathway enrichment** → Run enrichment tools on actual curated gene sets  
-2. **Null model generation** → Run identical analyses on 1000 randomized gene sets per method
+2. **Null model generation** → Run identical analyses on K randomized gene sets per method
 3. **Empirical validation** → Calculate standardized effect sizes: `(real_beta - null_mean) / null_sd`
 4. **Biological validation** → Cross-reference top pathways with disease-relevant databases
 
 **Key Innovation**: The pipeline uses **two complementary null models**:
-- **BiReWire**: Preserves gene connectivity (genes maintain degree), randomizes pathway membership
-- **KeepPathSize**: Preserves pathway sizes, randomly samples genes from universe
+- **GSR**: Preserves gene frequency (genes maintain degree), randomizes pathway membership
+- **KeepPathSize**: Preserves pathway sizes, randomly samples genes with equal probability. This approach is in line with standard gene randomization and is provided for comparison to GSR.
 
-This dual approach distinguishes between **pathway size effects** and **gene network biases**.
+This dual approach distinguishes between **pathway size effects** and **pathway overlap biases**.
 
 ---
 
 ## Key Features
 
-✅ **Three enrichment methods**: MAGMA (gene-set analysis), PRSet (polygenic risk scores), GSA-MiXeR (mixed-model)  
-✅ **Dual randomization strategies**: BiReWire (connectivity-preserving) + KeepPathSize (size-preserving)  
-✅ **Robust empirical statistics**: 1000+ permutations per trait-method combination  
+✅ **Three pathway methods**: MAGMA, PRSet (polygenic risk scores), GSA-MiXeR
+✅ **Dual randomization strategies**: GSR (pathway overlap preserving) + KeepPathSize (pathway size-preserving)  
+✅ **Robust empirical statistics**: K+ permutations per trait-method combination  
 ✅ **Multi-database validation**: OpenTargets, MalaCards, GTEx tissues, DoRothEA networks  
 ✅ **False positive rate analysis**: Method-specific FPR quantification  
 ✅ **Flexible GWAS input**: JSON-configured column mapping for heterogeneous formats  
@@ -80,20 +80,18 @@ This dual approach distinguishes between **pathway size effects** and **gene net
    - Expected structure:
      ```
      data/randomized_gene_sets/
-     ├── random_birewire_10k/
+     ├── random_birewire/
      │   ├── GeneSet.random1.gmt
      │   ├── GeneSet.random2.gmt
-     │   └── ... (up to GeneSet.random1000.gmt)
-     └── random_keeppathsize_10k/
+     │   └── ... (up to GeneSet.random(k).gmt)
+     └── random_keeppathsize/
          ├── GeneSet.random1.gmt
          └── ... (same structure)
      ```
 
 3. **MAGMA reference panel** (1000 Genomes EUR):
    ```bash
-   # Download from MAGMA website
-   wget https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip
-   unzip g1000_eur.zip
+   # Download from MAGMA website: https://cncr.nl/research/magma/
    ```
 
 4. **PRSet UKB reference data**:
@@ -214,8 +212,8 @@ params {
   
   // Randomized gene sets
   gmt_dirs = [
-    birewire: "/data/randomized_gene_sets/random_birewire_10k",
-    keeppathsize: "/data/randomized_gene_sets/random_keeppathsize_10k"
+    birewire: "/data/randomized_gene_sets/random_birewire",
+    keeppathsize: "/data/randomized_gene_sets/random_keeppathsize"
   ]
   
   // Validation databases
@@ -288,10 +286,10 @@ nextflow run main.nf \
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │ 5. BIOLOGICAL VALIDATION (Parallel)                         │
-│    ├─ OpenTargets: Gene-disease evidence enrichment        │
-│    ├─ MalaCards: Disease-gene association correlation      │
-│    ├─ Tissue: GTEx tissue-specific expression correlation  │
-│    └─ DoRothEA: Regulatory pathway interaction correlation │
+│    ├─ OpenTargets: Gene-disease association                 │
+│    ├─ MalaCards: Disease-gene association                   │
+│    ├─ Tissue: GTEx tissue-specific expression               │
+│    └─ DoRothEA: Regulatory pathway interaction              │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -357,7 +355,7 @@ GO,gene_set,trait1_enrich_estimate,trait1_enrich_se,trait1_pval
 GO:0006915,apoptosis,0.234,0.045,0.0023
 GO:0007049,cell_cycle,-0.123,0.067,0.067
 ```
-**Note**: GSA-MiXeR p-values are NOT used—only enrichment estimates (beta values).
+**Note**: GSA-MiXeR p-values are NOT used—only enrichment estimates.
 
 #### Empirical Results Format
 
@@ -506,30 +504,15 @@ rs123 1    1000 A   G   50000  48000  2.34
 ---
 ## Randomization Strategy
 
-### Why Two Methods?
+### Why GSR?
 
-Pathway enrichment is confounded by:
-1. **Pathway size bias**: Larger pathways more likely to be significant by chance
-2. **Gene connectivity**: Hub genes appear in many pathways (degree distribution)
-3. **Genomic clustering**: Pathway genes often physically clustered on chromosomes
-
-**BiReWire** and **KeepPathSize** control for different biases:
-
-| Aspect | BiReWire | KeepPathSize |
-|--------|----------|--------------|
-| **Preserves** | Gene degree (# pathways per gene) | Pathway size (# genes per pathway) |
-| **Randomizes** | Which pathways contain gene | Which genes fill pathway |
-| **Controls for** | Gene connectivity + pathway size | Pathway size only |
-| **Runtime** | 12h (1000 permutations) | 2-4h (1000 permutations) |
-| **Algorithm** | Network rewiring (Markov chain) | Random sampling without replacement |
-
-### BiReWire Method
+### GSR Method
 
 **Algorithm**:
 ```
 1. Construct gene-pathway bipartite network (binary matrix)
 2. Iteratively swap edges to:
-   - Maintain row sums (genes keep same degree)
+   - Maintain row sums (genes belong to same number of pathways)
    - Maintain column sums (pathways keep same size)
    - Ensure no duplicate edges
 3. Converge to uniform distribution over all valid graphs
@@ -540,7 +523,7 @@ Pathway enrichment is confounded by:
 - Pathway Y has M genes → Still has M random genes
 - Gene-pathway associations completely randomized
 
-**Use case**: Tests whether pathway composition (specific gene combinations) matters beyond connectivity structure.
+**Use case**: Tests whether pathway enrichment mayyers beyond pathway overlap structure alone.
 
 ### KeepPathSize Method
 
@@ -554,12 +537,7 @@ Pathway enrichment is confounded by:
 3. Gene frequencies determined by sampling
 ```
 
-**Properties**:
-- Simpler, faster null model
-- Tests pathway size effects + random gene sampling
-- Does NOT preserve gene degree distribution
-
-**Use case**: Tests whether specific genes in pathway matter beyond pathway size alone.
+**Use case**: Tests whether pathway enrichment matters beyond pathway size alone.
 
 ### GMT File Structure
 
@@ -609,16 +587,6 @@ Rscript scripts/core/generate_keeppathsize_gmts.R \
 # Expect 2-4h runtime, 8GB RAM
 ```
 
-**Verification**:
-```bash
-# Check file counts
-find data/randomized_gene_sets/random_birewire_10k -name "*.gmt" | wc -l
-# Should output: 1000
-
-# Check file structure
-head -1 data/randomized_gene_sets/random_birewire_10k/GeneSet.random1.gmt
-```
-
 ---
 
 ## Biological Validation
@@ -629,9 +597,7 @@ head -1 data/randomized_gene_sets/random_birewire_10k/GeneSet.random1.gmt
 
 **Method**:
 1. Load disease-specific gene evidence from OpenTargets JSON files
-2. For each pathway, calculate evidence density: `# genes with evidence / total genes`
-3. Perform **size-matched comparison**: Top N pathways vs. size-matched control pathways
-4. Report enrichment advantage as Cohen's d effect size
+2. For each pathway, calculate average gene evidence score
 
 **Data requirements**:
 ```bash
@@ -677,16 +643,6 @@ opentargets_data/
 {trait}_{tool}_opentargets_comparison.pdf
 ```
 
-**Key metrics**:
-- `evidence_density`: Proportion of pathway genes with OpenTargets evidence
-- `advantage`: (Target evidence - Control evidence) / pooled SD
-- `p_value`: T-test or Mann-Whitney U significance
-
-**Common issues**:
-- Missing JSON files: Verify disease ID mapping in `scripts/validation/opentargets/OT_correlation_stats.R`
-- Empty results: Check that trait is in supported list
-- Large file sizes: JSON files can be 50-100GB; ensure sufficient disk space
-
 ### MalaCards Disease-Gene Associations
 
 **Purpose**: Correlate pathway rankings with MalaCards disease-gene relevance scores.
@@ -716,10 +672,6 @@ ENSG00000789012,42
 - `rho`: Spearman correlation between pathway ranks
 - `p_value`: Significance of correlation
 - `num_pathways`: Number of pathways with MalaCards evidence
-
-**Common issues**:
-- Missing ENSEMBL IDs: Ensure MalaCards files use ENSEMBL gene IDs (not HGNC symbols)
-- Trait name mismatch: MalaCards trait names must match GWAS JSON trait identifiers
 
 ### GTEx Tissue Specificity
 
@@ -861,51 +813,6 @@ KEGG_GLYCOLYSIS      0.0001     0.456       0.001          2.34             52
 REACTOME_APOPTOSIS   0.0234     -0.123      0.156         -0.89            147
 ```
 
-**Key interpretations**:
-
-1. **empirical_pval** (most important):
-   - Calculated as: `rank(real_beta among 1001 values) / 1001`
-   - < 0.001 → Top 0.1% of null distribution (strong enrichment)
-   - < 0.01 → Top 1% (moderate enrichment)
-   - < 0.05 → Top 5% (weak enrichment)
-   - **Use this for multiple testing correction** (e.g., Bonferroni: 0.05 / # pathways)
-
-2. **std_effect_size**:
-   - Standardized beta: `(real_beta - mean_null) / sd_null`
-   - Positive → Pathway enriched beyond null expectation
-   - Negative → Pathway depleted
-   - |z| > 2 → Effect size beyond 95% of null distribution
-   - |z| > 3 → Very strong effect
-
-3. **p_value** (original tool p-value):
-   - From MAGMA/PRSet/GSA-MiXeR directly
-   - **DO NOT use for significance testing** (inflated due to biases)
-   - Use only for ranking pathways within tool
-
-**Recommended filtering**:
-```r
-significant_pathways <- results %>%
-  filter(empirical_pval < 0.05 / n(),        # Bonferroni correction
-         abs(std_effect_size) > 2,           # Strong effect size
-         num_genes >= 15, num_genes <= 500)  # Size filters
-```
-
-### Comparing BiReWire vs. KeepPathSize
-
-**When they agree** (same pathways significant in both):
-- Strong evidence: Enrichment robust to both connectivity and size biases
-- High confidence in biological relevance
-
-**When BiReWire significant but KeepPathSize not**:
-- Pathway enrichment driven by gene connectivity structure
-- Hub genes (high degree) may inflate signal
-- Interpretation: Network architecture matters
-
-**When KeepPathSize significant but BiReWire not**:
-- Pathway enrichment driven by pathway size alone
-- Random genes of that size would show similar effect
-- Interpretation: May be false positive due to size bias
-
 ### Validation Results: OpenTargets
 
 **File**: `results/opentargets_correlation/{trait}/{trait}_{tool}_rank_correlation_summary.csv`
@@ -918,13 +825,8 @@ KeepPathSize,100,0.32,0.028,0.43,0.041
 ```
 
 **Interpretations**:
-- `rho`: Correlation between pathway rank and OpenTargets evidence density
+- `rho`: Correlation between pathway rank and OpenTargets pathway score
   - Positive → Top pathways have more known disease genes
-  - > 0.3 → Moderate biological validation
-  - > 0.5 → Strong biological validation
-- `advantage`: Effect size for evidence enrichment in top N vs. controls
-  - Cohen's d interpretation: 0.2=small, 0.5=medium, 0.8=large
-  - Positive → Top pathways significantly enriched for disease genes
 
 ### Validation Results: Tissue Specificity
 
@@ -932,8 +834,6 @@ KeepPathSize,100,0.32,0.028,0.43,0.041
 
 **Interpretation**:
 - Each row = one tissue × one method
-- Look for tissues with `rho > 0.3` and `p_value < 0.05`
-- Example: CAD shows strong correlation with heart tissue → biological plausibility
 
 ### False Positive Rate Analysis
 
@@ -955,123 +855,6 @@ REACTOME_APOPTOSIS   0.067     0.021     0.003      512
   - Use to identify pathways consistently ranked high by chance
 
 ---
-
-## Troubleshooting
-
-### Common Errors
-
-#### 1. Channel Grouping Issues
-
-**Symptom**: Empirical calculation fails with "random directory not found" or "no random files"
-
-**Diagnosis**:
-```bash
-# Check that exactly 1000 random files exist per trait-method
-find results/magma_random/birewire/msigdbgenes/t2d -name "*.gsa.out" | wc -l
-# Should output: 1000
-
-# Check for incomplete runs
-find work/ -name ".exitcode" -exec grep -l "1" {} \;
-```
-
-**Solution**:
-- Ensure randomization GMT files exist before starting pipeline
-- Check `params.gmt_dirs` paths are correct
-- Use `-resume` to restart from last successful step
-- Verify `groupTuple(by: [0, 2])` channel is collecting all 1000 results
-
-#### 2. Missing GMT Files
-
-**Symptom**: "No such file or directory: GeneSet.random123.gmt"
-
-**Solution**:
-```bash
-# Check GMT directory structure
-ls -lh data/randomized_gene_sets/random_birewire_10k/ | head
-# Should see GeneSet.random1.gmt through GeneSet.random1000.gmt
-
-# Verify file naming pattern (no extra extensions)
-find data/randomized_gene_sets -name "*.gmt.txt"  # Should be empty
-
-# Re-generate if needed
-Rscript scripts/core/generate_birewire_gmts.R \
-  --input data/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt \
-  --output data/randomized_gene_sets/random_birewire_10k \
-  --num_random 1000
-```
-
-#### 3. GWAS Column Mapping Errors
-
-**Symptom**: "Column 'SNP' not found in GWAS file"
-
-**Diagnosis**:
-```bash
-# Show column names with line numbers
-head -1 /path/to/gwas.txt | tr '\t' '\n' | nl
-
-# Check JSON configuration
-cat json_files/GWAS_input.json | jq '.[] | select(.trait=="t2d")'
-```
-
-**Solution**:
-- Ensure JSON column names **exactly match** GWAS headers (case-sensitive)
-- Check for extra whitespace in column names
-- Verify file is tab-delimited (not space-delimited)
-- Use `rsid_col`, not `snp_col` in JSON
-
-#### 4. Memory Failures (GSA-MiXeR)
-
-**Symptom**: "Killed" or "Out of memory" for GSA-MiXeR full models
-
-**Solution**:
-```groovy
-// In nextflow.config, increase memory
-process {
-  withName: gsamixer_plsa_full {
-    memory = '50G'  // Increase from default 40G
-    time = '36h'     // Increase time if needed
-  }
-}
-```
-
-**Monitoring**:
-```bash
-# Watch GSA-MiXeR memory usage
-watch 'ps aux | grep mixer.py | grep -v grep'
-```
-
-#### 5. PRSet Phenotype Misalignment
-
-**Symptom**: "Phenotype 't2d_resid' not found in phenotype file"
-
-**Solution**:
-```bash
-# Check phenotype file columns
-head -1 data/ukb/ukb_phenofile_forprset.txt | tr '\t' '\n' | grep "_resid"
-
-# Ensure trait names match between:
-# 1. JSON "trait" field
-# 2. Phenotype file column names
-# 3. PRSet --pheno-col parameter
-```
-
-#### 6. OpenTargets Empty Results
-
-**Symptom**: "No OpenTargets data found for disease ID: EFO_XXXXX"
-
-**Diagnosis**:
-```bash
-# Check trait is in supported list
-grep -i "opentargets_supported_traits" nextflow.config
-
-# Verify JSON file exists
-ls -lh ${params.opentargets_json_dir}/EFO_XXXXX.json
-```
-
-**Solution**:
-- Add trait to `params.opentargets_supported_traits` in `nextflow.config`
-- Download missing JSON files from OpenTargets FTP
-- Check disease ID mapping in `scripts/validation/opentargets/OT_correlation_stats.R`
 
 ### Scheduler Configuration
 
