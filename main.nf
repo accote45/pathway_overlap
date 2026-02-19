@@ -64,6 +64,7 @@ include {
 
 include {
     generate_birewire_random_gmts;
+    generate_keeppathsize_random_gmts;
 } from './modules/randomization/generate_random_gmts.nf'
 
 ////////////////////////////////////////////////////////////////////
