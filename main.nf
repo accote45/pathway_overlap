@@ -263,7 +263,13 @@ workflow {
             }
     
         real_prset_results = run_real_prset(prset_real_inputs)
-        
+
+        // Extract summary files from real PRSet results for empirical calculation
+        real_prset_for_combine = real_prset_results
+            .map { trait, summary_file, log_file, prsice_file, rand_method ->
+                tuple(trait, summary_file, rand_method)
+            }
+
         // **KEY FIX**: Wait for GMT generation before PRSet random sets
         prset_rand_inputs = deduplicated_gwas
             .combine(gmt_ready_signal)  // Wait for GMTs
