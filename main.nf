@@ -51,7 +51,9 @@ include {
 } from './modules/gsamixer/gsamixer_random.nf'
 
 include {
-    calculate_fpr
+    calculate_fpr as calculate_fpr_magma;
+    calculate_fpr as calculate_fpr_prset;
+    calculate_fpr as calculate_fpr_gsamixer;
 } from './modules/fpr/fpr_calculation.nf'
 
 include {
@@ -410,12 +412,12 @@ workflow {
             
             // Use the grouped random results from MAGMA workflow
             magma_fpr_inputs = random_results_grouped
-                .map { trait, random_files, rand_method ->  // Fix parameter order
+                .map { trait, rand_method, random_files ->
                     def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
                     tuple(trait, "magma", rand_method, random_files, random_dir)
                 }
             
-            magma_fpr_results = calculate_fpr(magma_fpr_inputs)
+            magma_fpr_results = calculate_fpr_magma(magma_fpr_inputs)
         }
         
         // PRSet FPR Analysis - wait for random results to complete  
@@ -431,7 +433,7 @@ workflow {
                     tuple(trait, "prset", rand_method, summary_files, random_dir)
                 }
             
-            prset_fpr_results = calculate_fpr(prset_fpr_inputs)
+            prset_fpr_results = calculate_fpr_prset(prset_fpr_inputs)
         }
         
         // GSA-MiXeR FPR Analysis - wait for random results to complete
@@ -440,12 +442,12 @@ workflow {
             
             // Use the grouped random results from GSA-MiXeR workflow
             gsamixer_fpr_inputs = random_gmt_full_grouped
-                .map { trait, random_files, rand_method ->  // Fix parameter order
+                .map { trait, rand_method, random_files ->
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
                     tuple(trait, "gsamixer", rand_method, random_files, random_dir)
                 }
             
-            gsamixer_fpr_results = calculate_fpr(gsamixer_fpr_inputs)
+            gsamixer_fpr_results = calculate_fpr_gsamixer(gsamixer_fpr_inputs)
         }
     }
     
