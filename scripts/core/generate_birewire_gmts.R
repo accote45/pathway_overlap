@@ -6,6 +6,7 @@
 library(BiRewire)
 library(data.table)
 library(GSA)
+library(slam)  # For reading BiRewire's sparse matrix format
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 3) {
@@ -64,8 +65,7 @@ birewire.sampler.bipartite(
 cat("\n\nBiRewire sampling complete!\n")
 cat("Loading randomized networks from batch directories and converting to GMT format...\n\n")
 
-# BiRewire creates numbered directories (1, 2, 3, ...) with network files
-# Each directory contains: network_N, network_N.clabel, network_N.rlabel
+# BiRewire creates numbered directories (1, 2, 3, ...) with network files in sparse format
 batch_dirs <- list.dirs(birewire_temp_dir, recursive = FALSE, full.names = TRUE)
 batch_dirs <- batch_dirs[grepl("^[0-9]+$", basename(batch_dirs))]  # Only numeric directory names
 batch_dirs <- batch_dirs[order(as.integer(basename(batch_dirs)))]  # Sort numerically
@@ -76,18 +76,25 @@ if (length(batch_dirs) == 0) {
 
 cat("Found", length(batch_dirs), "BiRewire batch directories\n\n")
 
-# Get pathway and gene names from original matrix
-pathway_names <- colnames(bin_matrix)
-gene_names <- rownames(bin_matrix)
-
-# Function to convert a matrix to GMT format
-write_matrix_to_gmt <- function(matrix_obj, output_file, pathway_names, gene_names) {
+# Function to convert a sparse matrix to GMT format
+write_sparse_to_gmt <- function(sparse_mat, output_file) {
+  # Convert sparse matrix to dense matrix
+  dense_mat <- as.matrix(sparse_mat)
+  
+  # Get labels
+  pathway_names <- colnames(dense_mat)
+  gene_names <- rownames(dense_mat)
+  description_placeholder <- "PLACEHOLDER"
+  
+  # Open GMT file for writing
   gmt_con <- file(output_file, "w")
   
-  for (j in 1:ncol(matrix_obj)) {
-    gene_indices <- which(matrix_obj[, j] != 0)
+  # Loop over each pathway (column)
+  for (j in 1:ncol(dense_mat)) {
+    # Get genes (rows) that are non-zero
+    gene_indices <- which(dense_mat[, j] != 0)
     if (length(gene_indices) > 0) {
-      line <- c(pathway_names[j], "PLACEHOLDER", gene_names[gene_indices])
+      line <- c(pathway_names[j], description_placeholder, gene_names[gene_indices])
       writeLines(paste(line, collapse = "\t"), con = gmt_con)
     }
   }
@@ -99,39 +106,27 @@ write_matrix_to_gmt <- function(matrix_obj, output_file, pathway_names, gene_nam
 global_network_counter <- 1
 
 for (batch_dir in batch_dirs) {
-  # Find all network files in this batch directory
-  network_files <- list.files(batch_dir, pattern = "^network_[0-9]+$", full.names = TRUE)
-  network_files <- network_files[order(as.integer(sub(".*network_", "", network_files)))]  # Sort by network number
+  # Find all network files in this batch directory (files without extensions)
+  all_files <- list.files(batch_dir, full.names = TRUE)
+  network_files <- all_files[!grepl("\\.(clabel|rlabel)$", all_files)]
+  
+  # Extract network numbers and sort
+  network_numbers <- as.integer(sub(".*network_", "", basename(network_files)))
+  network_files <- network_files[order(network_numbers)]
   
   cat("Processing batch directory:", basename(batch_dir), "with", length(network_files), "networks\n")
   
   for (network_file in network_files) {
     network_base <- basename(network_file)
-    clabel_file <- file.path(batch_dir, paste0(network_base, ".clabel"))
-    rlabel_file <- file.path(batch_dir, paste0(network_base, ".rlabel"))
     
-    # Verify all three files exist
-    if (!file.exists(network_file) || !file.exists(clabel_file) || !file.exists(rlabel_file)) {
-      warning("Missing files for ", network_base, " in ", basename(batch_dir), ". Skipping.")
-      next
-    }
-    
-    # Read the network matrix and labels
+    # Read the network using slam's CLUTO format reader
     tryCatch({
-      # Read binary matrix
-      random_mat <- as.matrix(read.table(network_file, header = FALSE))
+      # Read sparse matrix from BiRewire's CLUTO format
+      sparse_mat <- read_stm_CLUTO(network_file)
       
-      # Read labels (BiRewire saves these as simple text files, one label per line)
-      row_labels <- readLines(rlabel_file)
-      col_labels <- readLines(clabel_file)
-      
-      # Assign labels to matrix
-      rownames(random_mat) <- row_labels
-      colnames(random_mat) <- col_labels
-      
-      # Write GMT file with global counter (GeneSet.random1.gmt, GeneSet.random2.gmt, ...)
+      # Write GMT file with global counter
       gmt_file <- file.path(output_dir, paste0("GeneSet.random", global_network_counter, ".gmt"))
-      write_matrix_to_gmt(random_mat, gmt_file, col_labels, row_labels)
+      write_sparse_to_gmt(sparse_mat, gmt_file)
       
       if (global_network_counter %% 100 == 0 || global_network_counter == 1) {
         cat("  Generated GMT file", global_network_counter, "of", num_random_sets, "\n")
