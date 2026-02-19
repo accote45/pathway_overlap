@@ -118,7 +118,6 @@ for (ranking in ranking_methods) {
   add_corr_row <- function(df, subset_label) {
     if (nrow(df) <= 1) return(NULL)
     sp_mean <- suppressWarnings(cor.test(df$pathway_rank, df$score, method = "spearman"))
-    kd_mean <- suppressWarnings(cor.test(df$pathway_rank, df$score, method = "kendall"))
     data.frame(
       trait = trait,
       tool_base = tool_base,
@@ -127,8 +126,6 @@ for (ranking in ranking_methods) {
       n_pathways = nrow(df),
       rank_mean_score_correlation = unname(sp_mean$estimate),
       rank_mean_score_pvalue = sp_mean$p.value,
-      kendall_mean_score_tau = unname(kd_mean$estimate),
-      kendall_mean_score_pvalue = kd_mean$p.value,
       stringsAsFactors = FALSE
     )
   }

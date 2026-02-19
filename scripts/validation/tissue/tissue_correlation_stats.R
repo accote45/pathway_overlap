@@ -227,13 +227,10 @@ for(ranking in ranking_methods) {
         next
       }
       
-      # Calculate Spearman and Kendall correlations
+      # Calculate Spearman correlation only
       spearman_cor <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
                                                 merged_ranks[[metric]],
                                                 method = "spearman"))
-      kendall_cor  <- suppressWarnings(cor.test(merged_ranks$pathway_rank,
-                                                merged_ranks[[metric]],
-                                                method = "kendall"))
 
       # Add to results dataframe
       method_result <- data.frame(
@@ -244,9 +241,7 @@ for(ranking in ranking_methods) {
         tissue_metric = metric_name,
         n_pathways = nrow(merged_ranks),
         spearman_rho = unname(spearman_cor$estimate),
-        correlation_pvalue = spearman_cor$p.value,     # Spearman p-value (kept for backward compatibility)
-        kendall_tau = unname(kendall_cor$estimate),
-        kendall_pvalue = kendall_cor$p.value
+        correlation_pvalue = spearman_cor$p.value
       )
       
       rank_correlation_results <- rbind(rank_correlation_results, method_result)

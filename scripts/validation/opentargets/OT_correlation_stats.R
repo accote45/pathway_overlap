@@ -232,8 +232,6 @@ for(ranking in ranking_methods) {
     if (nrow(df) <= 1) return(NULL)
     sp_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "spearman"))
     sp_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "spearman"))
-    kd_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "kendall"))
-    kd_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "kendall"))
     data.frame(
       trait = trait,
       tool_base = tool_base,
@@ -244,10 +242,6 @@ for(ranking in ranking_methods) {
       rank_mean_score_pvalue = sp_mean$p.value,
       rank_evidence_density_correlation = unname(sp_den$estimate),
       rank_evidence_density_pvalue = sp_den$p.value,
-      kendall_mean_score_tau = unname(kd_mean$estimate),
-      kendall_mean_score_pvalue = kd_mean$p.value,
-      kendall_evidence_density_tau = unname(kd_den$estimate),
-      kendall_evidence_density_pvalue = kd_den$p.value,
       stringsAsFactors = FALSE
     )
   }
