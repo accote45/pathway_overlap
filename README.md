@@ -386,3 +386,36 @@ If you use this pipeline, please cite:
 ## License
 
 MIT License - see `LICENSE` file for details.
+
+## Randomization Strategy
+- **BiReWire:** Preserves degree distribution, changes gene-pathway associations
+  - Runtime: 6-12 hours for 1000 permutations
+  - Memory: 15GB
+  - Uses degree-preserving network randomization
+  
+- **KeepPathSize:** Maintains pathway sizes, randomly samples genes
+  - Runtime: 2-4 hours for 1000 permutations  
+  - Memory: 8GB
+  - Random sampling without replacement from all available genes
+  
+- Both methods generate 1000 permutations per trait-method combination
+- GMT files stored in `params.gmt_dirs[method]` directories
+- **Critical:** Randomization MUST complete before enrichment analyses begin
+
+**GMT File Organization:**
+```
+data/randomized_gene_sets/
+├── random_birewire/
+│   ├── GeneSet.random1.gmt
+│   ├── GeneSet.random2.gmt
+│   └── ... (up to GeneSet.random1000.gmt)
+└── random_keeppathsize/
+    ├── GeneSet.random1.gmt
+    └── ... (same pattern)
+```
+
+**Randomization Algorithm Details:**
+- **BiReWire:** Uses degree-preserving network randomization - genes maintain same number of pathway memberships but in different pathways
+- **KeepPathSize:** Pathways maintain exact size, genes randomly reassigned from entire gene universe - pathway functional coherence is disrupted
+- Both generate identical file naming: `GeneSet.random{1-1000}.gmt`
+- KeepPathSize is faster as it only performs random sampling, no network rewiring

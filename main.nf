@@ -117,24 +117,48 @@ workflow {
     
     if (params.generate_random_gmts) {
         log.info "========================================="
-        log.info "BiRewire Randomization Setup"
+        log.info "Randomization Setup"
         log.info "========================================="
         log.info "Generating ${params.num_random_sets} randomized GMT files"
         log.info "This MUST complete before random enrichment analyses"
         log.info "========================================="
         
-        birewire_gmts = generate_birewire_random_gmts(
+        // Generate BiRewire random GMTs
+        log.info "Starting BiRewire randomization..."
+        generate_birewire_random_gmts(
             file(params.geneset_real),
             params.num_random_sets
         )
+        birewire_dir = generate_birewire_random_gmts.out.birewire_dir
         
-        // Wait for GMT generation to complete and get the directory path
-        birewire_dir = birewire_gmts.birewire_dir
+        // Generate KeepPathSize random GMTs
+        log.info "Starting KeepPathSize randomization..."
+        generate_keeppathsize_random_gmts(
+            file(params.geneset_real),
+            params.num_random_sets
+        )
+        keeppathsize_dir = generate_keeppathsize_random_gmts.out.keeppathsize_dir
+        
+        // Wait for both to complete before proceeding
+        Channel.empty()
+            .mix(
+                generate_birewire_random_gmts.out.gmt_files,
+                generate_keeppathsize_random_gmts.out.gmt_files
+            )
+            .collect()
+            .subscribe {
+                log.info "========================================="
+                log.info "Randomization Complete!"
+                log.info "BiRewire files: ${birewire_dir}"
+                log.info "KeepPathSize files: ${keeppathsize_dir}"
+                log.info "========================================="
+            }
     } else {
-        // Use existing GMT directories
-        birewire_dir = Channel.value(params.gmt_dirs['birewire'])
+        log.info "Using existing randomized GMT files"
+        birewire_dir = params.gmt_dirs.birewire
+        keeppathsize_dir = params.gmt_dirs.keeppathsize
     }
-    
+
     // Create a completion signal channel that emits after GMT generation
     gmt_ready_signal = birewire_dir.map { dir -> 
         log.info "Random GMT files ready at: ${dir}"
@@ -209,7 +233,7 @@ workflow {
     }
     
     //////////////////////////////////////////
-    // PRSET WORKFLOW - WAIT FOR GMTs
+    // PRSet WORKFLOW - WAIT FOR GMTs
     //////////////////////////////////////////
     if (params.run_prset) {
         log.info "Running PRSet analysis for all traits"
