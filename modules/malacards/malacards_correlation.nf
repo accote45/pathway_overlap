@@ -26,7 +26,7 @@ process malacards_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/validation/malacards_correlation.R \\
+    Rscript ${params.scripts_dir}/validation/malacards/malacards_correlation.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${params.malacards_path}" \\

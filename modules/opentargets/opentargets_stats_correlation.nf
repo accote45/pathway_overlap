@@ -19,7 +19,7 @@ process opentargets_stats_correlation {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/validation/OT_correlation_stats.R \\
+    Rscript ${params.scripts_dir}/validation/opentargets/OT_correlation_stats.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${birewire_results}" \\
