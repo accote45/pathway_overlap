@@ -240,7 +240,10 @@ workflow {
         log.info "Running PRSet analysis for all traits"
         
         prset_dedup_data = trait_data
-            .filter { trait_tuple -> trait_tuple[0].toUpperCase() != "SCZ" }
+            .filter { trait_tuple -> 
+                def trait = trait_tuple[0].toUpperCase()
+                trait != "SCZ" && trait != "IBD" && trait != "AD"
+            }
             .map { trait_tuple ->
                 def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                      binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
