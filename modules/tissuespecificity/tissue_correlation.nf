@@ -24,7 +24,7 @@ process tissue_correlation_analysis {
     script:
     """
     module load R
-    Rscript ${params.scripts_dir}/validation/tissue_correlation_stats.R \\
+    Rscript ${params.scripts_dir}/validation/tissue/tissue_correlation_stats.R \\
       "${trait}" \\
       "${tool_base}" \\
       "${params.tissue_expression_data}" \\
