@@ -227,7 +227,7 @@ for(ranking in ranking_methods) {
       method = method_name,
       subset = subset_label,
       n_pathways = nrow(df),
-      spearman_rho = unname(sp_mean$estimate),
+      spearman_rho = -unname(sp_mean$estimate),  # Flip sign: positive = concordance
       spearman_pvalue = sp_mean$p.value,
       stringsAsFactors = FALSE
     )

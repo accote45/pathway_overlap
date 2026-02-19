@@ -231,7 +231,7 @@ for(ranking in ranking_methods) {
         subset = subset_name,
         tissue_metric = metric_name,
         n_pathways = nrow(merged_ranks),
-        spearman_rho = unname(spearman_cor$estimate),
+        spearman_rho = -unname(spearman_cor$estimate),  # Flip sign
         correlation_pvalue = spearman_cor$p.value
       )
       
