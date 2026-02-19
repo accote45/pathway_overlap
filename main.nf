@@ -63,22 +63,6 @@ include {
     generate_keeppathsize_random_gmts;
 } from './modules/randomization/generate_random_gmts.nf'
 
-include {
-    delta_rank_ot_correlation
-} from './modules/opentargets/delta_rank_ot.nf'
-
-include {
-    delta_rank_tissue_correlation
-} from './modules/tissuespecificity/delta_rank_tissue.nf'
-
-include {
-    delta_rank_malacards_correlation
-} from './modules/malacards/delta_rank_malacards.nf'
-
-include {
-    delta_rank_dorothea_correlation
-} from './modules/dorothea/delta_rank_dorothea.nf'
-
 ////////////////////////////////////////////////////////////////////
 //                  Setup Channels
 ////////////////////////////////////////////////////////////////////
