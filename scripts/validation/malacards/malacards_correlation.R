@@ -247,7 +247,6 @@ for (ranking in ranking_methods) {
   add_corr_row <- function(df, subset_label) {
     if (nrow(df) <= 1) return(NULL)
     sp_mean <- suppressWarnings(cor.test(df$pathway_rank, df$mean_score, method = "spearman"))
-    sp_den  <- suppressWarnings(cor.test(df$pathway_rank, df$evidence_density, method = "spearman"))
     data.frame(
       trait = trait,
       tool_base = tool_base,
@@ -256,8 +255,6 @@ for (ranking in ranking_methods) {
       n_pathways = nrow(df),
       rank_mean_score_correlation = unname(sp_mean$estimate),
       rank_mean_score_pvalue = sp_mean$p.value,
-      rank_evidence_density_correlation = unname(sp_den$estimate),
-      rank_evidence_density_pvalue = sp_den$p.value,
       stringsAsFactors = FALSE
     )
   }
