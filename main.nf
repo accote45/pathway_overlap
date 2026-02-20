@@ -25,7 +25,8 @@ include {
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
-    tissue_correlation_analysis
+    tissue_correlation_analysis as tissue_correlation_magma;
+    tissue_correlation_analysis as tissue_correlation_prset;
 } from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
@@ -531,7 +532,7 @@ workflow {
                 log.info "Tissue correlation for MAGMA"
                 
                 magma_for_tissue_corr = group_by_trait_tool(magma_empirical_results)
-                tissue_correlation_analysis(magma_for_tissue_corr)
+                tissue_correlation_magma(magma_for_tissue_corr)
             }
             
             // PRSet
@@ -539,7 +540,7 @@ workflow {
                 log.info "Tissue correlation for PRSet"
                 
                 prset_for_tissue_corr = group_by_trait_tool(prset_empirical_results)
-                tissue_correlation_analysis(prset_for_tissue_corr)
+                tissue_correlation_prset(prset_for_tissue_corr)
             }
         }
         
