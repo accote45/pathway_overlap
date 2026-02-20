@@ -98,11 +98,33 @@ calculate_pathway_fpr <- function(file_data, config) {
   # Find significant pathways across all permutations
   significant_pathways <- all_data[[config$pathway_col]][all_data[[config$pval_col]] < config$sig_threshold]
   
+  total_files <- length(file_data)
+  
+  # Handle case where no pathways are significant
+  if (length(significant_pathways) == 0) {
+    cat("No significant pathways found (all FPRs = 0)\n")
+    
+    # Get all unique pathway names from the data
+    all_pathways <- unique(all_data[[config$pathway_col]])
+    
+    fpr_results <- data.frame(
+      pathway_name = all_pathways,
+      significant_count = 0,
+      fpr = 0,
+      total_permutations = total_files,
+      trait = trait,
+      tool = tool_base,
+      randomization_method = rand_method,
+      stringsAsFactors = FALSE
+    )
+    
+    return(fpr_results)
+  }
+  
   # Count frequency of each pathway being significant
   pathway_counts <- table(significant_pathways)
   
   # Calculate FPR (frequency / total number of files)
-  total_files <- length(file_data)
   fpr_results <- data.frame(
     pathway_name = names(pathway_counts),
     significant_count = as.vector(pathway_counts),
