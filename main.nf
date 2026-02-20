@@ -415,8 +415,9 @@ workflow {
             log.info "Calculating FPR for MAGMA random results"
             
             // Use the grouped random results from MAGMA workflow
+            // Structure after groupTuple(by: [0, 2]) is: [trait, [files...], rand_method]
             magma_fpr_inputs = random_results_grouped
-                .map { trait, rand_method, random_files ->
+                .map { trait, random_files, rand_method ->  // Corrected order
                     def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
                     tuple(trait, "magma", rand_method, random_files, random_dir)
                 }
@@ -430,7 +431,7 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-                .map { trait, rand_method, random_files_list ->  
+                .map { trait, random_files_list, rand_method ->  // Corrected order
                     // Flatten the list of file lists and filter for .summary files only
                     def summary_files = random_files_list.flatten().findAll { it.toString().endsWith('.summary') }
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
