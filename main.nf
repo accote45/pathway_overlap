@@ -431,9 +431,17 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-                .map { trait, random_files_list, rand_method ->  // Corrected order
-                    // Flatten the list of file lists and filter for .summary files only
-                    def summary_files = random_files_list.flatten().findAll { it.toString().endsWith('.summary') }
+                .map { trait, rand_method, random_files_list ->  // FIXED ORDER
+                    // Filter for .summary files - files are already flat paths
+                    def summary_files = random_files_list.findAll { file ->
+                        file.toString().endsWith('.summary')
+                    }
+                    
+                    if (summary_files.isEmpty()) {
+                        log.warn "No .summary files found for ${trait} ${rand_method}"
+                        return null
+                    }
+                    
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
                     tuple(trait, "prset", rand_method, summary_files, random_dir)
                 }
