@@ -29,12 +29,19 @@ include {
 } from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
-    opentargets_stats_correlation;
+    opentargets_stats_correlation as opentargets_correlation_magma;
+    opentargets_stats_correlation as opentargets_correlation_prset;
 } from './modules/opentargets/opentargets_stats_correlation.nf'
 
 include {
-    malacards_correlation;
+    malacards_correlation as malacards_correlation_magma;
+    malacards_correlation as malacards_correlation_prset;
 } from './modules/malacards/malacards_correlation.nf'
+
+include {
+    dorothea_correlation as dorothea_correlation_magma;
+    dorothea_correlation as dorothea_correlation_prset;
+} from './modules/dorothea/dorothea_correlation.nf'
 
 include {
     // GSA-MiXeR
@@ -55,10 +62,6 @@ include {
     calculate_fpr as calculate_fpr_prset;
     calculate_fpr as calculate_fpr_gsamixer;
 } from './modules/fpr/fpr_calculation.nf'
-
-include {
-    dorothea_correlation
-} from './modules/dorothea/dorothea_correlation.nf'
 
 include {
     generate_birewire_random_gmts;
@@ -250,7 +253,7 @@ workflow {
                 def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                      binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                     summary_statistic_name, summary_statistic_type, "common")
+                      summary_statistic_name, summary_statistic_type, "common")
             }
         
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
@@ -501,7 +504,7 @@ workflow {
                         params.opentargets_supported_traits.contains(trait)
                     }
                 
-                magma_opentargets_correlation = opentargets_stats_correlation(magma_for_opentargets)
+                magma_opentargets_correlation = opentargets_correlation_magma(magma_for_opentargets)
             }
             
             // PRSet
@@ -513,7 +516,7 @@ workflow {
                         params.opentargets_supported_traits.contains(trait)
                     }
                 
-                prset_opentargets_correlation = opentargets_stats_correlation(prset_for_opentargets)
+                prset_opentargets_correlation = opentargets_correlation_prset(prset_for_opentargets)
             }
         }
         
@@ -555,7 +558,7 @@ workflow {
                         malacards_trait_list.contains(trait.toLowerCase())
                     }
                 
-                malacards_correlation(magma_for_malacards_corr)
+                malacards_correlation_magma(magma_for_malacards_corr)
             }
             
             // PRSet
@@ -567,7 +570,7 @@ workflow {
                         malacards_trait_list.contains(trait.toLowerCase())
                     }
                 
-                malacards_correlation(prset_for_malacards_corr)
+                malacards_correlation_prset(prset_for_malacards_corr)
             }
         }
         
@@ -582,7 +585,7 @@ workflow {
                 log.info "DoRothEA correlation for MAGMA"
                 
                 magma_for_dorothea_corr = group_by_trait_tool(magma_empirical_results)
-                dorothea_correlation(magma_for_dorothea_corr)
+                dorothea_correlation_magma(magma_for_dorothea_corr)
             }
             
             // PRSet
@@ -590,7 +593,7 @@ workflow {
                 log.info "DoRothEA correlation for PRSet"
                 
                 prset_for_dorothea_corr = group_by_trait_tool(prset_empirical_results)
-                dorothea_correlation(prset_for_dorothea_corr)
+                dorothea_correlation_prset(prset_for_dorothea_corr)
             }
         }
     }
