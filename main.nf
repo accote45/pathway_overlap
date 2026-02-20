@@ -304,10 +304,14 @@ workflow {
         
         // Group random results by trait and randomization method
         random_prset_grouped = random_prset_results
-            .map { trait, summary_files, rand_method ->
-                tuple(trait, rand_method, summary_files)  // Reorder to put rand_method at index 1
+            .map { trait, files_glob, rand_method ->
+                // Extract only summary files (3 files returned: summary, log, prsice)
+                def summary_file = files_glob instanceof List 
+                    ? files_glob.find { it.name.endsWith('.summary') }
+                    : files_glob
+                tuple(trait, rand_method, summary_file)
             }
-            .groupTuple(by: [0, 1])  // Group by trait AND rand_method
+            .groupTuple(by: [0, 1])  // Now groups [trait, rand_method, [summary_files_list]]
 
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
@@ -315,13 +319,16 @@ workflow {
             // Combine real results with grouped random results for empirical p-value calculation
             prset_for_empirical = real_prset_for_combine
                 .map { trait, summary_file, rand_method ->
-                    [trait, rand_method, summary_file]  // Reorder to match random_prset_grouped structure
+                    [trait, rand_method, summary_file]
                 }
-                .combine(
-                    random_prset_grouped, 
-                    by: [0, 1]  // Join by trait (index 0) and rand_method (index 1)
-                )
-                .map { trait, rand_method, summary_file, random_files ->
+                .combine(random_prset_grouped, by: [0, 1])
+                .map { trait, rand_method, summary_file, random_files_list ->
+                    // Validation check
+                    def expected_count = params.num_random_sets
+                    if (random_files_list.size() != expected_count) {
+                        log.error "PRSet empirical ${trait}/${rand_method}: Expected ${expected_count} files, got ${random_files_list.size()}"
+                    }
+                    
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
                     tuple(trait, "prset_${rand_method}", summary_file, random_dir)
                 }
@@ -388,10 +395,13 @@ workflow {
                 .map { trait, full_json, go_test_enrich -> 
                     tuple(trait, go_test_enrich)
                 }
-                .combine(
-                    random_gmt_full_grouped, 
-                    by: 0  // Join by trait
-                ).map { trait, go_test_enrich, rand_method, random_jsons ->
+                .combine(random_gmt_full_grouped, by: 0)
+                .map { trait, go_test_enrich, rand_method, random_go_csvs ->
+                    // Validation check
+                    if (random_go_csvs.size() != params.num_random_sets) {
+                        log.error "GSA-MiXeR empirical ${trait}/${rand_method}: Expected ${params.num_random_sets} files, got ${random_go_csvs.size()}"
+                    }
+                    
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
                     tuple(trait, "gsamixer", go_test_enrich, random_dir)
                 }
@@ -431,20 +441,15 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-                .map { trait, rand_method, random_files_list ->  // FIXED ORDER
-                    // Filter for .summary files - files are already flat paths
-                    def summary_files = random_files_list.findAll { file ->
-                        file.toString().endsWith('.summary')
-                    }
-                    
-                    if (summary_files.isEmpty()) {
-                        log.warn "No .summary files found for ${trait} ${rand_method}"
-                        return null
+                .map { trait, rand_method, random_summary_files ->
+                    if (random_summary_files.size() != params.num_random_sets) {
+                        log.warn "FPR ${trait}/${rand_method}: Expected ${params.num_random_sets} files, got ${random_summary_files.size()}"
                     }
                     
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "prset", rand_method, summary_files, random_dir)
+                    tuple(trait, "prset", rand_method, random_summary_files, random_dir)
                 }
+                .filter { it != null }
             
             prset_fpr_results = calculate_fpr_prset(prset_fpr_inputs)
         }
