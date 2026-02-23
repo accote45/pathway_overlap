@@ -84,23 +84,25 @@ process run_real_geneset {
   input:
   tuple val(trait),
         path(gene_results_file),
-        val(rand_method)
+        val(rand_method)  // <-- KEEP THIS (but ignore in script)
 
   output:
   tuple val(trait),
-        path("${trait}_real_set.${rand_method}.gsa.out"),
-        val(rand_method)
+        path("${trait}_real_set.gsa.out"),
+        val(rand_method)  // <-- PASS THROUGH for channel consistency
 
   publishDir "${params.outdir}/magma_real/${trait}", mode: 'copy', overwrite: true
 
   script:
+  // NOTE: rand_method parameter exists but is NOT used in MAGMA command
+  // It's only needed for channel routing in main.nf
   """
   module load magma_gwas/1.10
 
   magma \\
     --gene-results ${gene_results_file} \\
     --set-annot ${params.geneset_real} \\
-    --out ${trait}_real_set.${rand_method}
+    --out ${trait}_real_set
   """
 }
 

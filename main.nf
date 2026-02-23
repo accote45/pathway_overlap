@@ -196,29 +196,34 @@ workflow {
         annotated = annotate_genes(snp_loc_with_gene_file)
         gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
         
-        // Combine gene results with randomization methods
-        gene_results_with_methods = gene_analysis_results.gene_results
-            .combine(Channel.fromList(params.randomization_methods))
-            .map { trait, gene_result, rand_method -> 
-                [trait, gene_result, rand_method]
+        // Add a dummy rand_method for channel consistency (like PRSet does)
+        gene_results_for_real = gene_analysis_results.gene_results
+            .map { trait, gene_result -> 
+                tuple(trait, gene_result, "deduplicate")  // Dummy method name
             }
         
-        // Run real pathway analysis (uses params.geneset_real, not random GMTs)
-        real_geneset_results = run_real_geneset(gene_results_with_methods)
+        // Run real pathway analysis ONCE per trait
+        real_geneset_results = run_real_geneset(gene_results_for_real)
         
+        // Broadcast real results to both randomization methods
+        magma_real_for_empirical = real_geneset_results
+            .map { trait, real_result_file, dummy_rand_method -> 
+                tuple(trait, real_result_file)  // Remove dummy method
+            }
+            .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both methods
+    
         // **KEY FIX**: Wait for GMT generation before starting random sets
-        perms_ch = Channel.from(1..params.num_random_sets)
-        
-        random_sets_inputs = gene_results_with_methods
-            .combine(gmt_ready_signal)  // Wait for GMTs to be ready
-            .map { trait, gene_result, rand_method, ready_signal -> 
-                [trait, gene_result, rand_method]
+        random_sets_inputs = gene_analysis_results.gene_results
+            .combine(gmt_ready_signal)  // Wait for GMTs
+            .map { trait, gene_result, ready_signal -> 
+                tuple(trait, gene_result)
             }
-            .combine(perms_ch)
+            .combine(Channel.fromList(params.randomization_methods))
+            .combine(Channel.from(1..params.num_random_sets))
             .map { trait, gene_result, rand_method, perm -> 
-                [trait, gene_result, rand_method, perm]
+                tuple(trait, gene_result, rand_method, perm)
             }
-            
+        
         random_sets_results = run_random_sets(random_sets_inputs)
         
         // Group random results by trait and randomization method
@@ -226,13 +231,12 @@ workflow {
             .groupTuple(by: [0, 2])
 
         if (params.run_empirical) {
-            magma_for_empirical = real_geneset_results.combine(
-                random_results_grouped, 
-                by: [0, 2]
-            ).map { trait, rand_method, real_result_file, random_files_list ->
-                def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
-                tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
-            }
+            magma_for_empirical = magma_real_for_empirical
+                .combine(random_results_grouped, by: [0, 1])  // Join by trait AND rand_method
+                .map { trait, rand_method, real_result_file, random_files_list ->
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
+                }
             
             magma_empirical_results = calc_empirical_pvalues(magma_for_empirical)
             all_empirical_inputs = all_empirical_inputs.mix(magma_empirical_results)
