@@ -176,9 +176,10 @@ process run_random_sets_prset {
 
 process run_real_prset {
   executor 'lsf'
-  tag "${trait}_set_${rand_method}"
+  tag "${trait}_prset_real"
   
-  publishDir "${params.outdir}/prset/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  // Change publishDir to match MAGMA pattern
+  publishDir "${params.outdir}/prset_real/${trait}", mode: 'copy', overwrite: true
   
   input:
   tuple val(trait),
@@ -190,14 +191,13 @@ process run_real_prset {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method)
+        val(rand_method)  // This is no longer needed for real analysis
   
   output:
   tuple val(trait),
-        path("${trait}_set.${rand_method}.summary"),
-        path("${trait}_set.${rand_method}.log"),
-        path("${trait}_set.${rand_method}.prsice"),
-        val(rand_method)
+        path("${trait}_real_set.summary"),  // Rename to match MAGMA pattern
+        path("${trait}_real_set.log"),
+        path("${trait}_real_set.prsice")
 
   script:
   """
@@ -217,12 +217,12 @@ process run_real_prset {
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${params.geneset_real} \\
     --num-auto 22 \\
-    --out ${trait}_set.${rand_method} \\
+    --out ${trait}_real_set \\
     --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
     --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
-    --set-perm 1000 \\
+    --set-perm 10 \\
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
@@ -232,7 +232,8 @@ process run_real_prset {
     --wind-3 35kb \\
     --wind-5 35kb
 
-  rm ${trait}_set.${rand_method}.best
+  rm ${trait}_real_set.best
+  rm ${trait}_real_set.snp
   """
 }
 

@@ -254,76 +254,57 @@ workflow {
                 def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                      binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                      summary_statistic_name, summary_statistic_type, "common")
+                      summary_statistic_name, summary_statistic_type)
             }
         
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
         
-        // Real PRSet (doesn't need random GMTs)
-        prset_real_inputs = deduplicated_gwas
-            .combine(Channel.fromList(params.randomization_methods))
-            .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, _, rand_method ->
-                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                      summary_statistic_name, summary_statistic_type, rand_method)
+        // Real PRSet - run ONCE per trait (no randomization method needed)
+        log.info "Running real PRSet pathway enrichment (once per trait)"
+        prset_real_results = run_real_prset(deduplicated_gwas)
+        
+        // Extract summary files and broadcast to all randomization methods
+        prset_real_for_empirical = prset_real_results
+            .map { trait, summary_file, log_file, prsice_file ->
+                tuple(trait, summary_file)
             }
-    
-        real_prset_results = run_real_prset(prset_real_inputs)
-
-        // Extract summary files from real PRSet results for empirical calculation
-        real_prset_for_combine = real_prset_results
-            .map { trait, summary_file, log_file, prsice_file, rand_method ->
-                tuple(trait, summary_file, rand_method)
-            }
-
-        // **KEY FIX**: Wait for GMT generation before PRSet random sets
+            .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both methods
+        
+        // Random PRSet - wait for GMT generation
         prset_rand_inputs = deduplicated_gwas
             .combine(gmt_ready_signal)  // Wait for GMTs
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, _, ready_signal ->
+                  summary_statistic_name, summary_statistic_type, ready_signal ->
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                       summary_statistic_name, summary_statistic_type)
             }
             .combine(Channel.fromList(params.randomization_methods))
-            .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, rand_method ->
-                tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                      summary_statistic_name, summary_statistic_type, rand_method)
-            }
-        
-        perms_ch = Channel.from(1..params.num_random_sets)
-        prset_random_inputs = prset_rand_inputs
-            .combine(perms_ch)
+            .combine(Channel.from(1..params.num_random_sets))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                   summary_statistic_name, summary_statistic_type, rand_method, perm ->
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                       summary_statistic_name, summary_statistic_type, rand_method, perm)
             }
         
-        random_prset_results = run_random_sets_prset(prset_random_inputs)
+        random_prset_results = run_random_sets_prset(prset_rand_inputs)
         
         // Group random results by trait and randomization method
         random_prset_grouped = random_prset_results
             .map { trait, files_glob, rand_method ->
-                // Extract only summary files (3 files returned: summary, log, prsice)
                 def summary_file = files_glob instanceof List 
                     ? files_glob.find { it.name.endsWith('.summary') }
                     : files_glob
                 tuple(trait, rand_method, summary_file)
             }
-            .groupTuple(by: [0, 1])  // Now groups [trait, rand_method, [summary_files_list]]
-
+            .groupTuple(by: [0, 1])
+        
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
-            // Combine real results with grouped random results for empirical p-value calculation
-            prset_for_empirical = real_prset_for_combine
-                .map { trait, summary_file, rand_method ->
-                    [trait, rand_method, summary_file]
-                }
-                .combine(random_prset_grouped, by: [0, 1])
+            // Combine real results (broadcasted to both methods) with grouped random results
+            prset_for_empirical = prset_real_for_empirical
+                .combine(random_prset_grouped, by: [0, 1])  // Join by trait AND rand_method
                 .map { trait, rand_method, summary_file, random_files_list ->
-                    // Validation check
                     def expected_count = params.num_random_sets
                     if (random_files_list.size() != expected_count) {
                         log.error "PRSet empirical ${trait}/${rand_method}: Expected ${expected_count} files, got ${random_files_list.size()}"
@@ -333,10 +314,7 @@ workflow {
                     tuple(trait, "prset_${rand_method}", summary_file, random_dir)
                 }
             
-            // Calculate empirical p-values for PRSet
             prset_empirical_results = calc_empirical_pvalues_prset(prset_for_empirical)
-            
-            // Add to collection for combined results
             all_empirical_inputs = all_empirical_inputs.mix(prset_empirical_results)
         }
     }
