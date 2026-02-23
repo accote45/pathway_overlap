@@ -123,7 +123,7 @@ process run_random_sets_prset {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method),
+        val(rand_method),  // <-- USED to select GMT file
         val(perm)
   
   output:
@@ -135,7 +135,7 @@ process run_random_sets_prset {
 
   script:
   // Determine the correct GMT directory based on randomization method
-  def gmt_dir = params.gmt_dirs[rand_method]
+  def gmt_dir = params.gmt_dirs[rand_method]  // <-- rand_method IS USED HERE
   
   """
   /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
@@ -171,69 +171,6 @@ process run_random_sets_prset {
 
   rm ${trait}_set_random${perm}.${rand_method}.best
   rm ${trait}_set_random${perm}.${rand_method}.snp
-  """
-}
-
-process run_real_prset {
-  executor 'lsf'
-  tag "${trait}_prset_real"
-  
-  // Change publishDir to match MAGMA pattern
-  publishDir "${params.outdir}/prset_real/${trait}", mode: 'copy', overwrite: true
-  
-  input:
-  tuple val(trait),
-        path(gwas_file),
-        val(binary_target),
-        val(effect_allele),
-        val(other_allele),
-        val(rsid_col),
-        val(pval_col),
-        val(summary_statistic_name),
-        val(summary_statistic_type),
-        val(rand_method)  // This is no longer needed for real analysis
-  
-  output:
-  tuple val(trait),
-        path("${trait}_real_set.summary"),  // Rename to match MAGMA pattern
-        path("${trait}_real_set.log"),
-        path("${trait}_real_set.prsice")
-
-  script:
-  """
-  /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
-    --a1 ${effect_allele} \\
-    --a2 ${other_allele} \\
-    --background /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdb.genes.txt:gene \\
-    --bar-levels 1 \\
-    --base ${gwas_file} \\
-    --binary-target ${binary_target} \\
-    --clump-kb 1000kb \\
-    --clump-p 1.000000 \\
-    --clump-r2 0.100000 \\
-    --extract ${params.ukb_dir}/ukb18177-qc.snplist \\
-    --fastscore \\
-    --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
-    --keep ${params.ukb_dir}/ukb_test_samples.txt \\
-    --msigdb ${params.geneset_real} \\
-    --num-auto 22 \\
-    --out ${trait}_real_set \\
-    --pheno ${params.ukb_dir}/ukb_phenofile_forprset.txt \\
-    --pheno-col ${trait}_resid \\
-    --print-snp \\
-    --pvalue ${pval_col} \\
-    --set-perm 2 \\
-    --snp ${rsid_col} \\
-    --stat ${summary_statistic_name} \\
-    --${summary_statistic_type} \\
-    --target ${params.ukb_dir}/ukb18177_chr1.22 \\
-    --ultra \\
-    --thread ${task.cpus} \\
-    --wind-3 35kb \\
-    --wind-5 35kb
-
-  rm ${trait}_real_set.best
-  rm ${trait}_real_set.snp
   """
 }
 

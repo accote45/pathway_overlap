@@ -253,41 +253,50 @@ workflow {
             .map { trait_tuple ->
                 def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                      binary_target, effect_allele, other_allele, summary_statistic_name, summary_statistic_type) = trait_tuple
+                // Add placeholder rand_method for gwas_remove_dup_snps compatibility
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                      summary_statistic_name, summary_statistic_type)
+                      summary_statistic_name, summary_statistic_type, "deduplicate")
             }
         
         deduplicated_gwas = gwas_remove_dup_snps(prset_dedup_data)
-        
-        // Real PRSet - run ONCE per trait (no randomization method needed)
+    
+        // Real PRSet - run ONCE per trait
         log.info "Running real PRSet pathway enrichment (once per trait)"
+    
+        // Keep rand_method in channel, run_real_prset will ignore it
         prset_real_results = run_real_prset(deduplicated_gwas)
-        
+    
         // Extract summary files and broadcast to all randomization methods
+        // NOW keep rand_method in the tuple
         prset_real_for_empirical = prset_real_results
-            .map { trait, summary_file, log_file, prsice_file ->
+            .map { trait, summary_file, log_file, prsice_file, rand_method ->
+                tuple(trait, summary_file, rand_method)
+            }
+            .filter { trait, summary_file, rand_method -> rand_method == "deduplicate" }
+            .map { trait, summary_file, rand_method ->
                 tuple(trait, summary_file)
             }
-            .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both methods
-        
-        // Random PRSet - wait for GMT generation
+            .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both real methods
+    
+        // Random PRSet - wait for GMT generation and swap out rand_method
         prset_rand_inputs = deduplicated_gwas
             .combine(gmt_ready_signal)  // Wait for GMTs
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, ready_signal ->
+                  summary_statistic_name, summary_statistic_type, dummy_rand_method, ready_signal ->
+                // Remove dummy "deduplicate" rand_method
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                       summary_statistic_name, summary_statistic_type)
             }
-            .combine(Channel.fromList(params.randomization_methods))
+            .combine(Channel.fromList(params.randomization_methods))  // Add real rand_methods
             .combine(Channel.from(1..params.num_random_sets))
             .map { trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
-                  summary_statistic_name, summary_statistic_type, rand_method, perm ->
+                  summary_statistic_name, summary_statistic_type, rand_method, perm -> 
                 tuple(trait, gwas_file, binary_target, effect_allele, other_allele, rsid_col, pval_col, 
                       summary_statistic_name, summary_statistic_type, rand_method, perm)
             }
         
         random_prset_results = run_random_sets_prset(prset_rand_inputs)
-        
+    
         // Group random results by trait and randomization method
         random_prset_grouped = random_prset_results
             .map { trait, files_glob, rand_method ->
@@ -297,7 +306,7 @@ workflow {
                 tuple(trait, rand_method, summary_file)
             }
             .groupTuple(by: [0, 1])
-        
+    
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
