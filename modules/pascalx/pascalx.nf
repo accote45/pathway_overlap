@@ -67,6 +67,7 @@ process run_pascalx_genes {
 
 process run_real_pascalx {
   tag "${trait}"
+  container "${params.pascalx_sif}"
   publishDir "${params.outdir}/pascalx_real/${trait}", mode: 'copy', overwrite: true
   
   input:
@@ -81,12 +82,10 @@ process run_real_pascalx {
 
   script:
   """
-  ml apptainer
-  
-  apptainer exec ${params.pascalx_sif} python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
     ${gene_scores} \
-    ${params.geneset_real} \
+    ${params.gmt_file} \
     ${params.pascalx_genome_annot} \
     real
   """
@@ -94,6 +93,7 @@ process run_real_pascalx {
 
 process run_random_sets_pascalx {
   tag "${trait}_random${perm}_${rand_method}"
+  container "${params.pascalx_sif}"
   publishDir "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
   
   input:
@@ -108,15 +108,14 @@ process run_random_sets_pascalx {
         val(rand_method)
 
   script:
-  def gmt_dir = params.gmt_dirs[rand_method]
+  // Use randomized GMT directory pattern matching other tools
+  def random_gmt = "${params.gmt_dirs[rand_method]}/GeneSet.random${perm}.gmt"
   
   """
-  ml apptainer
-  
-  apptainer exec ${params.pascalx_sif} python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
     ${gene_scores} \
-    ${gmt_dir}/GeneSet.random${perm}.gmt \
+    ${random_gmt} \
     ${params.pascalx_genome_annot} \
     random${perm}.${rand_method}
   """

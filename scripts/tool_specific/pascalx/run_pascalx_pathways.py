@@ -22,13 +22,15 @@ def main():
     
     trait = sys.argv[1]
     gene_scores_file = sys.argv[2]
-    gmt_file = sys.argv[3]
-    genome_file = sys.argv[4]
+    gmt_file = sys.argv[3]  # Now expects mounted path
+    genome_file = sys.argv[4]  # Now expects "/data/pascalx_reference/msigdbgenes.regions"
     output_suffix = sys.argv[5]  # 'real' or 'random{N}.{method}'
     
     try:
         print(f"Starting pathway enrichment for trait: {trait}")
         print(f"Output suffix: {output_suffix}")
+        print(f"GMT file: {gmt_file}")
+        print(f"Genome annotation: {genome_file}")
         
         # Initialize gene scorer (needed for pathway analysis)
         Scorer = genescorer.chi2sum()
@@ -68,7 +70,7 @@ def main():
         print("Pathway scoring completed")
         
         # Save results to CSV
-        output_file = f"{trait}_{output_suffix}_pascalx.csv"
+        output_file = f"{trait}_{output_suffix}.csv"
         with open(output_file, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['Pathway_Name', 'Gene_List', 'Values', 'Pvalue'])
