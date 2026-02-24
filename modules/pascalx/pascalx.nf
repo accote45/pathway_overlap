@@ -43,6 +43,7 @@ process prepare_pascalx_gwas {
 
 process run_pascalx_genes {
   tag "${trait}"
+  container "${params.pascalx_sif}"
   publishDir "${params.outdir}/pascalx_genes/${trait}", mode: 'copy', overwrite: true
   
   input:
@@ -55,13 +56,12 @@ process run_pascalx_genes {
         emit: gene_scores
 
   script:
+  def script_dir = "${params.scripts_dir}/tool_specific/pascalx"
   """
-  ml apptainer
-  
-  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_genes.py \\
-    ${trait} \\
-    ${gwas_file} \\
-    ${params.pascalx_ref_panel} \\
+  python3 ${script_dir}/run_pascalx_genes.py \
+    ${trait} \
+    ${gwas_file} \
+    ${params.pascalx_ref_panel} \
     ${params.pascalx_genome_annot}
   """
 }
