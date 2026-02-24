@@ -432,13 +432,16 @@ workflow {
             
             // Use the grouped random results from PRSet workflow
             prset_fpr_inputs = random_prset_grouped
-                .map { trait, rand_method, random_summary_files ->
-                    if (random_summary_files.size() != params.num_random_sets) {
-                        log.warn "FPR ${trait}/${rand_method}: Expected ${params.num_random_sets} files, got ${random_summary_files.size()}"
+                .map { trait, random_files_list, rand_method ->
+                    // Extract only summary files
+                    def summary_files = random_files_list.collect { file_group ->
+                        file_group instanceof List 
+                            ? file_group.find { it.name.endsWith('.summary') }
+                            : file_group
                     }
                     
                     def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
-                    tuple(trait, "prset", rand_method, random_summary_files, random_dir)
+                    tuple(trait, "prset", rand_method, summary_files, random_dir)
                 }
                 .filter { it != null }
             
