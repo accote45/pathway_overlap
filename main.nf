@@ -19,29 +19,41 @@ include {
 } from './modules/prset/prset.nf'
 
 include {
+    prepare_pascalx_gwas;
+    run_pascalx_genes;
+    run_real_pascalx;
+    run_random_sets_pascalx;
+} from './modules/pascalx/pascalx.nf'
+
+include {
     calc_empirical_pvalues;
     calc_empirical_pvalues as calc_empirical_pvalues_gsamixer;
     calc_empirical_pvalues as calc_empirical_pvalues_prset;
+    calc_empirical_pvalues as calc_empirical_pvalues_pascalx;
 } from './modules/empirical_pval/empirical_pval.nf'
 
 include {
     tissue_correlation_analysis as tissue_correlation_magma;
     tissue_correlation_analysis as tissue_correlation_prset;
+    tissue_correlation_analysis as tissue_correlation_pascalx;
 } from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
     opentargets_stats_correlation as opentargets_correlation_magma;
     opentargets_stats_correlation as opentargets_correlation_prset;
+    opentargets_stats_correlation as opentargets_correlation_pascalx;
 } from './modules/opentargets/opentargets_stats_correlation.nf'
 
 include {
     malacards_correlation as malacards_correlation_magma;
     malacards_correlation as malacards_correlation_prset;
+    malacards_correlation as malacards_correlation_pascalx;
 } from './modules/malacards/malacards_correlation.nf'
 
 include {
     dorothea_correlation as dorothea_correlation_magma;
     dorothea_correlation as dorothea_correlation_prset;
+    dorothea_correlation as dorothea_correlation_pascalx;
 } from './modules/dorothea/dorothea_correlation.nf'
 
 include {
@@ -61,6 +73,7 @@ include {
 include {
     calculate_fpr as calculate_fpr_magma;
     calculate_fpr as calculate_fpr_prset;
+    calculate_fpr as calculate_fpr_pascalx;
     calculate_fpr as calculate_fpr_gsamixer;
 } from './modules/fpr/fpr_calculation.nf'
 
@@ -110,6 +123,7 @@ workflow {
     log.info "Pipeline configuration:"
     log.info "  Run MAGMA: ${params.run_magma}"
     log.info "  Run PRSet: ${params.run_prset}"
+    log.info "  Run PascalX: ${params.run_pascalx}"
     log.info "  Calculate Empirical P-values: ${params.run_empirical}"
     
     //////////////////////////////////////////
@@ -176,6 +190,7 @@ workflow {
     all_empirical_inputs = Channel.empty()
     magma_empirical_results = Channel.empty()
     prset_empirical_results = Channel.empty()
+    pascalx_empirical_results = Channel.empty()
     
     //////////////////////////////////////////
     // MAGMA WORKFLOW - WAIT FOR GMTs
@@ -333,6 +348,73 @@ workflow {
     }
     
     //////////////////////////////////////////
+    // PascalX WORKFLOW - WAIT FOR GMTs
+    //////////////////////////////////////////
+    if (params.run_pascalx) {
+        log.info "Running PascalX analysis for all traits"
+        
+        // Extract fields for PascalX GWAS preprocessing
+        // PascalX needs: trait, gwas_file, rsid_col, pval_col, effect_allele, other_allele, summary_statistic_name (beta)
+        pascalx_gwas_data = trait_data.map { trait_tuple ->
+            def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
+                 binary_target, effect_allele, other_allele, summary_statistic_name) = trait_tuple
+            tuple(trait, gwas_file, rsid_col, pval_col, effect_allele, other_allele, summary_statistic_name)
+        }
+        
+        // Preprocess GWAS to PascalX format (rsid, a1, a2, pval, beta in columns 0-4)
+        pascalx_preprocessed = prepare_pascalx_gwas(pascalx_gwas_data)
+        
+        // Run gene scoring (once per trait, independent of GMTs)
+        pascalx_gene_scores = run_pascalx_genes(pascalx_preprocessed)
+        
+        // Add dummy rand_method for channel consistency
+        gene_scores_for_real = pascalx_gene_scores
+            .map { trait, gene_scores_file -> 
+                tuple(trait, gene_scores_file, "deduplicate")  // Dummy method name
+            }
+        
+        // Run real pathway analysis ONCE per trait
+        pascalx_real_results = run_real_pascalx(gene_scores_for_real)
+        
+        // Broadcast real results to both randomization methods
+        pascalx_real_for_empirical = pascalx_real_results
+            .map { trait, real_result_file, dummy_rand_method -> 
+                tuple(trait, real_result_file)  // Remove dummy method
+            }
+            .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both methods
+        
+        // Wait for GMT generation before starting random sets
+        random_pascalx_inputs = pascalx_gene_scores
+            .combine(gmt_ready_signal)  // Wait for GMTs
+            .map { trait, gene_scores_file, ready_signal -> 
+                tuple(trait, gene_scores_file)
+            }
+            .combine(Channel.fromList(params.randomization_methods))
+            .combine(Channel.from(1..params.num_random_sets))
+            .map { trait, gene_scores_file, rand_method, perm -> 
+                tuple(trait, gene_scores_file, rand_method, perm)
+            }
+        
+        random_pascalx_results = run_random_sets_pascalx(random_pascalx_inputs)
+        
+        // Group random results by trait and randomization method
+        random_pascalx_grouped = random_pascalx_results
+            .groupTuple(by: [0, 2], size: params.num_random_sets)
+        
+        if (params.run_empirical) {
+            pascalx_for_empirical = pascalx_real_for_empirical
+                .combine(random_pascalx_grouped, by: [0, 2])  // Join by trait AND rand_method
+                .map { trait, rand_method, real_result_file, random_files_list ->
+                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "pascalx_${rand_method}", real_result_file, random_dir)
+                }
+            
+            pascalx_empirical_results = calc_empirical_pvalues_pascalx(pascalx_for_empirical)
+            all_empirical_inputs = all_empirical_inputs.mix(pascalx_empirical_results)
+        }
+    }
+    
+    //////////////////////////////////////////
     // GSA-MiXeR WORKFLOW - WAIT FOR GMTs
     //////////////////////////////////////////
     if (params.run_gsamixer && params.run_empirical) {
@@ -448,6 +530,20 @@ workflow {
             prset_fpr_results = calculate_fpr_prset(prset_fpr_inputs)
         }
         
+        // PascalX FPR Analysis - wait for random results to complete
+        if (params.run_pascalx) {
+            log.info "Calculating FPR for PascalX random results"
+            
+            // Use the grouped random results from PascalX workflow
+            pascalx_fpr_inputs = random_pascalx_grouped
+                .map { trait, random_files, rand_method ->
+                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}"
+                    tuple(trait, "pascalx", rand_method, random_files, random_dir)
+                }
+            
+            pascalx_fpr_results = calculate_fpr_pascalx(pascalx_fpr_inputs)
+        }
+        
         // GSA-MiXeR FPR Analysis - wait for random results to complete
         if (params.run_gsamixer) {
             log.info "Calculating FPR for GSA-MiXeR random results"
@@ -527,6 +623,18 @@ workflow {
                 
                 prset_opentargets_correlation = opentargets_correlation_prset(prset_for_opentargets)
             }
+            
+            // PascalX
+            if (params.run_pascalx) {
+                log.info "OpenTargets correlation for PascalX"
+                
+                pascalx_for_opentargets = group_by_trait_tool(pascalx_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        params.opentargets_supported_traits.contains(trait)
+                    }
+                
+                pascalx_opentargets_correlation = opentargets_correlation_pascalx(pascalx_for_opentargets)
+            }
         }
         
         //////////////////////////////////////////
@@ -549,6 +657,14 @@ workflow {
                 
                 prset_for_tissue_corr = group_by_trait_tool(prset_empirical_results)
                 tissue_correlation_prset(prset_for_tissue_corr)
+            }
+            
+            // PascalX
+            if (params.run_pascalx) {
+                log.info "Tissue correlation for PascalX"
+                
+                pascalx_for_tissue_corr = group_by_trait_tool(pascalx_empirical_results)
+                tissue_correlation_pascalx(pascalx_for_tissue_corr)
             }
         }
         
@@ -581,6 +697,18 @@ workflow {
                 
                 malacards_correlation_prset(prset_for_malacards_corr)
             }
+            
+            // PascalX
+            if (params.run_pascalx) {
+                log.info "MalaCards correlation for PascalX"
+                
+                pascalx_for_malacards_corr = group_by_trait_tool(pascalx_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize -> 
+                        malacards_trait_list.contains(trait.toLowerCase())
+                    }
+                
+                malacards_correlation_pascalx(pascalx_for_malacards_corr)
+            }
         }
         
         //////////////////////////////////////////
@@ -603,6 +731,14 @@ workflow {
                 
                 prset_for_dorothea_corr = group_by_trait_tool(prset_empirical_results)
                 dorothea_correlation_prset(prset_for_dorothea_corr)
+            }
+            
+            // PascalX
+            if (params.run_pascalx) {
+                log.info "DoRothEA correlation for PascalX"
+                
+                pascalx_for_dorothea_corr = group_by_trait_tool(pascalx_empirical_results)
+                dorothea_correlation_pascalx(pascalx_for_dorothea_corr)
             }
         }
     }

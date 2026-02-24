@@ -1,53 +1,127 @@
-process run_real_pascalx {
-    executor 'lsf'
-    clusterOptions '-P acc_paul_oreilly'
-    tag "${trait}_pascalx_real"
-    
-    publishDir "${params.outdir}/pascalx_real/${trait}", mode: 'copy', overwrite: true
-    
-    input:
-    tuple val(trait),
-          path(standardized_gwas_file)
-    
-    output:
-    tuple val(trait),
-          path("${trait}_pascalx_real.txt")
-    
-    script:
-    """
-    python ${params.scripts_dir}/run_pascalx.py \\
-        --gwas-file ${standardized_gwas_file} \\
-        --trait ${trait} \\
-        --geneset-file ${params.geneset_real} \\
-        --output ${trait}_pascalx_real.txt
-    """
+process prepare_pascalx_gwas {
+  executor 'local'
+  tag "${trait}"
+  
+  input:
+  tuple val(trait),
+        path(gwas_file),
+        val(rsid_col),
+        val(pval_col),
+        val(effect_allele),
+        val(other_allele),
+        val(beta_col)
+
+  output:
+  tuple val(trait),
+        path("${trait}_pascalx.txt")
+
+  script:
+  """
+  # Extract columns in order: rsid, a1, a2, pval, beta
+  # This matches the expected column order for PascalX: rscol=0, a1col=1, a2col=2, pcol=3, bcol=4
+  awk -v rsid="${rsid_col}" \\
+      -v a1="${effect_allele}" \\
+      -v a2="${other_allele}" \\
+      -v pval="${pval_col}" \\
+      -v beta="${beta_col}" \\
+      'BEGIN {OFS="\\t"} 
+       NR==1 {
+          for (i=1; i<=NF; i++) {
+              if (\$i == rsid) rsid_idx = i
+              if (\$i == a1) a1_idx = i
+              if (\$i == a2) a2_idx = i
+              if (\$i == pval) pval_idx = i
+              if (\$i == beta) beta_idx = i
+          }
+          print "RSID", "A1", "A2", "PVAL", "BETA"
+       } 
+       NR>1 {
+          print \$(rsid_idx), \$(a1_idx), \$(a2_idx), \$(pval_idx), \$(beta_idx)
+       }' ${gwas_file} > ${trait}_pascalx.txt
+  """
 }
 
-process run_random_pascalx {
-    executor 'lsf'
-    clusterOptions '-P acc_paul_oreilly'
-    tag "${trait}_pascalx_random${perm}_${rand_method}"
-    
-    publishDir "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
-    
-    input:
-    tuple val(trait),
-          path(standardized_gwas_file),
-          val(rand_method),
-          val(perm)
-    
-    output:
-    tuple val(trait),
-          path("${trait}_pascalx_random${perm}.${rand_method}.txt"),
-          val(rand_method)
-    
-    script:
-    def gmt_dir = params.gmt_dirs[rand_method]
-    """
-    python ${params.scripts_dir}/run_pascalx.py \\
-        --gwas-file ${standardized_gwas_file} \\
-        --trait ${trait} \\
-        --geneset-file ${gmt_dir}/GeneSet.random${perm}.gmt \\
-        --output ${trait}_pascalx_random${perm}.${rand_method}.txt
-    """
+process run_pascalx_genes {
+  tag "${trait}"
+  publishDir "${params.outdir}/pascalx_genes/${trait}", mode: 'copy', overwrite: true
+  
+  input:
+  tuple val(trait),
+        path(gwas_file)
+
+  output:
+  tuple val(trait),
+        path("gene_scores.txt"),
+        emit: gene_scores
+
+  script:
+  """
+  ml apptainer
+  
+  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_genes.py \\
+    ${trait} \\
+    ${gwas_file} \\
+    ${params.pascalx_ref_panel} \\
+    ${params.pascalx_genome_annot}
+  """
+}
+
+process run_real_pascalx {
+  tag "${trait}"
+  publishDir "${params.outdir}/pascalx_real/${trait}", mode: 'copy', overwrite: true
+  
+  input:
+  tuple val(trait),
+        path(gene_scores),
+        val(rand_method)  // <-- KEEP THIS (but ignore in script)
+
+  output:
+  tuple val(trait),
+        path("${trait}_real_pascalx.csv"),
+        val(rand_method)  // <-- PASS THROUGH for channel consistency
+
+  script:
+  // NOTE: rand_method parameter exists but is NOT used in PascalX command
+  // It's only needed for channel routing in main.nf (similar to MAGMA pattern)
+  """
+  ml apptainer
+  
+  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_pathways.py \\
+    ${trait} \\
+    ${gene_scores} \\
+    ${params.geneset_real} \\
+    ${params.pascalx_genome_annot} \\
+    real
+  """
+}
+
+process run_random_sets_pascalx {
+  tag "${trait}_random${perm}_${rand_method}"
+  publishDir "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  
+  input:
+  tuple val(trait),
+        path(gene_scores),
+        val(rand_method),
+        val(perm)
+        
+  output:
+  tuple val(trait),
+        path("${trait}_random${perm}.${rand_method}.csv"),
+        val(rand_method)
+
+  script:
+  // Determine the correct GMT directory based on randomization method
+  def gmt_dir = params.gmt_dirs[rand_method]
+  
+  """
+  ml apptainer
+  
+  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_pathways.py \\
+    ${trait} \\
+    ${gene_scores} \\
+    ${gmt_dir}/GeneSet.random${perm}.gmt \\
+    ${params.pascalx_genome_annot} \\
+    random${perm}.${rand_method}
+  """
 }

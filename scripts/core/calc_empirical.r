@@ -20,6 +20,14 @@ library(tidyverse)
         required_cols = c("Set", "P", "Coefficient", "PRS.R2", "Competitive.P"),
         calc_pvalue = TRUE
       ),
+      pascalx = list(
+        pathway_col = "Pathway_Name",
+        pval_col = "Pvalue",
+        beta_col = NULL,  # PascalX only outputs p-values, no effect sizes
+        ngenes_col = NULL,  # Not present in output
+        required_cols = c("Pathway_Name", "Pvalue"),
+        calc_pvalue = TRUE
+      ),
       gsamixer = list(
         pathway_col = "GO",
         pval_col = NULL,  # No p-value column for GSA-Mixer
