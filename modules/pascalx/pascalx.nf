@@ -56,9 +56,8 @@ process run_pascalx_genes {
         emit: gene_scores
 
   script:
-  def script_dir = "${params.scripts_dir}/tool_specific/pascalx"
   """
-  python3 ${script_dir}/run_pascalx_genes.py \
+  python3 /scripts/tool_specific/pascalx/run_pascalx_genes.py \
     ${trait} \
     ${gwas_file} \
     ${params.pascalx_ref_panel} \
@@ -73,24 +72,22 @@ process run_real_pascalx {
   input:
   tuple val(trait),
         path(gene_scores),
-        val(rand_method)  // <-- KEEP THIS (but ignore in script)
+        val(rand_method)
 
   output:
   tuple val(trait),
         path("${trait}_real_pascalx.csv"),
-        val(rand_method)  // <-- PASS THROUGH for channel consistency
+        val(rand_method)
 
   script:
-  // NOTE: rand_method parameter exists but is NOT used in PascalX command
-  // It's only needed for channel routing in main.nf (similar to MAGMA pattern)
   """
   ml apptainer
   
-  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_pathways.py \\
-    ${trait} \\
-    ${gene_scores} \\
-    ${params.geneset_real} \\
-    ${params.pascalx_genome_annot} \\
+  apptainer exec ${params.pascalx_sif} python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+    ${trait} \
+    ${gene_scores} \
+    ${params.geneset_real} \
+    ${params.pascalx_genome_annot} \
     real
   """
 }
@@ -111,17 +108,16 @@ process run_random_sets_pascalx {
         val(rand_method)
 
   script:
-  // Determine the correct GMT directory based on randomization method
   def gmt_dir = params.gmt_dirs[rand_method]
   
   """
   ml apptainer
   
-  apptainer exec ${params.pascalx_sif} python3 ${params.scripts_dir}/tool_specific/pascalx/run_pascalx_pathways.py \\
-    ${trait} \\
-    ${gene_scores} \\
-    ${gmt_dir}/GeneSet.random${perm}.gmt \\
-    ${params.pascalx_genome_annot} \\
+  apptainer exec ${params.pascalx_sif} python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+    ${trait} \
+    ${gene_scores} \
+    ${gmt_dir}/GeneSet.random${perm}.gmt \
+    ${params.pascalx_genome_annot} \
     random${perm}.${rand_method}
   """
 }
