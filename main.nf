@@ -353,19 +353,25 @@ workflow {
     if (params.run_pascalx) {
         log.info "Running PascalX analysis for all traits"
         
+        // Setup writable reference directory ONCE
+        setup_pascalx_reference()
+        pascalx_ref = setup_pascalx_reference.out.ref_files
+        
         // Extract fields for PascalX GWAS preprocessing
-        // PascalX needs: trait, gwas_file, rsid_col, pval_col, effect_allele, other_allele, summary_statistic_name (beta)
         pascalx_gwas_data = trait_data.map { trait_tuple ->
             def (trait, gwas_file, rsid_col, chr_col, pos_col, pval_col, n_col, 
                  binary_target, effect_allele, other_allele, summary_statistic_name) = trait_tuple
             tuple(trait, gwas_file, rsid_col, pval_col, effect_allele, other_allele, summary_statistic_name)
         }
         
-        // Preprocess GWAS to PascalX format (rsid, a1, a2, pval, beta in columns 0-4)
+        // Preprocess GWAS to PascalX format
         pascalx_preprocessed = prepare_pascalx_gwas(pascalx_gwas_data)
         
-        // Run gene scoring (once per trait, independent of GMTs)
-        pascalx_gene_scores = run_pascalx_genes(pascalx_preprocessed)
+        // Combine with reference files
+        pascalx_with_ref = pascalx_preprocessed.combine(pascalx_ref)
+        
+        // Run gene scoring
+        pascalx_gene_scores = run_pascalx_genes(pascalx_with_ref)
         
         // Add dummy rand_method for channel consistency
         gene_scores_for_real = pascalx_gene_scores

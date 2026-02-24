@@ -41,14 +41,30 @@ process prepare_pascalx_gwas {
   """
 }
 
+process setup_pascalx_reference {
+  executor 'local'
+  publishDir "${params.outdir}/pascalx_ref_temp", mode: 'copy', overwrite: true
+  
+  output:
+  path("EUR.1KG.GRCh37*"), emit: ref_files
+  
+  script:
+  """
+  # Copy reference panel files to writable location
+  cp /sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/pascalx_reference/EUR.1KG.GRCh37* .
+  """
+}
+
 process run_pascalx_genes {
+  executor 'lsf'
   tag "${trait}"
   container "${params.pascalx_sif}"
   publishDir "${params.outdir}/pascalx_genes/${trait}", mode: 'copy', overwrite: true
   
   input:
   tuple val(trait),
-        path(gwas_file)
+        path(gwas_file),
+        path(ref_files)  // Add reference files as input
 
   output:
   tuple val(trait),
@@ -60,7 +76,7 @@ process run_pascalx_genes {
   python3 /scripts/tool_specific/pascalx/run_pascalx_genes.py \
     ${trait} \
     ${gwas_file} \
-    ${params.pascalx_ref_panel} \
+    /pascalx_ref/EUR.1KG.GRCh37 \
     ${params.pascalx_genome_annot}
   """
 }
