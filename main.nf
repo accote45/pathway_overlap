@@ -228,11 +228,11 @@ workflow {
         
         // Group random results by trait and randomization method
         random_results_grouped = random_sets_results
-            .groupTuple(by: [0, 2])
+            .groupTuple(by: [0, 2], size: params.num_random_sets)
 
         if (params.run_empirical) {
             magma_for_empirical = magma_real_for_empirical
-                .combine(random_results_grouped, by: [0, 1])  // Join by trait AND rand_method
+                .combine(random_results_grouped, by: [0, 2])  // Join by trait AND rand_method
                 .map { trait, rand_method, real_result_file, random_files_list ->
                     def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
                     tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
@@ -307,16 +307,16 @@ workflow {
                 def summary_file = files_glob instanceof List 
                     ? files_glob.find { it.name.endsWith('.summary') }
                     : files_glob
-                tuple(trait, rand_method, summary_file)
+                tuple(trait, summary_file, rand_method)
             }
-            .groupTuple(by: [0, 1])
+            .groupTuple(by: [0, 2], size: params.num_random_sets)
     
         if (params.run_empirical) {
             log.info "Setting up PRSet empirical p-value calculation"
             
             // Combine real results (broadcasted to both methods) with grouped random results
             prset_for_empirical = prset_real_for_empirical
-                .combine(random_prset_grouped, by: [0, 1])  // Join by trait AND rand_method
+                .combine(random_prset_grouped, by: [0, 2])  // Join by trait AND rand_method
                 .map { trait, rand_method, summary_file, random_files_list ->
                     def expected_count = params.num_random_sets
                     if (random_files_list.size() != expected_count) {
