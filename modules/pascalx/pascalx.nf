@@ -64,7 +64,7 @@ process run_pascalx_genes {
   input:
   tuple val(trait),
         path(gwas_file),
-        path(ref_files)  // Add reference files as input
+        path('ref_files/*')  // Collect all reference files
 
   output:
   tuple val(trait),
@@ -78,32 +78,6 @@ process run_pascalx_genes {
     ${gwas_file} \
     /pascalx_ref/EUR.1KG.GRCh37 \
     ${params.pascalx_genome_annot}
-  """
-}
-
-process run_real_pascalx {
-  tag "${trait}"
-  container "${params.pascalx_sif}"
-  publishDir "${params.outdir}/pascalx_real/${trait}", mode: 'copy', overwrite: true
-  
-  input:
-  tuple val(trait),
-        path(gene_scores),
-        val(rand_method)
-
-  output:
-  tuple val(trait),
-        path("${trait}_real_pascalx.csv"),
-        val(rand_method)
-
-  script:
-  """
-  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
-    ${trait} \
-    ${gene_scores} \
-    ${params.gmt_file} \
-    ${params.pascalx_genome_annot} \
-    real
   """
 }
 
@@ -124,8 +98,8 @@ process run_random_sets_pascalx {
         val(rand_method)
 
   script:
-  // Use randomized GMT directory pattern matching other tools
-  def random_gmt = "${params.gmt_dirs[rand_method]}/GeneSet.random${perm}.gmt"
+  // Map to container-internal path
+  def random_gmt = "/randomized_gene_sets/random_${rand_method}/GeneSet.random${perm}.gmt"
   
   """
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
@@ -134,5 +108,34 @@ process run_random_sets_pascalx {
     ${random_gmt} \
     ${params.pascalx_genome_annot} \
     random${perm}.${rand_method}
+  """
+}
+
+process run_real_pascalx {
+  tag "${trait}"
+  container "${params.pascalx_sif}"
+  publishDir "${params.outdir}/pascalx_real/${trait}", mode: 'copy', overwrite: true
+  
+  input:
+  tuple val(trait),
+        path(gene_scores),
+        val(rand_method)
+
+  output:
+  tuple val(trait),
+        path("${trait}_real_pascalx.csv"),
+        val(rand_method)
+
+  script:
+  // Real GMT is already in /data mount
+  def real_gmt = "/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
+  
+  """
+  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+    ${trait} \
+    ${gene_scores} \
+    ${real_gmt} \
+    ${params.pascalx_genome_annot} \
+    real
   """
 }
