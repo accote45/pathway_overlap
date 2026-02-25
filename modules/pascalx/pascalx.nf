@@ -113,7 +113,7 @@ process run_real_pascalx {
 
   script:
   // Use container path (mapped from ${projectDir}/data -> /data)
-  def real_gmt = "/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
+  def real_gmt = params.geneset_real.replaceFirst("^\\\$\\{projectDir}/data", "/data")
   
   """
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
