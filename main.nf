@@ -20,7 +20,6 @@ include {
 
 include {
     prepare_pascalx_gwas;
-    setup_pascalx_reference;
     run_pascalx_genes;
     run_real_pascalx;
     run_random_sets_pascalx;
