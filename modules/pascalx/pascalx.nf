@@ -112,7 +112,7 @@ process run_real_pascalx {
         val(rand_method)
 
   script:
-  // Real GMT is already in /data mount
+  // Use container path (mapped from ${projectDir}/data -> /data)
   def real_gmt = "/data/pathway_db/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
   
   """
