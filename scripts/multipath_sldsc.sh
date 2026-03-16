@@ -1,5 +1,10 @@
 
+# references:
+https://github.com/bulik/ldsc/wiki/Partitioned-Heritability?utm_source
+https://github.com/bulik/ldsc?utm_source
+https://hgen471.hakyimlab.org/post/2022/02/22/partition-heritability/#partitioned-heritability
 
+When you implement the multipathway vs other genes annotations, the LDSC tutorial assumes you’re adding your annotations to the baseline model, not replacing it. That step is critical — otherwise the enrichment can just reflect gene density or LD structure.
 
 # munge GWAS sumstats for LDSC
 
