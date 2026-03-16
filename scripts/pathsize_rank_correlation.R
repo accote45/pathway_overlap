@@ -41,31 +41,42 @@ summary_long <- imap_dfr(all_tool_data, function(tool_info, tool_name) {
   cat(sprintf("Processing %s...\n", tool_name))
   
   imap_dfr(tool_info$data, function(dat, sheet_name) {
-    # Check for required columns
-    if (!all(c("ngenes", "original_rank", "gsr_rank") %in% names(dat))) {
+    if (!all(c("ngenes", "pathway_name", "original_rank", "gsr_rank") %in% names(dat))) {
       cat(sprintf("  Warning: Missing columns in %s - %s\n", tool_name, sheet_name))
       return(NULL)
     }
     
-    # Helper function to calculate correlation
-    get_corr <- function(data, n, rank_col) {
-      # Ensure we don't exceed available rows
-      n_available <- min(n, nrow(data))
-      if (n_available < 10) {
-        return(tibble(rho = NA, p_value = NA, n_used = n_available))
+    # For gsamixer: filter to union of top-N pathways from other tools
+    # For all others: take top N rows directly
+    get_subset <- function(data, n) {
+      if (tool_name == "gsamixer") {
+        union_paths <- character(0)
+        for (ot in c("magma", "prset", "pascal")) {
+          if (!ot %in% names(all_tool_data)) next
+          other_dat <- all_tool_data[[ot]]$data[[sheet_name]]
+          if (is.null(other_dat)) next
+          union_paths <- union(union_paths, head(other_dat, n)$pathway_name)
+        }
+        data[data$pathway_name %in% union_paths, ]
+      } else {
+        data[1:min(n, nrow(data)), ]
       }
-      
-      test <- cor.test(data[1:n_available,]$ngenes, 
-                      data[[rank_col]][1:n_available], 
-                      method = 'spearman')
-      tibble(rho = test$estimate, p_value = test$p.value, n_used = n_available)
+    }
+    
+    get_corr <- function(data, n, rank_col) {
+      subset_data <- get_subset(data, n)
+      if (nrow(subset_data) < 10) {
+        return(tibble(rho = NA, p_value = NA, n_used = nrow(subset_data)))
+      }
+      test <- cor.test(subset_data$ngenes, subset_data[[rank_col]], method = 'spearman')
+      tibble(rho = test$estimate, p_value = test$p.value, n_used = nrow(subset_data))
     }
     
     bind_rows(
       get_corr(dat, 100, "original_rank") %>% mutate(n_pathways = 100, rank_type = "original"),
-      get_corr(dat, 100, "gsr_rank") %>% mutate(n_pathways = 100, rank_type = "gsr"),
+      get_corr(dat, 100, "gsr_rank")      %>% mutate(n_pathways = 100, rank_type = "gsr"),
       get_corr(dat, 500, "original_rank") %>% mutate(n_pathways = 500, rank_type = "original"),
-      get_corr(dat, 500, "gsr_rank") %>% mutate(n_pathways = 500, rank_type = "gsr")
+      get_corr(dat, 500, "gsr_rank")      %>% mutate(n_pathways = 500, rank_type = "gsr")
     ) %>%
       mutate(trait = sheet_name, tool = tool_name, .before = 1)
   })
@@ -174,10 +185,66 @@ p_scatter <- ggplot(comparison_data, aes(x = original, y = gsr)) +
 ggsave("pathsize_correlation_scatter_gsr_vs_original.png", p_scatter, 
        width = 10, height = 8, dpi = 300)
 
+# --- Dumbbell Plot: connect Original → GSR, faceted by tool × n_pathways ---
+
+dumbbell_points <- summary_long_with_sig %>%
+  filter(!is.na(rho)) %>%
+  mutate(rank_label = factor(rank_type, levels = c("original", "gsr"),
+                             labels = c("Original", "GSR")))
+
+dumbbell_segments <- summary_long_with_sig %>%
+  filter(!is.na(rho)) %>%
+  select(trait, tool, tool_label, n_pathways, rank_type, rho, significant) %>%
+  pivot_wider(names_from = rank_type, values_from = c(rho, significant)) %>%
+  rename(original = rho_original, gsr = rho_gsr) %>%
+  filter(!is.na(original) & !is.na(gsr)) %>%
+  mutate(significant = significant_original | significant_gsr)
+
+p_dumbbell <- ggplot() +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray60", linewidth = 0.5) +
+  geom_segment(data = dumbbell_segments,
+               aes(x = original, xend = gsr, y = trait, yend = trait,
+                   alpha = significant),
+               color = "gray60", linewidth = 0.6) +
+  geom_point(data = dumbbell_points,
+             aes(x = rho, y = trait, color = rank_label, alpha = significant),
+             size = 3) +
+  scale_color_manual(
+    values = c("Original" = "#377EB8", "GSR" = "#E41A1C"),
+    name = "Rank Type"
+  ) +
+  scale_alpha_manual(
+    values = c("TRUE" = 1, "FALSE" = 0.25),
+    name = "Significant\n(p < 0.05)",
+    labels = c("TRUE" = "Yes", "FALSE" = "No")
+  ) +
+  facet_grid(tool_label ~ n_pathways,
+             scales = "free_y",
+             labeller = labeller(n_pathways = c("100" = "Top 100", "500" = "Top 500"))) +
+  labs(
+    title = "Pathway Size-Rank Correlations by Trait and Tool",
+    subtitle = "Lines connect Original → GSR; Blue = Original, Red = GSR; Faded = n.s. (p ≥ 0.05)",
+    x = "Spearman's ρ",
+    y = "Trait"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(size = 9, color = "gray40"),
+    strip.text = element_text(face = "bold", size = 10),
+    legend.position = "right",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines")
+  )
+
+ggsave("pathsize_correlation_dotplot_by_tool.png", p_dumbbell,
+       width = 12, height = 14, dpi = 300)
+
 cat("\n=== Plots saved ===\n")
 cat("1. pathsize_correlation_heatmap_all_tools.png/pdf\n")
 cat("2. pathsize_correlation_scatter_gsr_vs_original.png/pdf\n")
 cat("3. pathsize_rank_correlation_results_all_tools.txt\n")
+cat("4. pathsize_correlation_dotplot_by_tool.png\n")
 
 
 
