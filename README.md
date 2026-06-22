@@ -148,9 +148,6 @@ validation <- read.table("results/opentargets_correlation/t2d/t2d_magma_rank_cor
 
 ## FAQ
 
-**Q: How long does this take?**  
-A: 5-7 days for 3 traits with all tools (1000 permutations × 2 methods). MAGMA-only: ~2 days.
-
 **Q: Why does PRSet exclude SCZ?**  
 A: Hardcoded exclusion in `main.nf` line 184 due to UKB data restrictions. Remove if you have alternative data.
 
