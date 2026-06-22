@@ -114,7 +114,7 @@ process run_real_pascalx {
 
   script:
   // Use container path (mapped from ${projectDir}/data -> /data)
-  def real_gmt = params.geneset_real.replaceFirst("^\\\$\\{projectDir}/data", "/data")
+  def real_gmt = params.geneset_real.replaceFirst(".*/data/", "/data/")
   
   """
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
