@@ -16,15 +16,16 @@ from PascalX import genescorer
 from PascalX import pathway
 
 def main():
-    if len(sys.argv) != 6:
-        print("Usage: run_pascalx_pathways.py <trait> <gene_scores_file> <gmt_file> <genome_annot> <output_suffix>")
+    if len(sys.argv) != 7:
+        print("Usage: run_pascalx_pathways.py <trait> <gene_scores_file> <gmt_file> <genome_annot> <ref_panel> <output_suffix>")
         sys.exit(1)
     
     trait = sys.argv[1]
     gene_scores_file = sys.argv[2]
-    gmt_file = sys.argv[3]  # Now expects mounted path
-    genome_file = sys.argv[4]  # Now expects "/data/pascalx_reference/msigdbgenes.regions"
-    output_suffix = sys.argv[5]  # 'real' or 'random{N}.{method}'
+    gmt_file = sys.argv[3]
+    genome_file = sys.argv[4]
+    ref_panel = sys.argv[5]        # NEW: e.g. "/pascalx_ref/EUR.1KG.GRCh37"
+    output_suffix = sys.argv[6]    # shifted from argv[5]
     
     try:
         print(f"Starting pathway enrichment for trait: {trait}")
@@ -35,7 +36,11 @@ def main():
         # Initialize gene scorer (needed for pathway analysis)
         Scorer = genescorer.chi2sum()
         print("Gene scorer initialized")
-        
+
+        # Load reference panel (REQUIRED: pathway scoring re-scores fused/meta-genes on the fly)
+        Scorer.load_refpanel(ref_panel, parallel=1)
+        print(f"Reference panel loaded: {ref_panel}")
+
         # Load genome annotation (required before loading scores)
         if not os.path.exists(genome_file):
             raise FileNotFoundError(f"Genome annotation not found: {genome_file}")

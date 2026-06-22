@@ -92,6 +92,7 @@ process run_random_sets_pascalx {
     ${gene_scores} \
     ${random_gmt} \
     ${params.pascalx_genome_annot} \
+    ${params.pascalx_ref_panel} \
     random${perm}.${rand_method}
   """
 }
@@ -121,6 +122,7 @@ process run_real_pascalx {
     ${gene_scores} \
     ${real_gmt} \
     ${params.pascalx_genome_annot} \
+    ${params.pascalx_ref_panel} \
     real
   """
 }
