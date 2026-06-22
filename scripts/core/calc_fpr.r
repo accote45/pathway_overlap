@@ -32,6 +32,12 @@ get_tool_config <- function(tool_base) {
       pval_col = "p_value",  # This would need to be confirmed
       sig_threshold = 0.05
     ),
+    "pascalx" = list(
+      pattern = "*.csv",
+      pathway_col = "Pathway_Name",
+      pval_col = "Pvalue",
+      sig_threshold = 0.05
+    ),
     stop("Unsupported tool: ", tool_base)
   )
 }
@@ -56,7 +62,7 @@ read_random_files <- function(random_dir, pattern) {
   file_data <- list()
   for (i in seq_along(files)) {
     tryCatch({
-      if (tool_base == "gsamixer") {
+      if (tool_base == "gsamixer" || tool_base == "pascalx") {
         data <- fread(files[i], header = TRUE)
       } else {
         data <- read.table(files[i], header = TRUE, stringsAsFactors = FALSE)
@@ -87,7 +93,7 @@ read_random_files <- function(random_dir, pattern) {
 # Calculate FPR
 calculate_pathway_fpr <- function(file_data, config) {
   # Combine all data
-  all_data <- do.call(rbind, file_data)
+  all_data <- as.data.frame(do.call(rbind, file_data))
   
   # Remove "Base" pathway if present (common in pathway analysis)
   if ("Base" %in% all_data[[config$pathway_col]]) {
