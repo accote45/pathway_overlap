@@ -74,7 +74,6 @@ include {
     calculate_fpr as calculate_fpr_magma;
     calculate_fpr as calculate_fpr_prset;
     calculate_fpr as calculate_fpr_pascalx;
-    calculate_fpr as calculate_fpr_gsamixer;
 } from './modules/fpr/fpr_calculation.nf'
 
 include {
@@ -419,7 +418,41 @@ workflow {
     //////////////////////////////////////////
     if (params.run_gsamixer && params.run_empirical) {
         log.info "Running GSA-MiXeR for random pathways"
-        
+
+        //////////////////////////////////////////
+        // GSA-MiXeR REAL MODEL (base + full)
+        //////////////////////////////////////////
+
+        // 1. Prepare and split sumstats per trait
+        gsamixer_sumstats = prepare_gsamixer_sumstats(trait_data)
+        gsamixer_split    = split_gsamixer_sumstats(gsamixer_sumstats)
+
+        // 2. Convert the REAL geneset GMT to GSA-MiXeR format (single, trait-agnostic)
+        convert_gmt_for_gsamixer(
+            file(params.geneset_real),
+            file(params.gtf_reference)
+        )
+        baseline_txt      = convert_gmt_for_gsamixer.out[0]
+        full_gene_txt     = convert_gmt_for_gsamixer.out[1]
+        full_gene_set_txt = convert_gmt_for_gsamixer.out[2]
+
+        // 3. Base model: tuple(trait, chrom_sumstats, baseline_txt)
+        gsamixer_base_inputs = gsamixer_split
+            .combine(baseline_txt)
+            .map { trait, chrom_sumstats, baseline ->
+                tuple(trait, chrom_sumstats, baseline)
+            }
+        gsamixer_base = gsamixer_plsa_base(gsamixer_base_inputs)
+
+        // 4. Full model: tuple(trait, base_json, base_weights, base_snps, full_gene_txt, full_gene_set_txt)
+        gsamixer_full_inputs = gsamixer_base
+            .combine(full_gene_txt)
+            .combine(full_gene_set_txt)
+            .map { trait, base_json, base_weights, base_snps, fgene, fgeneset ->
+                tuple(trait, base_json, base_weights, base_snps, fgene, fgeneset)
+            }
+        gsamixer_full = gsamixer_plsa_full(gsamixer_full_inputs)
+
         // **KEY FIX**: Wait for GMT generation before converting to GSA-MiXeR format
         random_gmt_files = Channel.fromList(
             params.randomization_methods.collect { rand_method ->
@@ -476,7 +509,7 @@ workflow {
                     }
                     
                     def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer", go_test_enrich, random_dir)
+                    tuple(trait, "gsamixer_${rand_method}", go_test_enrich, random_dir)
                 }
             
             // Calculate empirical p-values for GSA-MiXeR
@@ -542,20 +575,6 @@ workflow {
                 }
             
             pascalx_fpr_results = calculate_fpr_pascalx(pascalx_fpr_inputs)
-        }
-        
-        // GSA-MiXeR FPR Analysis - wait for random results to complete
-        if (params.run_gsamixer) {
-            log.info "Calculating FPR for GSA-MiXeR random results"
-            
-            // Use the grouped random results from GSA-MiXeR workflow
-            gsamixer_fpr_inputs = random_gmt_full_grouped
-                .map { trait, rand_method, random_files ->
-                    def random_dir = "${params.outdir}/gsamixer_random/${rand_method}/${trait}"
-                    tuple(trait, "gsamixer", rand_method, random_files, random_dir)
-                }
-            
-            gsamixer_fpr_results = calculate_fpr_gsamixer(gsamixer_fpr_inputs)
         }
     }
     
