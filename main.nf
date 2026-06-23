@@ -777,12 +777,13 @@ workflow {
                 dorothea_correlation_pascalx(pascalx_for_dorothea_corr)
             }
         
-        // GSA-MiXeR
-        if (params.run_gsamixer) {
-            log.info "DoRothEA correlation for GSA-MiXeR"
+            // GSA-MiXeR
+            if (params.run_gsamixer) {
+                log.info "DoRothEA correlation for GSA-MiXeR"
 
-            gsamixer_for_dorothea_corr = group_by_trait_tool(gsamixer_empirical_results)
-            dorothea_correlation_gsamixer(gsamixer_for_dorothea_corr)
+                gsamixer_for_dorothea_corr = group_by_trait_tool(gsamixer_empirical_results)
+                dorothea_correlation_gsamixer(gsamixer_for_dorothea_corr)
+            }
         }
     }
 }
