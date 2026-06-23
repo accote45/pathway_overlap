@@ -89,32 +89,48 @@ if(!"pathway_name" %in% colnames(keeppath_data) && "FULL_NAME" %in% colnames(kee
 cat("Loaded", nrow(birewire_data), "pathways from BireWire results\n")
 cat("Loaded", nrow(keeppath_data), "pathways from KeepPathSize results\n")
 
-# Ensure empirical_pval is numeric
-birewire_data$empirical_pval <- as.numeric(as.character(birewire_data$empirical_pval))
-keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
+# Ensure empirical_pval is numeric (absent for GSA-MiXeR)
+if ("empirical_pval" %in% colnames(birewire_data)) {
+  birewire_data$empirical_pval <- as.numeric(as.character(birewire_data$empirical_pval))
+}
+if ("empirical_pval" %in% colnames(keeppath_data)) {
+  keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
+}
 
 # 6. Start correlation analysis
 cat("\n======= Performing Tissue Specificity Correlation Analysis =======\n")
 rank_correlation_results <- data.frame()
 
-# Define ranking methods for correlation analysis
-ranking_methods <- list(
-  # Raw rankings with tie-breaking
-  list(method_name = "PvalueBeta", 
-       data = birewire_data, 
-       rank_col = c("p_value", "beta_value"),
-       higher_better = c(FALSE, TRUE)),
-  
-  # Empirical p-value + std effect size
-  list(method_name = "BireWire_EmpPvalStdBeta", 
-       data = birewire_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       higher_better = c(FALSE, TRUE)),
-  list(method_name = "KeepPathSize_EmpPvalStdBeta", 
-       data = keeppath_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       higher_better = c(FALSE, TRUE))
-)
+if (tool_base == "gsamixer") {
+  # GSA-MiXeR has no p-value; rank by standardized effect size (higher = better)
+  ranking_methods <- list(
+    list(method_name = "BireWire_StdEffect",
+         data = birewire_data,
+         rank_col = c("std_effect_size"),
+         higher_better = c(TRUE)),
+    list(method_name = "KeepPathSize_StdEffect",
+         data = keeppath_data,
+         rank_col = c("std_effect_size"),
+         higher_better = c(TRUE))
+  )
+} else {
+  ranking_methods <- list(
+    # Raw rankings with tie-breaking
+    list(method_name = "PvalueBeta",
+         data = birewire_data,
+         rank_col = c("p_value", "beta_value"),
+         higher_better = c(FALSE, TRUE)),
+    # Empirical p-value + std effect size
+    list(method_name = "BireWire_EmpPvalStdBeta",
+         data = birewire_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         higher_better = c(FALSE, TRUE)),
+    list(method_name = "KeepPathSize_EmpPvalStdBeta",
+         data = keeppath_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         higher_better = c(FALSE, TRUE))
+  )
+}
 
 # Get all tissue metrics (each individual tissue)
 tissue_metrics <- list()

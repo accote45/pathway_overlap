@@ -180,28 +180,39 @@ all_paths_with_scores <- pathway_scores %>%
   select(name, mean_score, evidence_density)
 
 # Define ranking methods for correlation analysis
-ranking_methods <- list(
-  # Raw rankings (p-value + beta tie-break)
-  list(method_name = "PvalueBeta", 
-       data = birewire_data, 
-       rank_col = c("p_value", "beta_value"),
-       sig_col = "p_value",
-       higher_better = c(FALSE, TRUE)),
-  
-  # REMOVED: RawP method (p-value only ranking)
-  
-  # Empirical p-value + std effect size
-  list(method_name = "BireWire_EmpPvalStdBeta", 
-       data = birewire_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       sig_col = "empirical_pval",
-       higher_better = c(FALSE, TRUE)),
-  list(method_name = "KeepPathSize_EmpPvalStdBeta", 
-       data = keeppath_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       sig_col = "empirical_pval",
-       higher_better = c(FALSE, TRUE))
-)
+if (tool_base == "gsamixer") {
+  # GSA-MiXeR has no p-value; rank by standardized effect size (higher = better)
+  ranking_methods <- list(
+    list(method_name = "BireWire_StdEffect",
+         data = birewire_data,
+         rank_col = c("std_effect_size"),
+         sig_col = "std_effect_size",
+         higher_better = c(TRUE)),
+    list(method_name = "KeepPathSize_StdEffect",
+         data = keeppath_data,
+         rank_col = c("std_effect_size"),
+         sig_col = "std_effect_size",
+         higher_better = c(TRUE))
+  )
+} else {
+  ranking_methods <- list(
+    list(method_name = "PvalueBeta",
+         data = birewire_data,
+         rank_col = c("p_value", "beta_value"),
+         sig_col = "p_value",
+         higher_better = c(FALSE, TRUE)),
+    list(method_name = "BireWire_EmpPvalStdBeta",
+         data = birewire_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         sig_col = "empirical_pval",
+         higher_better = c(FALSE, TRUE)),
+    list(method_name = "KeepPathSize_EmpPvalStdBeta",
+         data = keeppath_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         sig_col = "empirical_pval",
+         higher_better = c(FALSE, TRUE))
+  )
+}
 
 for (ranking in ranking_methods) {
   method_name <- ranking$method_name

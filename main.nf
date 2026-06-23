@@ -36,24 +36,28 @@ include {
     tissue_correlation_analysis as tissue_correlation_magma;
     tissue_correlation_analysis as tissue_correlation_prset;
     tissue_correlation_analysis as tissue_correlation_pascalx;
+    tissue_correlation_analysis as tissue_correlation_gsamixer;
 } from './modules/tissuespecificity/tissue_correlation.nf'
 
 include {
     opentargets_stats_correlation as opentargets_correlation_magma;
     opentargets_stats_correlation as opentargets_correlation_prset;
     opentargets_stats_correlation as opentargets_correlation_pascalx;
+    opentargets_stats_correlation as opentargets_correlation_gsamixer;
 } from './modules/opentargets/opentargets_stats_correlation.nf'
 
 include {
     malacards_correlation as malacards_correlation_magma;
     malacards_correlation as malacards_correlation_prset;
     malacards_correlation as malacards_correlation_pascalx;
+    malacards_correlation as malacards_correlation_gsamixer;
 } from './modules/malacards/malacards_correlation.nf'
 
 include {
     dorothea_correlation as dorothea_correlation_magma;
     dorothea_correlation as dorothea_correlation_prset;
     dorothea_correlation as dorothea_correlation_pascalx;
+    dorothea_correlation as dorothea_correlation_gsamixer;
 } from './modules/dorothea/dorothea_correlation.nf'
 
 include {
@@ -190,6 +194,7 @@ workflow {
     magma_empirical_results = Channel.empty()
     prset_empirical_results = Channel.empty()
     pascalx_empirical_results = Channel.empty()
+    gsamixer_empirical_results = Channel.empty()
     
     //////////////////////////////////////////
     // MAGMA WORKFLOW - WAIT FOR GMTs
@@ -728,6 +733,18 @@ workflow {
                 
                 malacards_correlation_pascalx(pascalx_for_malacards_corr)
             }
+
+            // GSA-MiXeR
+            if (params.run_gsamixer) {
+                log.info "MalaCards correlation for GSA-MiXeR"
+
+                gsamixer_for_malacards_corr = group_by_trait_tool(gsamixer_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize ->
+                        malacards_trait_list.contains(trait.toLowerCase())
+                    }
+
+                malacards_correlation_gsamixer(gsamixer_for_malacards_corr)
+            }
         }
         
         //////////////////////////////////////////
@@ -759,6 +776,13 @@ workflow {
                 pascalx_for_dorothea_corr = group_by_trait_tool(pascalx_empirical_results)
                 dorothea_correlation_pascalx(pascalx_for_dorothea_corr)
             }
+        
+        // GSA-MiXeR
+        if (params.run_gsamixer) {
+            log.info "DoRothEA correlation for GSA-MiXeR"
+
+            gsamixer_for_dorothea_corr = group_by_trait_tool(gsamixer_empirical_results)
+            dorothea_correlation_gsamixer(gsamixer_for_dorothea_corr)
         }
     }
 }

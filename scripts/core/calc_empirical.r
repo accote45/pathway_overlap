@@ -230,7 +230,7 @@ process_random_files <- function(file_batch, path_col, p_col, beta_col, valid_pa
 
         # For GSA-Mixer, filter out base and coding_genes rows and only keep valid pathways from GMT
         if (is_gsamixer) {
-          temp_data <- temp_data[temp_data[[path_col]] != "base" &
+          temp_data <- temp_data[temp_data[[pathway_col]] != "base" &
                                temp_data[[pathway_col]] != "coding_genes" &
                                temp_data[[pathway_col]] %in% valid_pathways, ]
         }
@@ -515,8 +515,7 @@ if (base_tool == "gsamixer") {
 }
 
 # Write results
-output_file <- paste0(trait, "_", full_tool, "_",
-                     if (base_tool == "gsamixer") "standardized_effects.txt" else "empirical_pvalues.txt")
+output_file <- paste0(trait, "_", full_tool, "_empirical_pvalues.txt")
 fwrite(empirical_results, output_file, sep = "\t")
 
 cat("Results calculated for", nrow(empirical_results), "pathways\n")

@@ -48,36 +48,39 @@ for (nm in num_cols) {
   if (nm %in% names(keeppath_data)) keeppath_data[[nm]] <- as.numeric(as.character(keeppath_data[[nm]]))
 }
 
-# 5) Rank Correlation Analysis (style kept close to OT script)
-cat("\n======= Performing Rank Correlation Analysis (MalaCards) =======\n")
-rank_correlation_results <- data.frame()
-
-all_paths_with_scores <- pathway_scores %>% 
-  filter(!is.na(score))
-all_paths_with_scores$name <- all_paths_with_scores$pathway
-
-ranking_methods <- list(
-  # Raw rankings (p-value + beta tie-break)
-  list(method_name = "PvalueBeta", 
-       data = birewire_data, 
-       rank_col = c("p_value", "beta_value"),
-       sig_col = "p_value",
-       higher_better = c(FALSE, TRUE)),
-  
-  # REMOVED: RawP method (p-value only ranking)
-  
-  # Empirical p-value + std effect size
-  list(method_name = "BireWire_EmpPvalStdBeta", 
-       data = birewire_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       sig_col = "empirical_pval",
-       higher_better = c(FALSE, TRUE)),
-  list(method_name = "KeepPathSize_EmpPvalStdBeta", 
-       data = keeppath_data, 
-       rank_col = c("empirical_pval", "std_effect_size"),
-       sig_col = "empirical_pval",
-       higher_better = c(FALSE, TRUE))
-)
+if (tool_base == "gsamixer") {
+  # GSA-MiXeR has no p-value; rank by standardized effect size (higher = better)
+  ranking_methods <- list(
+    list(method_name = "BireWire_StdEffect",
+         data = birewire_data,
+         rank_col = c("std_effect_size"),
+         sig_col = "std_effect_size",
+         higher_better = c(TRUE)),
+    list(method_name = "KeepPathSize_StdEffect",
+         data = keeppath_data,
+         rank_col = c("std_effect_size"),
+         sig_col = "std_effect_size",
+         higher_better = c(TRUE))
+  )
+} else {
+  ranking_methods <- list(
+    list(method_name = "PvalueBeta",
+         data = birewire_data,
+         rank_col = c("p_value", "beta_value"),
+         sig_col = "p_value",
+         higher_better = c(FALSE, TRUE)),
+    list(method_name = "BireWire_EmpPvalStdBeta",
+         data = birewire_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         sig_col = "empirical_pval",
+         higher_better = c(FALSE, TRUE)),
+    list(method_name = "KeepPathSize_EmpPvalStdBeta",
+         data = keeppath_data,
+         rank_col = c("empirical_pval", "std_effect_size"),
+         sig_col = "empirical_pval",
+         higher_better = c(FALSE, TRUE))
+  )
+}
 
 # 5) Rank Correlation Analysis (style kept close to OT script)
 cat("\n======= Performing Rank Correlation Analysis (MalaCards) =======\n")
