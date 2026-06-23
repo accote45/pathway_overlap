@@ -213,23 +213,24 @@ for (ranking in ranking_methods) {
   
   ranking_data <- data
   
-  # Build rank keys (invert if higher is better so smaller is better)
+  # Build rank keys (invert if higher is better so smaller is better).
+  # Only build keys for columns that exist; PascalX has no beta_value/std_effect_size,
+  # so two-key methods degrade gracefully to single-key (p_value or empirical_pval).
+  built_keys <- character(0)
   for (i in seq_along(rank_cols)) {
     col <- rank_cols[i]
     if (!col %in% names(ranking_data)) next
-    ranking_data[[paste0("ranking_", i)]] <- if (isTRUE(higher_better[i])) -ranking_data[[col]] else ranking_data[[col]]
+    key <- paste0("ranking_", i)
+    ranking_data[[key]] <- if (isTRUE(higher_better[i])) -ranking_data[[col]] else ranking_data[[col]]
+    built_keys <- c(built_keys, key)
   }
-  
-  # Order by 1 or 2 keys (as in OT script)
-  if (length(rank_cols) == 1 && "ranking_1" %in% names(ranking_data)) {
-    ranking_data <- ranking_data[order(ranking_data$ranking_1), ]
-  } else if (length(rank_cols) >= 2 && all(c("ranking_1", "ranking_2") %in% names(ranking_data))) {
-    ranking_data <- ranking_data[order(ranking_data$ranking_1, ranking_data$ranking_2), ]
-  } else {
-    # If required columns missing, skip
+
+  # Order by whatever ranking keys are available (2 for MAGMA/PRSet, 1 for PascalX)
+  if (length(built_keys) == 0) {
     cat("  Missing columns for", method_name, "- skipping.\n")
     next
   }
+  ranking_data <- ranking_data[do.call(order, ranking_data[built_keys]), ]
   
   ranking_data$pathway_rank <- seq_len(nrow(ranking_data))
   ranked_paths <- ranking_data %>% select(pathway_name, pathway_rank) %>% rename(name = pathway_name)
