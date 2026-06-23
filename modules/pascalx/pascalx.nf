@@ -109,7 +109,7 @@ process run_real_pascalx {
 
   output:
   tuple val(trait),
-        path("${trait}_real_pascalx.csv"),
+        path("${trait}_real.csv"),
         val(rand_method)
 
   script:
