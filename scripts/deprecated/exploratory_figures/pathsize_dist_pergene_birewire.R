@@ -1,9 +1,9 @@
-
 ## determine distribution of genes across random pathways
 
 library(data.table)
 library(tidyverse)
 library(GSA)
+library(parallel)
 
 setwd('/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/randomized_gene_sets/random_birewire')
 
@@ -14,23 +14,26 @@ pathway_sizes <- read.table("/sc/arion/projects/psychgen/cotea02_prset/geneoverl
 gmt_files <- list.files(pattern = "\\.gmt$")
 
 # For each GMT, get gene-pathway pairs and join with pathway size
-all_gene_pathway_sizes <- rbindlist(lapply(gmt_files, function(gmt_file) {
-  # Extract the file identifier (assuming format like "GeneSet.random1.gmt")
+gene_pathway_list <- mclapply(gmt_files, function(gmt_file) {
   file_id <- gsub("\\.gmt$", "", gmt_file)
-  
   dat <- GSA.read.gmt(gmt_file)
-  path.list <- dat$genesets
-  names(path.list) <- dat$geneset.names
-  gene_pathway <- rbindlist(lapply(names(path.list), function(name) {
-    data.table(
-      gene = path.list[[name]], 
-      pathway = name,
-      file = file_id   # Add file identifier to each row
-    )
-  }))
-  # Join with pathway size
-  merge(gene_pathway, pathway_sizes, by.x = "pathway", by.y = "pathway_name")
-}), use.names = TRUE)
+  names(dat$genesets) <- dat$geneset.names
+
+  # build long table without per-pathway rbindlist
+  lens <- lengths(dat$genesets)
+  data.table(
+    gene    = unlist(dat$genesets, use.names = FALSE),
+    pathway = rep(dat$geneset.names, lens),
+    file    = file_id
+  )
+}, mc.cores = detectCores() - 2)
+
+all_gene_pathway_sizes <- rbindlist(gene_pathway_list, use.names = TRUE)
+# join sizes once, on the full table (faster than 1000 small joins)
+all_gene_pathway_sizes <- merge(
+  all_gene_pathway_sizes, pathway_sizes,
+  by.x = "pathway", by.y = "pathway_name"
+)
 
 # summarize for all genes
 gene_pathway_summary <- all_gene_pathway_sizes[, .(

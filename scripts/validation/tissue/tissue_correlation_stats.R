@@ -97,6 +97,26 @@ if ("empirical_pval" %in% colnames(keeppath_data)) {
   keeppath_data$empirical_pval <- as.numeric(as.character(keeppath_data$empirical_pval))
 }
 
+# --- GSA-MiXeR: candidate pool = top 500 pathways by native MiXeR_AIC ---
+# AIC is from the real GSA-MiXeR result (higher = better). We do NOT filter the
+# full data here, so "All Pathways" stays the full ranking; only the Top-N
+# subsets below are restricted to this AIC-selected pool.
+aic_top500 <- character(0)
+if (tool_base == "gsamixer") {
+  if (!"mixer_aic" %in% names(birewire_data)) {
+    stop("GSA-MiXeR selection requires a 'mixer_aic' column; ",
+         "re-run calc_empirical.r so loglike_aic is carried through.")
+  }
+  birewire_data$mixer_aic <- as.numeric(as.character(birewire_data$mixer_aic))
+  aic_top500 <- birewire_data %>%
+    filter(!is.na(mixer_aic), !is.na(std_effect_size)) %>%
+    arrange(desc(mixer_aic)) %>%
+    slice_head(n = 500) %>%
+    pull(pathway_name)
+  cat("GSA-MiXeR: selected top", length(aic_top500),
+      "pathways by MiXeR_AIC for Top-N subsets\n")
+}
+
 # 6. Start correlation analysis
 cat("\n======= Performing Tissue Specificity Correlation Analysis =======\n")
 rank_correlation_results <- data.frame()
@@ -192,31 +212,28 @@ for(ranking in ranking_methods) {
   # Merge with tissue scores - this gives us all pathways with scores
   all_merged_ranks <- merge(ranked_paths, pathway_tissue_scores, by="name")
   
-  # Create datasets with the top N pathways (if available)
-  top50_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 50)
-  top100_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 100)
-  top250_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 250)
-  top500_ranked_paths <- ranked_paths %>% filter(pathway_rank <= 500)
-  
+  # Top 500 only. For GSA-MiXeR, draw from the AIC-selected pool ordered by
+  # std_effect_size; other tools use their own full ranking.
+  ranked_for_topn <- if (tool_base == "gsamixer") {
+    ranked_paths %>%
+      filter(name %in% aic_top500) %>%
+      arrange(pathway_rank) %>%
+      mutate(pathway_rank = row_number())
+  } else {
+    ranked_paths
+  }
+  top500_ranked_paths <- ranked_for_topn %>% filter(pathway_rank <= 500)
+
   # Merge the top N pathways with tissue scores
-  top50_merged_ranks <- merge(top50_ranked_paths, pathway_tissue_scores, by="name")
-  top100_merged_ranks <- merge(top100_ranked_paths, pathway_tissue_scores, by="name")
-  top250_merged_ranks <- merge(top250_ranked_paths, pathway_tissue_scores, by="name")
   top500_merged_ranks <- merge(top500_ranked_paths, pathway_tissue_scores, by="name")
   
   # Calculate correlations for all metrics and subsets
-  for(subset_name in c("All Pathways", "Top 500 Pathways", "Top 250 Pathways", "Top 100 Pathways", "Top 50 Pathways")) {
+  for(subset_name in c("All Pathways", "Top 500 Pathways")) {
     # Select the appropriate dataset
     if(subset_name == "All Pathways") {
       merged_ranks <- all_merged_ranks
-    } else if(subset_name == "Top 500 Pathways") {
-      merged_ranks <- top500_merged_ranks
-    } else if(subset_name == "Top 250 Pathways") {
-      merged_ranks <- top250_merged_ranks
-    } else if(subset_name == "Top 100 Pathways") {
-      merged_ranks <- top100_merged_ranks
     } else {
-      merged_ranks <- top50_merged_ranks
+      merged_ranks <- top500_merged_ranks
     }
     
     # Skip if no data

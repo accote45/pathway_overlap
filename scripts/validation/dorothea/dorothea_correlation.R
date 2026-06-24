@@ -22,7 +22,7 @@ birewire_results_file <- args[4]
 keeppathsize_results_file <- args[5]
 
 # Top-N cutoffs
-top_ns <- c(100, 250, 500)
+top_ns <- c(500)
 
 cat("======= Starting Dorothea correlation for", trait, "(", tool_base, ") =======\n")
 
@@ -46,6 +46,26 @@ num_cols <- c("empirical_pval", "p_value", "beta_value", "std_effect_size")
 for (nm in num_cols) {
   if (nm %in% names(birewire_data)) birewire_data[[nm]] <- as.numeric(as.character(birewire_data[[nm]]))
   if (nm %in% names(keeppath_data)) keeppath_data[[nm]] <- as.numeric(as.character(keeppath_data[[nm]]))
+}
+
+# --- GSA-MiXeR: candidate pool = top 500 pathways by native MiXeR_AIC ---
+# AIC is from the real GSA-MiXeR result (higher = better). We do NOT filter the
+# full data here, so "All Pathways" stays the full ranking; only the Top-N
+# subsets below are restricted to this AIC-selected pool.
+aic_top500 <- character(0)
+if (tool_base == "gsamixer") {
+  if (!"mixer_aic" %in% names(birewire_data)) {
+    stop("GSA-MiXeR selection requires a 'mixer_aic' column; ",
+         "re-run calc_empirical.r so loglike_aic is carried through.")
+  }
+  birewire_data$mixer_aic <- as.numeric(as.character(birewire_data$mixer_aic))
+  aic_top500 <- birewire_data %>%
+    filter(!is.na(mixer_aic), !is.na(std_effect_size)) %>%
+    arrange(desc(mixer_aic)) %>%
+    slice_head(n = 500) %>%
+    pull(pathway_name)
+  cat("GSA-MiXeR: selected top", length(aic_top500),
+      "pathways by MiXeR_AIC for Top-N subsets\n")
 }
 
 if (tool_base == "gsamixer") {
@@ -127,8 +147,20 @@ for (ranking in ranking_methods) {
   
   # Subsets: All + Top-N
   subset_list <- list("All Pathways" = all_merged_ranks)
+
+  # Top-N. For GSA-MiXeR, draw from the AIC-selected pool ordered by
+  # std_effect_size; other tools use their own full ranking.
+  ranked_for_topn <- if (tool_base == "gsamixer") {
+    ranked_paths %>%
+      filter(name %in% aic_top500) %>%
+      arrange(pathway_rank) %>%
+      mutate(pathway_rank = row_number())
+  } else {
+    ranked_paths
+  }
+
   for (N in sort(unique(top_ns))) {
-    topN_ranked_paths <- ranked_paths %>% filter(pathway_rank <= N)
+    topN_ranked_paths <- ranked_for_topn %>% filter(pathway_rank <= N)
     subset_list[[sprintf("Top %d Pathways", N)]] <- merge(topN_ranked_paths, all_paths_with_scores, by = "name")
   }
   

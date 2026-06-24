@@ -33,7 +33,7 @@ tool_config <- list(
     pval_col = NULL,  # No p-value column for GSA-Mixer
     beta_col = "enrich",  # Use enrichment score instead
     ngenes_col = "NGENES",
-    required_cols = c("GO", "enrich", "NGENES", "h2", "se_enrich"),
+    required_cols = c("GO", "enrich", "NGENES", "h2", "se_enrich", "loglike_aic"),
     calc_pvalue = FALSE  # Don't calculate empirical p-values for GSA-Mixer
   )
 )
@@ -460,58 +460,54 @@ if (calc_pvalue) {
 # Create final output - handle each tool's available columns
 if (base_tool == "gsamixer") {
   empirical_results <- results_dt[!is.na(std_effect_size),
-                                .(trait = trait,
-                                  tool = full_tool,
-                                  pathway_name = get(pathway_col),
-                                  ngenes = get(ngenes_col),
-                                  enrich = get(beta_col),  # Original enrichment score
-                                  std_effect_size,
-                                  mean_beta_perm,
-                                  sd_beta_perm,
-                                  n_perms,
-                                  n_total_random)]
+  .(trait, tool = full_tool,
+    pathway_name = get(pathway_col),
+    ngenes = get(ngenes_col),
+    enrich = get(beta_col),
+    mixer_aic = get("loglike_aic"),   # native AIC for candidate selection
+    std_effect_size, mean_beta_perm, sd_beta_perm, n_perms, n_total_random)]
 } else if (base_tool == "prset") {
   empirical_results <- results_dt[!is.na(empirical_pval),
-                                .(trait = trait,
-                                  tool = full_tool,
-                                  pathway_name = get(pathway_col),
-                                  ngenes = get(ngenes_col),
-                                  p_value = get(pval_col),
-                                  beta_value = get(beta_col),
-                                  competitive_p = get("Competitive.P"),
-                                  empirical_pval,
-                                  std_effect_size,
-                                  mean_beta_perm,
-                                  sd_beta_perm,
-                                  n_perms,
-                                  n_more_extreme,
-                                  n_total_random)]
+  .(trait = trait,
+    tool = full_tool,
+    pathway_name = get(pathway_col),
+    ngenes = get(ngenes_col),
+    p_value = get(pval_col),
+    beta_value = get(beta_col),
+    competitive_p = get("Competitive.P"),
+    empirical_pval,
+    std_effect_size,
+    mean_beta_perm,
+    sd_beta_perm,
+    n_perms,
+    n_more_extreme,
+    n_total_random)]
 } else if (base_tool == "pascalx") {
   # PascalX has no beta/effect-size or ngenes columns
   empirical_results <- results_dt[!is.na(empirical_pval),
-                                .(trait = trait,
-                                  tool = full_tool,
-                                  pathway_name = get(pathway_col),
-                                  p_value = get(pval_col),
-                                  empirical_pval,
-                                  n_more_extreme,
-                                  n_total_random)]
+  .(trait = trait,
+    tool = full_tool,
+    pathway_name = get(pathway_col),
+    p_value = get(pval_col),
+    empirical_pval,
+    n_more_extreme,
+    n_total_random)]
 } else {
   # MAGMA
   empirical_results <- results_dt[!is.na(empirical_pval),
-                                .(trait = trait,
-                                  tool = full_tool,
-                                  pathway_name = get(pathway_col),
-                                  ngenes = get(ngenes_col),
-                                  p_value = get(pval_col),
-                                  beta_value = get(beta_col),
-                                  empirical_pval,
-                                  std_effect_size,
-                                  mean_beta_perm,
-                                  sd_beta_perm,
-                                  n_perms,
-                                  n_more_extreme,
-                                  n_total_random)]
+  .(trait = trait,
+    tool = full_tool,
+    pathway_name = get(pathway_col),
+    ngenes = get(ngenes_col),
+    p_value = get(pval_col),
+    beta_value = get(beta_col),
+    empirical_pval,
+    std_effect_size,
+    mean_beta_perm,
+    sd_beta_perm,
+    n_perms,
+    n_more_extreme,
+    n_total_random)]
 }
 
 # Write results
