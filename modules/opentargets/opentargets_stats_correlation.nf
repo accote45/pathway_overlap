@@ -25,6 +25,6 @@ process opentargets_stats_correlation {
       "${birewire_results}" \\
       "${keeppathsize_results}" \\
       "${params.geneset_real}" \\
-      "${params.opentargets_n_values}"
+      "${params.opentargets_json_dir}"
     """
 }

@@ -35,14 +35,15 @@ nano nextflow.config
 
 **Configuration help**: See [GWAS Input Guide](docs/DETAILED_SETUP.md#gwas-configuration)
 
-### 3. Pre-generate Randomized Gene Sets
-**⚠️ Required before running pipeline** (12h runtime)
-```bash
-Rscript scripts/core/generate_birewire_gmts.R \
-  --input data/msigdb/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt \
-  --output data/randomized_gene_sets/random_birewire_10k \
-  --num_random 1000
-```
+### 3. Randomized (null) Gene Sets
+By default (`params.generate_random_gmts = true`) the pipeline **generates the
+randomized gene sets automatically** as its first step, into
+`${outdir}/randomized_gene_sets/random_birewire/` and `.../random_keeppathsize/`
+(~12h for 1000 sets). You do **not** need to pre-generate them.
+
+To pre-generate manually instead (e.g. to reuse across runs), use
+`scripts/core/generate_birewire_gmts.R` / `generate_keeppathsize_gmts.R`, then set
+`generate_random_gmts = false` and point `params.gmt_dirs` at the output.
 
 ### 4. Run Pipeline
 ```bash
@@ -139,6 +140,9 @@ validation <- read.table("results/opentargets_correlation/t2d/t2d_magma_rank_cor
 
 ## Documentation
 
+- **[Reproducibility Checklist](docs/REPRODUCIBILITY.md)**: Start here — step-by-step setup for a new user
+- **[GSR Method](docs/METHODS_GSR.md)**: The core gene-set-randomization adjustment (empirical p-values, standardized effect sizes)
+- **[Data Manifest](data/README.md)**: Every required input file, format, and source
 - **[Detailed Setup Guide](docs/DETAILED_SETUP.md)**: Software/data dependencies, scheduler configuration
 - **[Tool Details](docs/TOOL_DETAILS.md)**: MAGMA, PRSet, GSA-MiXeR implementation specifics
 - **[Validation Guide](docs/VALIDATION.md)**: OpenTargets, GTEx, MalaCards, DoRothEA
@@ -148,8 +152,8 @@ validation <- read.table("results/opentargets_correlation/t2d/t2d_magma_rank_cor
 
 ## FAQ
 
-**Q: Why does PRSet exclude SCZ?**  
-A: Hardcoded exclusion in `main.nf` line 184 due to UKB data restrictions. Remove if you have alternative data.
+**Q: Why does PRSet exclude SCZ (and IBD, AD)?**  
+A: Hardcoded exclusion in the `prset_dedup_data` filter in `main.nf` (`trait != "SCZ" && trait != "IBD" && trait != "AD"`) due to UKB data restrictions. Remove traits from that filter if you have alternative data.
 
 **Q: What's the difference between `p_value` and `empirical_pval`?**  
 A: 

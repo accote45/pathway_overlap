@@ -1,6 +1,6 @@
 [   {
       "trait": "ibd",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/ibd_gwas.txt",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "Rsid",
       "chr_col": "CHR",
       "pos_col": "POS",
@@ -16,7 +16,7 @@
     },
     {
       "trait": "scz",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/scz_gwas.txt",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "ID",
       "chr_col": "CHROM",
       "pos_col": "POS",
@@ -32,7 +32,7 @@
     },
     {
       "trait": "bmi",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/MVP_R4.1000G_AGR.BMI_Mean_INT.EUR.GIA.dbGaP.txt_hg19",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "hg19_RefSNP_id",
       "chr_col": "hg19_seqnames",
       "pos_col": "hg19_pos",
@@ -47,7 +47,7 @@
     },
     {
       "trait": "cad",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/cad-std.sumstat.txt_forpascal",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "snp",
       "chr_col": "V1",
       "pos_col": "V2",
@@ -63,7 +63,7 @@
     },
     {
       "trait": "t2d",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/METAANALYSIS_DIAGRAM_SE1_forprset.txt",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "Rsid",
       "chr_col": "Chr",
       "pos_col": "Pos",
@@ -79,7 +79,7 @@
     },
     {
       "trait": "mdd",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/pgc-mdd2025_no23andMe-noUKBB_eur_v3-49-24-11.forprset.tsv",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "ID",
       "chr_col": "CHROM",
       "pos_col": "POS",
@@ -95,7 +95,7 @@
     },
     {
       "trait": "breast",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/GCST90454347_rsID.tsv",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "ID",
       "chr_col": "chromosome",
       "pos_col": "base_pair_location",
@@ -111,7 +111,7 @@
     },
     {
       "trait": "ad",
-      "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/ad_gwas.txt",
+      "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
       "rsid_col": "rsid",
       "chr_col": "chromosome",
       "pos_col": "base_pair_location",
@@ -127,7 +127,7 @@
     },
   {
     "trait": "Alkaline_phosphatase",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Alkaline_phosphatase_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -142,7 +142,7 @@
   },
   {
     "trait": "Eosinophill_percentage",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Eosinophill_percentage_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -157,7 +157,7 @@
   },
   {
     "trait": "HDL_cholesterol",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/HDL_cholesterol_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -172,7 +172,7 @@
   },
   {
     "trait": "Lymphocyte_count",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Lymphocyte_count_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -187,7 +187,7 @@
   },
   {
     "trait": "Mean_platelet_thrombocyte_volume",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Mean_platelet_thrombocyte_volume_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -202,7 +202,7 @@
   },
  {
     "trait": "Monocyte_percentage",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Monocyte_percentage_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -217,7 +217,7 @@
   },
   {
     "trait": "Platelet_crit",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Platelet_crit_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -232,7 +232,7 @@
   },
   {
     "trait": "Urea",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Urea_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -247,7 +247,7 @@
   },
   {
     "trait": "Vitamin_D",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Vitamin_D_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",
@@ -262,7 +262,7 @@
   },
   {
     "trait": "Lipoprotein_A",
-    "gwas_file": "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gwas/Lipoprotein_A_gwas.txt",
+    "gwas_file": "/path/to/gwas/gwas_summary_stats.txt",
     "rsid_col": "ID",
     "chr_col": "CHROM",
     "pos_col": "POS",

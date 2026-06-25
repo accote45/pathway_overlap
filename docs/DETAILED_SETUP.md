@@ -41,8 +41,10 @@ install.packages(c("tidyverse", "data.table", "plyr", "jsonlite",
    ```
 
 2. **Randomized gene sets** (BiReWire + KeepPathSize):
+   Generated automatically into `${params.outdir}/randomized_gene_sets/` when
+   `generate_random_gmts = true` (the default):
    ```
-   data/randomized_gene_sets/
+   ${outdir}/randomized_gene_sets/
    ├── random_birewire/
    │   └── GeneSet.random{1-1000}.gmt
    └── random_keeppathsize/

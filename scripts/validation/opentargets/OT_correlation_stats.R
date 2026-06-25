@@ -20,6 +20,12 @@ tool_base <- args[2]
 birewire_results_file <- args[3]
 keeppathsize_results_file <- args[4]
 gmt_file <- args[5]
+# Directory of OpenTargets associationByDatatypeDirect JSON files
+# (passed from the pipeline via params.opentargets_json_dir)
+opentargets_json_dir <- args[6]
+if (is.na(opentargets_json_dir) || opentargets_json_dir == "") {
+  stop("OpenTargets JSON directory not provided as argument 6")
+}
 
 # Optional: comma-separated list of Top-N cutoffs (default: 100,250,500)
 # Example: Rscript OT_correlation_stats.R ... "100,250,500"
@@ -63,10 +69,10 @@ genes_long$targetId <- genes_long$value
 
 # 2. Process OpenTargets JSON files for disease
 # Fix redundant file loading
-files <- list.files(path = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect", 
+files <- list.files(path = opentargets_json_dir,
                     pattern = "*.json", full.names=TRUE)
 if(length(files) == 0) {
-  stop("No JSON files found in current directory")
+  stop(paste("No JSON files found in OpenTargets directory:", opentargets_json_dir))
 }
 
 cat("Reading JSON files for disease", disease_id, "...\n")

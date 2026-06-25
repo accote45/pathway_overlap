@@ -38,7 +38,9 @@ magma \
 4. Validation: Uses held-out UKB test set
 
 ### ⚠️ Critical Exclusion
-SCZ trait is **hardcoded to be excluded** from PRSet analysis (line 184 in `main.nf`).
+SCZ, IBD, and AD traits are **hardcoded to be excluded** from PRSet analysis — see
+the `prset_dedup_data` filter in `main.nf` (`trait != "SCZ" && trait != "IBD" && trait != "AD"`).
+Remove traits from that filter if you have suitable PRSet inputs for them.
 
 ### Key Parameters
 ```bash

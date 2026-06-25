@@ -15,7 +15,10 @@ work/
 
 # ignore results
 results/
+scripts/results/
 
+# scratch / temp work
+pascal_temp/
 
 .DS_Store
 

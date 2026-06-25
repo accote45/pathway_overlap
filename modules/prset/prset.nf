@@ -138,10 +138,10 @@ process run_random_sets_prset {
   def gmt_dir = params.gmt_dirs[rand_method]  // <-- rand_method IS USED HERE
   
   """
-  /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
+  ${params.prsice_bin} \\
     --a1 ${effect_allele} \\
     --a2 ${other_allele} \\
-    --background /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdb.genes.txt:gene \\
+    --background ${params.prset_background} \\
     --bar-levels 1 \\
     --base ${gwas_file} \\
     --binary-target ${binary_target} \\
@@ -150,7 +150,7 @@ process run_random_sets_prset {
     --clump-r2 0.100000 \\
     --extract ${params.ukb_dir}/ukb18177-qc.snplist \\
     --fastscore \\
-    --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
+    --gtf ${params.gtf_reference} \\
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${gmt_dir}/GeneSet.random${perm}.gmt \\
     --num-auto 22 \\
@@ -203,10 +203,10 @@ process run_real_prset {
   // NOTE: rand_method parameter exists but is NOT used in PRSice command
   // It's only needed for channel routing in main.nf
   """
-  /sc/arion/projects/psychgen/cotea02_prset/PRSice_linux \\
+  ${params.prsice_bin} \\
     --a1 ${effect_allele} \\
     --a2 ${other_allele} \\
-    --background /sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdb.genes.txt:gene \\
+    --background ${params.prset_background} \\
     --bar-levels 1 \\
     --base ${gwas_file} \\
     --binary-target ${binary_target} \\
@@ -215,7 +215,7 @@ process run_real_prset {
     --clump-r2 0.100000 \\
     --extract ${params.ukb_dir}/ukb18177-qc.snplist \\
     --fastscore \\
-    --gtf /sc/arion/projects/paul_oreilly/lab/cotea02/project/data/reference/Homo_sapiens.GRCh37.75.gtf.gz \\
+    --gtf ${params.gtf_reference} \\
     --keep ${params.ukb_dir}/ukb_test_samples.txt \\
     --msigdb ${params.geneset_real} \\
     --num-auto 22 \\
