@@ -26,19 +26,7 @@ process prepare_gsamixer_sumstats {
 
   input:
   tuple val(trait),
-        path(gwas_file),
-        val(rsid_col),
-        val(chr_col),
-        val(pos_col),
-        val(pval_col),
-        val(n_col),
-        val(binary_target),
-        val(effect_allele),
-        val(other_allele),
-        val(summary_statistic_name),
-        val(summary_statistic_type),
-        val(se_col),
-        val(neff_col)
+        path(gwas_file)
 
   output:
   tuple val(trait),

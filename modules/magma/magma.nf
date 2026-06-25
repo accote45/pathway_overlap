@@ -84,12 +84,12 @@ process run_real_geneset {
   input:
   tuple val(trait),
         path(gene_results_file),
-        val(rand_method)  // <-- KEEP THIS (but ignore in script)
+        val(rand_method)  // threaded through for channel consistency; unused in the command
 
   output:
   tuple val(trait),
         path("${trait}_real_set.gsa.out"),
-        val(rand_method)  // <-- PASS THROUGH for channel consistency
+        val(rand_method)  // passed through for channel consistency
 
   publishDir "${params.outdir}/magma_real/${trait}", mode: 'copy', overwrite: true
 

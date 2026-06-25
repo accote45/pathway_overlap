@@ -14,7 +14,6 @@ process convert_random_gmt_for_gsamixer {
   output:
   tuple val(rand_method),
         val(perm),
-        path("${rand_method}_random${perm}_baseline.txt"),
         path("${rand_method}_random${perm}_full_gene.txt"),
         path("${rand_method}_random${perm}_full_gene_set.txt")
 
@@ -39,10 +38,9 @@ process gsamixer_plsa_full_random {
   tuple val(trait),
         path(base_json),
         path(base_weights),
-        path(base_snps),  // Added this line to accept weights
+        path(base_snps),
         val(rand_method),
         val(perm),
-        path(baseline_txt),
         path(full_gene_txt),
         path(full_gene_set_txt)
 

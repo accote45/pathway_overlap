@@ -123,7 +123,7 @@ process run_random_sets_prset {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method),  // <-- USED to select GMT file
+        val(rand_method),  // selects the GMT directory
         val(perm)
   
   output:
@@ -135,7 +135,7 @@ process run_random_sets_prset {
 
   script:
   // Determine the correct GMT directory based on randomization method
-  def gmt_dir = params.gmt_dirs[rand_method]  // <-- rand_method IS USED HERE
+  def gmt_dir = params.gmt_dirs[rand_method]
   
   """
   ${params.prsice_bin} \\
@@ -159,7 +159,7 @@ process run_random_sets_prset {
     --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
-    --set-perm 10 \\
+    --set-perm 1000 \\
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\
@@ -190,14 +190,14 @@ process run_real_prset {
         val(pval_col),
         val(summary_statistic_name),
         val(summary_statistic_type),
-        val(rand_method)  // <-- KEEP THIS (but ignore in script)
+        val(rand_method)  // threaded through for channel consistency; unused in the command
   
   output:
   tuple val(trait),
         path("${trait}_real_set.summary"),
         path("${trait}_real_set.log"),
         path("${trait}_real_set.prsice"),
-        val(rand_method)  // <-- PASS THROUGH for channel consistency
+        val(rand_method)  // passed through for channel consistency
 
   script:
   // NOTE: rand_method parameter exists but is NOT used in PRSice command
@@ -224,7 +224,7 @@ process run_real_prset {
     --pheno-col ${trait}_resid \\
     --print-snp \\
     --pvalue ${pval_col} \\
-    --set-perm 2 \\
+    --set-perm 1000 \\
     --snp ${rsid_col} \\
     --stat ${summary_statistic_name} \\
     --${summary_statistic_type} \\

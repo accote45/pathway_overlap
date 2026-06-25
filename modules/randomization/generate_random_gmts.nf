@@ -1,11 +1,4 @@
 process generate_birewire_random_gmts {
-  executor 'lsf'
-  queue 'premium'
-  cpus 1
-  memory '15G'
-  time '12h'
-  clusterOptions '-P acc_paul_oreilly'
-  
   input:
   path(input_gmt)
   val(num_random_sets)
@@ -39,13 +32,6 @@ process generate_birewire_random_gmts {
 }
 
 process generate_keeppathsize_random_gmts {
-  executor 'lsf'
-  queue 'premium'
-  cpus 1
-  memory '8G'
-  time '4h'
-  clusterOptions '-P acc_paul_oreilly'
-  
   input:
   path(input_gmt)
   val(num_random_sets)
