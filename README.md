@@ -141,6 +141,7 @@ validation <- read.table("results/opentargets_correlation/t2d/t2d_magma_rank_cor
 ## Documentation
 
 - **[Reproducibility Checklist](docs/REPRODUCIBILITY.md)**: Start here — step-by-step setup for a new user
+- **[Supplementary Analyses & Figures](docs/SUPPLEMENTARY.md)**: Map of each supplementary analysis/figure to the script and command that produces it
 - **[GSR Method](docs/METHODS_GSR.md)**: The core gene-set-randomization adjustment (empirical p-values, standardized effect sizes)
 - **[Data Manifest](data/README.md)**: Every required input file, format, and source
 - **[Detailed Setup Guide](docs/DETAILED_SETUP.md)**: Software/data dependencies, scheduler configuration
