@@ -659,6 +659,18 @@ workflow {
                 
                 pascalx_opentargets_correlation = opentargets_correlation_pascalx(pascalx_for_opentargets)
             }
+
+                        // GSA-MiXeR
+            if (params.run_gsamixer) {
+                log.info "OpenTargets correlation for GSA-MiXeR"
+
+                gsamixer_for_opentargets = group_by_trait_tool(gsamixer_empirical_results)
+                    .filter { trait, tool, birewire, keeppathsize ->
+                        params.opentargets_supported_traits.contains(trait)
+                    }
+
+                gsamixer_opentargets_correlation = opentargets_correlation_gsamixer(gsamixer_for_opentargets)
+            }
         }
         
         //////////////////////////////////////////
@@ -689,6 +701,14 @@ workflow {
                 
                 pascalx_for_tissue_corr = group_by_trait_tool(pascalx_empirical_results)
                 tissue_correlation_pascalx(pascalx_for_tissue_corr)
+            }
+
+                        // GSA-MiXeR
+            if (params.run_gsamixer) {
+                log.info "Tissue correlation for GSA-MiXeR"
+
+                gsamixer_for_tissue_corr = group_by_trait_tool(gsamixer_empirical_results)
+                tissue_correlation_gsamixer(gsamixer_for_tissue_corr)
             }
         }
         
