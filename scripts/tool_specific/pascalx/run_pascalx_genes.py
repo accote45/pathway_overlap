@@ -12,21 +12,26 @@ import PascalX
 from PascalX import genescorer
 
 def main():
-    if len(sys.argv) != 5:
-        print("Usage: run_pascalx_genes.py <trait> <gwas_file> <ref_panel> <genome_annot>")
-        sys.exit(1)
-    
+    if len(sys.argv) not in (5, 6):
+    print("Usage: run_pascalx_genes.py <trait> <gwas_file> <ref_panel> <genome_annot> [n_parallel]")
+    sys.exit(1)
+
     trait = sys.argv[1]
     gwas_file = sys.argv[2]
     ref_panel = sys.argv[3]  # Expects mounted path like "/data/pascalx_reference/EUR.1KG.GRCh37"
     genome_file = sys.argv[4]  # Expects "/data/pascalx_reference/msigdbgenes.regions"
-    
+    # Number of parallel workers. MUST match the CPUs reserved for the LSF job:
+    # PascalX forks this many processes, each loading reference-panel data, so a
+    # mismatch oversubscribes CPUs and multiplies peak memory (causes OOM kills).
+    n_parallel = int(sys.argv[5]) if len(sys.argv) == 6 else 1
+
     # Print info about expected files
     print(f"PascalX Gene Scoring Configuration:")
     print(f"  Trait: {trait}")
     print(f"  GWAS file: {gwas_file}")
     print(f"  Reference panel prefix: {ref_panel}")
     print(f"  Genome annotation: {genome_file}")
+    print(f"  Parallel workers: {n_parallel}")
     
     try:
         print(f"\nStarting gene scoring for trait: {trait}")
@@ -38,7 +43,7 @@ def main():
         # Load reference panel with parallelization
         # PascalX will handle validation of reference panel format (VCF or PLINK bfiles)
         print(f"Loading reference panel: {ref_panel}")
-        Scorer.load_refpanel(ref_panel, parallel=15)
+        Scorer.load_refpanel(ref_panel, parallel=n_parallel)
         print(f"Reference panel loaded successfully")
         
         # Load GWAS file
