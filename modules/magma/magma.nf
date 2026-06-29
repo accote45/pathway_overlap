@@ -121,7 +121,7 @@ process run_random_sets {
         path("${trait}_set_random${perm}.${rand_method}.gsa.out"),
         val(rand_method)
 
-  publishDir "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/magma_random/${rand_method}/${trait}", mode: 'copy', overwrite: true
 
   script:
   // Determine the correct GMT directory based on randomization method

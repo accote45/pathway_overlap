@@ -51,14 +51,14 @@ process gsamixer_plsa_full_random {
         path("${trait}_${rand_method}_random${perm}_full.json"),
         path("${trait}_${rand_method}_random${perm}_full.go_test_enrich.csv")
 
-  publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}/random${perm}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_random/${rand_method}/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-full \\
-    --trait1-file ${params.outdir}/gsamixer/${trait}/${trait}.chr@.sumstats.gz \\
+    --trait1-file ${params.outdir}/gsamixer_real/${trait}/${trait}.chr@.sumstats.gz \\
     --out ${trait}_${rand_method}_random${perm}_full \\
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\

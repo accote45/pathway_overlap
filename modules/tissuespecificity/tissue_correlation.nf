@@ -2,7 +2,7 @@ process tissue_correlation_analysis {
     executor 'lsf'
     tag "${trait}_${tool_base}_tissue_correlation"
     
-    publishDir "${params.outdir}/tissue_correlation/${trait}", mode: 'copy'
+    publishDir "${params.outdir}/tissue_correlation/${trait}", mode: 'copy', overwrite: true
 
     input:
     tuple val(trait),

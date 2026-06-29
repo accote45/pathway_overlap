@@ -25,7 +25,7 @@ Every absolute path in the repo is a `/path/to/...` placeholder. Edit
 script bodies no longer contain hardcoded data paths.
 
 - [ ] `traits_config`, `outdir`, `num_random_sets` (study = 1000)
-- [ ] References: `bfile`, `gtf_reference`, `gene_files`, `geneset_real`
+- [ ] References: `bfile`, `gtf_reference`, `gene_file`, `geneset_real`
 - [ ] PRSet: `prsice_bin`, `prset_background`, `ukb_dir`
 - [ ] GSA-MiXeR: `mixer_sif`, `mixer_ref_*`, `mixer_go_*`
 - [ ] PascalX: `pascalx_sif`, `pascalx_ref_panel`, `pascalx_genome_annot`,

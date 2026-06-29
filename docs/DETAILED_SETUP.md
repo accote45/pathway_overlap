@@ -40,7 +40,7 @@ install.packages(c("tidyverse", "data.table", "plyr", "jsonlite",
    from [MSigDB](https://www.gsea-msigdb.org/gsea/msigdb/).
 
    **Then filter it** to the gene universe in your gene-coordinate reference
-   (`gene_files.msigdbgenes`) to produce the `_filtered.txt` file that
+   (`params.gene_file`) to produce the `_filtered.txt` file that
    `params.geneset_real` expects, so the real and randomized gene sets share one
    gene space. See the filtering note in [../data/README.md](../data/README.md#1-core-gene-sets).
 

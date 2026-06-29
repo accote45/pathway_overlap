@@ -206,7 +206,7 @@ workflow {
         
         // Run gene analysis (doesn't need GMTs)
         prepared = prepare_input(magma_gene_data)
-        def selected_gene_file = params.gene_files[params.background]
+        def selected_gene_file = params.gene_file
         def snp_loc_with_gene_file = prepared.snp_loc_data.map { it + [selected_gene_file] }
         annotated = annotate_genes(snp_loc_with_gene_file)
         gene_analysis_results = run_gene_analysis(annotated.gene_annot_data)
@@ -249,7 +249,7 @@ workflow {
             magma_for_empirical = magma_real_for_empirical
                 .combine(random_results_grouped, by: [0, 2])  // Join by trait AND rand_method
                 .map { trait, rand_method, real_result_file, random_files_list ->
-                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${trait}"
                     tuple(trait, "magma_${rand_method}", real_result_file, random_dir)
                 }
             
@@ -338,7 +338,7 @@ workflow {
                         log.error "PRSet empirical ${trait}/${rand_method}: Expected ${expected_count} files, got ${random_files_list.size()}"
                     }
                     
-                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${trait}"
                     tuple(trait, "prset_${rand_method}", summary_file, random_dir)
                 }
             
@@ -405,7 +405,7 @@ workflow {
             pascalx_for_empirical = pascalx_real_for_empirical
                 .combine(random_pascalx_grouped, by: [0, 2])  // Join by trait AND rand_method
                 .map { trait, rand_method, real_result_file, random_files_list ->
-                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${trait}"
                     tuple(trait, "pascalx_${rand_method}", real_result_file, random_dir)
                 }
             
@@ -537,7 +537,7 @@ workflow {
             // Structure after groupTuple(by: [0, 2]) is: [trait, [files...], rand_method]
             magma_fpr_inputs = random_results_grouped
                 .map { trait, random_files, rand_method ->
-                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/magma_random/${rand_method}/${trait}"
                     tuple(trait, "magma", rand_method, random_files, random_dir)
                 }
             
@@ -558,7 +558,7 @@ workflow {
                             : file_group
                     }
                     
-                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/prset_random/${rand_method}/${trait}"
                     tuple(trait, "prset", rand_method, summary_files, random_dir)
                 }
                 .filter { it != null }
@@ -573,7 +573,7 @@ workflow {
             // Use the grouped random results from PascalX workflow
             pascalx_fpr_inputs = random_pascalx_grouped
                 .map { trait, random_files, rand_method ->
-                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}"
+                    def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${trait}"
                     tuple(trait, "pascalx", rand_method, random_files, random_dir)
                 }
             

@@ -2,7 +2,7 @@ process opentargets_stats_correlation {
     executor 'lsf'
     tag "${trait}_${tool_base}_correlation_stats"
     
-    publishDir "${params.outdir}/opentargets_correlation/${trait}", mode: 'copy'
+    publishDir "${params.outdir}/opentargets_correlation/${trait}", mode: 'copy', overwrite: true
 
     input:
     tuple val(trait),

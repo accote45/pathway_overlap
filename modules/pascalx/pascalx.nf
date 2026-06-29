@@ -70,7 +70,7 @@ process run_pascalx_genes {
 process run_random_sets_pascalx {
   tag "${trait}_random${perm}_${rand_method}"
   container "${params.pascalx_sif}"
-  publishDir "${params.outdir}/pascalx_random/${rand_method}/${params.background}/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/pascalx_random/${rand_method}/${trait}", mode: 'copy', overwrite: true
   
   input:
   tuple val(trait),

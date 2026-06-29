@@ -32,7 +32,7 @@ process prepare_gsamixer_sumstats {
   tuple val(trait),
         path("${trait}.sumstats.gz")
 
-  publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
@@ -57,7 +57,7 @@ process split_gsamixer_sumstats {
   tuple val(trait),
         path("${trait}.chr*.sumstats.gz")
 
-  publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
@@ -84,7 +84,7 @@ process gsamixer_plsa_base {
         path("${trait}_base.weights"),
         path("${trait}_base.snps.csv")
 
-  publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
@@ -127,14 +127,14 @@ process gsamixer_plsa_full {
         path("${trait}_full.json"),
         path("${trait}_full.go_test_enrich.csv")
 
-  publishDir "${params.outdir}/gsamixer/${trait}", mode: 'copy', overwrite: true
+  publishDir "${params.outdir}/gsamixer_real/${trait}", mode: 'copy', overwrite: true
 
   script:
   """
   module load singularity
   ml python
   ${params.mixer_py} plsa --gsa-full \\
-    --trait1-file ${params.outdir}/gsamixer/${trait}/${trait}.chr@.sumstats.gz \\
+    --trait1-file ${params.outdir}/gsamixer_real/${trait}/${trait}.chr@.sumstats.gz \\
     --out ${trait}_full \\
     --bim-file ${params.mixer_ref_bim} \\
     --use-complete-tag-indices \\
