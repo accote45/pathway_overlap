@@ -6,15 +6,17 @@
 library(GSA)
 library(data.table)
 library(tidyverse)
+library(parallel)
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 3) {
-  stop("Usage: Rscript generate_keeppathsize_gmts.R <input_gmt> <output_dir> <num_random_sets>")
+if (length(args) < 3 || length(args) > 4) {
+  stop("Usage: Rscript generate_keeppathsize_gmts.R <input_gmt> <output_dir> <num_random_sets> [num_cores]")
 }
 
 input_gmt <- args[1]
 output_dir <- args[2]
 num_random_sets <- as.integer(args[3])
+num_cores <- if (length(args) == 4) as.integer(args[4]) else 1L
 
 cat("========================================\n")
 cat("KeepPathSize GMT Generation\n")
@@ -22,6 +24,7 @@ cat("========================================\n")
 cat("Input GMT file:", input_gmt, "\n")
 cat("Output directory:", output_dir, "\n")
 cat("Number of random sets:", num_random_sets, "\n")
+cat("Number of cores:", num_cores, "\n")
 cat("========================================\n\n")
 
 # Create output directory
@@ -98,17 +101,23 @@ generate_random_gmt <- function(perm_number, set.size, all_genes, output_dir) {
 # Generate all randomized GMT files
 cat("\n========================================\n")
 cat("Starting KeepPathSize randomization\n")
+cat("Parallelizing across", num_cores, "core(s)\n")
 cat("========================================\n\n")
 
-generated_files <- vector("character", num_random_sets)
+# Each random set is independent and each worker writes its own GMT file, so
+# this loop is embarrassingly parallel. mclapply forks one process per core.
+generated_files <- unlist(mclapply(
+  1:num_random_sets,
+  function(perm) generate_random_gmt(perm, set.size, all_genes, output_dir),
+  mc.cores = num_cores,
+  mc.preschedule = TRUE
+))
 
-for (perm in 1:num_random_sets) {
-  generated_files[perm] <- generate_random_gmt(perm, set.size, all_genes, output_dir)
-  
-  # Progress update every 50 files
-  if (perm %% 50 == 0) {
-    cat("\nProgress:", perm, "of", num_random_sets, "files generated\n")
-  }
+# Surface any worker that errored (mclapply returns try-error objects rather
+# than aborting the whole run).
+failed <- which(!file.exists(generated_files) | is.na(generated_files))
+if (length(failed) > 0) {
+  warning(length(failed), " randomization(s) failed to produce a GMT file")
 }
 
 cat("\n========================================\n")

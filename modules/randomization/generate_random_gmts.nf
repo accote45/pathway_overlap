@@ -56,7 +56,8 @@ process generate_keeppathsize_random_gmts {
   Rscript ${params.scripts_dir}/core/generate_keeppathsize_gmts.R \\
     ${input_gmt} \\
     random_keeppathsize \\
-    ${num_random_sets}
+    ${num_random_sets} \\
+    ${task.cpus}
   
   echo ""
   echo "KeepPathSize randomization complete!"
