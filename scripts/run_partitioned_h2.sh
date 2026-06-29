@@ -70,8 +70,33 @@ submit() { bsub < "$1" | awk '{print $2}' | tr -d '<'; }
 echo "[1/2] Munging sumstats for ${TRAIT}..."
 ml ldsc/1.0.1
 
+MUNGE_INPUT="${WORKDIR}/scripts_temp/${TRAIT}_munge_input.txt"
+
+# LDSC's built-in SNP column aliases (lowercase)
+SNP_ALIASES="snp rs rsid rs_number rs_numbers snpid"
+
+awk -v ncol="${N_COL}" -v snp_col="${SNP_COL}" -v aliases="${SNP_ALIASES}" '
+    BEGIN {
+        n = split(aliases, a, " ")
+        for (i=1; i<=n; i++) alias_set[a[i]] = 1
+    }
+    NR==1 { for(i=1;i<=NF;i++) col[i]=$i }
+    {
+        out=""
+        for(i=1;i<=NF;i++) {
+            low = tolower(col[i])
+            # Drop N columns that are not the specified N column
+            if (tolower(col[i]) == "n" && col[i] != ncol) continue
+            # Drop SNP alias columns that are not the specified SNP column
+            if (low in alias_set && col[i] != snp_col) continue
+            out = out (out=="" ? "" : "\t") $i
+        }
+        print out
+    }
+' "${GWAS_FILE}" > "${MUNGE_INPUT}"
+
 munge_sumstats.py \
-    --sumstats "${GWAS_FILE}" \
+    --sumstats "${MUNGE_INPUT}" \
     --merge-alleles "${SNPLIST}" \
     --snp "${SNP_COL}" \
     --a1  "${A1_COL}" \

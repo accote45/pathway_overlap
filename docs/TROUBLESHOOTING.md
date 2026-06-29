@@ -9,11 +9,11 @@
 **Solution**:
 ```bash
 # Verify GMT files exist
-find data/randomized_gene_sets -name "*.gmt" | wc -l
+find results/randomized_gene_sets -name "*.gmt" | wc -l
 # Should show 2000 (1000 × 2 methods)
 
 # Check file naming
-ls data/randomized_gene_sets/random_birewire/ | head
+ls results/randomized_gene_sets/random_birewire/ | head
 # Should show: GeneSet.random1.gmt, GeneSet.random2.gmt, etc.
 ```
 
@@ -85,8 +85,8 @@ nextflow run main.nf
 ```r
 library(GSA)
 
-real <- GSA.read.gmt("data/msigdb/c2.all.gmt_filtered.txt")
-rand <- GSA.read.gmt("data/randomized_gene_sets/random_birewire_10k/GeneSet.random1.gmt")
+real <- GSA.read.gmt("data/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt")
+rand <- GSA.read.gmt("results/randomized_gene_sets/random_birewire/GeneSet.random1.gmt")
 
 # Check pathway size preservation
 real_sizes <- sapply(real$genesets, length)

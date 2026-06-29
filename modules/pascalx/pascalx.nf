@@ -62,7 +62,8 @@ process run_pascalx_genes {
     ${trait} \
     ${gwas_file} \
     ${params.pascalx_ref_panel} \
-    ${params.pascalx_genome_annot}
+    ${params.pascalx_genome_annot} \
+    ${task.cpus}
   """
 }
 

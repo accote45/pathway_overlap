@@ -53,6 +53,14 @@ and `generate_keeppathsize_gmts.R`, then set `generate_random_gmts = false` and 
 | `EUR.1KG.GRCh37.*` | `pascalx_ref_panel` | PascalX | 1000 Genomes EUR (GRCh37) PLINK panel |
 | `1000G.EUR.QC.@.{bim,bin,annot.gz}` | `mixer_ref_*` | GSA-MiXeR | Distributed with [GSA-MiXeR](https://github.com/precimed/gsa-mixer) (`@` = chromosome) |
 
+> **PascalX panel placement (important):** unlike the other rows, `pascalx_ref_panel`
+> is a **container-internal** path, not a host path. Place the `EUR.1KG.GRCh37.*`
+> files in `data/pascalx_reference/` on the host — `nextflow.config` bind-mounts that
+> directory to `/pascalx_ref` inside the container (see the `singularity.runOptions`
+> block), and `pascalx_ref_panel` defaults to `/pascalx_ref/EUR.1KG.GRCh37`. Set the
+> host location by changing the bind mount, not `pascalx_ref_panel`. The same applies
+> to `pascalx_genome_annot` (`/data/...`, mounted from `data/`).
+
 ## 5. GWAS summary statistics
 
 Listed per-trait in [`../json_files/GWAS_input.json`](../json_files/GWAS_input.json).
@@ -77,7 +85,10 @@ PRSet scores polygenic risk in a held-out cohort. Files live under `params.ukb_d
 | `ukb_phenofile_forprset.txt` | Phenotypes; column `${trait}_resid` per trait (`--pheno`) |
 
 Also set `params.prsice_bin` (PRSice executable) and `params.prset_background`
-(gene-coordinate background file, with the `:gene` suffix).
+(gene-coordinate background file, with the `:gene` suffix). This is a
+**PRSice-format** gene background (consumed as `--background <file>:gene`) and is a
+**separate file** from the MAGMA gene-loc `msigdbgenes.regions` in section 3 — don't
+reuse one for the other.
 
 > **Access:** UK Biobank individual-level data is restricted and cannot be
 > redistributed. A new user needs their own approved UKB application + the prep

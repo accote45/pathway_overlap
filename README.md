@@ -16,7 +16,7 @@ Tests whether gene sets (pathways) are enriched in GWAS traits, using **null mod
 curl -s https://get.nextflow.io | bash
 
 # R packages
-Rscript -e 'install.packages(c("tidyverse", "data.table", "GSA"))'
+Rscript -e 'install.packages(c("tidyverse", "data.table", "plyr", "jsonlite", "GSA", "MatchIt", "ggplot2", "patchwork", "gridExtra", "RColorBrewer", "pheatmap"))'
 ```
 
 **Tool-specific requirements**: See [Detailed Setup Guide](docs/DETAILED_SETUP.md)
@@ -51,7 +51,7 @@ To pre-generate manually instead (e.g. to reuse across runs), use
 nextflow run main.nf -resume
 
 # MAGMA only (for testing)
-nextflow run main.nf --run_magma true --run_prset false --run_gsamixer false -resume
+nextflow run main.nf --run_magma true --run_prset false --run_gsamixer false --run_pascalx false -resume
 
 # Custom parameters
 nextflow run main.nf \
@@ -154,7 +154,7 @@ validation <- read.table("results/opentargets_correlation/t2d/t2d_magma_rank_cor
 ## FAQ
 
 **Q: Why does PRSet exclude SCZ (and IBD, AD)?**  
-A: Hardcoded exclusion in the `prset_dedup_data` filter in `main.nf` (`trait != "SCZ" && trait != "IBD" && trait != "AD"`) due to UKB data restrictions. Remove traits from that filter if you have alternative data.
+A: Hardcoded exclusion in the `prset_dedup_data` filter in `main.nf` due to UKB data restrictions. The filter uppercases each trait before comparing (`trait.toUpperCase() != "SCZ" && ... != "IBD" && ... != "AD"`), so the lowercase `scz`/`ibd`/`ad` entries in `GWAS_input.json` are excluded. Remove traits from that filter if you have alternative data.
 
 **Q: What's the difference between `p_value` and `empirical_pval`?**  
 A: 

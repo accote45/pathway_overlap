@@ -106,43 +106,11 @@ summary_long_with_sig <- summary_long %>%
     ),
     # Clean tool names for plotting
     tool_label = factor(tool, 
-                       levels = c("magma", "prset", "gsamixer", "pascal"),
-                       labels = c("MAGMA", "PRSet", "GSA-MiXeR", "PASCAL")),
+                   levels = c("magma", "pascal", "prset", "gsamixer"),
+                   labels = c("MAGMA", "PASCAL", "PRSet", "GSA-MiXeR")),
     # Set rho to NA for non-significant results to make them gray
     rho_colored = ifelse(significant, rho, NA)
   )
-
-# Create comprehensive heatmap comparing all tools
-p_heatmap <- ggplot(summary_long_with_sig %>% filter(!is.na(rho)), 
-                    aes(x = as.factor(n_pathways), y = trait, fill = rho_colored)) +
-  geom_tile(color = "white", linewidth = 0.5) +
-  geom_text(aes(label = sprintf("%.2f", rho)), size = 2.5) +
-  scale_fill_gradient2(low = "#0571b0", mid = "white", high = "#ca0020",
-                       midpoint = 0, name = "Spearman's ρ\n(p < 0.05)",
-                       limits = c(-1, 1),
-                       na.value = "gray90") +
-  facet_grid(tool_label ~ rank_type, 
-             labeller = labeller(rank_type = c("original" = "Original Ranking", 
-                                              "gsr" = "GSR Ranking"))) +
-  labs(
-    title = "Pathway Size-Rank Correlations Across All Enrichment Tools",
-    subtitle = "Only significant correlations (p < 0.05) are colored; non-significant cells are gray",
-    x = "Number of Top Pathways",
-    y = "Trait"
-  ) +
-  theme_minimal(base_size = 10) +
-  theme(
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 9, color = "gray40"),
-    axis.text.x = element_text(size = 9),
-    axis.text.y = element_text(size = 8),
-    strip.text = element_text(face = "bold", size = 9),
-    legend.position = "right",
-    panel.spacing = unit(0.5, "lines")
-  )
-
-ggsave("pathsize_correlation_heatmap_all_tools.png", p_heatmap, 
-       width = 12, height = 14, dpi = 300)
 
 # Create scatterplot comparing GSR vs Original correlations
 comparison_data <- summary_long_with_sig %>%
@@ -155,34 +123,44 @@ comparison_data <- summary_long_with_sig %>%
 
 # Create enhanced scatterplot with interpretation regions
 p_scatter <- ggplot(comparison_data, aes(x = original, y = gsr)) +
-  # Add shaded region for bias reduction
-  annotate("rect", xmin = -1, xmax = 0, ymin = -1, ymax = 0, 
+  annotate("rect", xmin = -1, xmax = 0, ymin = -1, ymax = 0,
            fill = "lightblue", alpha = 0.1) +
-  annotate("text", x = -0.7, y = -0.95, 
-           label = "Negative bias\n(larger pathways ranked higher)", 
+  annotate("text", x = -0.7, y = -0.95,
+           label = "Negative bias\n(larger pathways ranked higher)",
            size = 3, color = "gray40", hjust = 0) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.8) +
-  geom_point(aes(color = tool_label, shape = as.factor(n_pathways)), 
+  geom_point(aes(color = tool_label, shape = as.factor(n_pathways)),
              size = 3, alpha = 0.7) +
   scale_color_brewer(palette = "Set1", name = "Tool") +
-  scale_shape_manual(values = c("100" = 16, "500" = 17), 
+  scale_shape_manual(values = c("100" = 16, "500" = 17),
                      name = "Top N Pathways") +
   labs(
     title = "GSR vs Original Pathway Size-Rank Correlations",
-    subtitle = "Negative ρ = pathway size bias (larger pathways ranked higher); Points above diagonal = GSR reduces bias",
-    x = "Original Ranking Correlation (ρ)",
-    y = "GSR Ranking Correlation (ρ)"
+    subtitle = "Negative \u03c1 = pathway size bias (larger pathways ranked higher); Points above diagonal = GSR reduces bias",
+    x = "Original Ranking Correlation (\u03c1)",
+    y = "GSR Ranking Correlation (\u03c1)"
   ) +
-  theme_minimal(base_size = 11) +
+  coord_fixed(ratio = 1, xlim = c(-1, 1), ylim = c(-1, 1)) +
+  theme_bw(base_size = 11) +
   theme(
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 9, color = "gray40"),
-    legend.position = "right",
-    panel.grid.minor = element_blank()
-  ) +
-  coord_fixed(ratio = 1, xlim = c(-1, 1), ylim = c(-1, 1))
+    plot.title        = element_text(face = "bold", color = "black", size = 13),
+    plot.subtitle     = element_text(size = 9, color = "gray40"),
+    plot.margin       = margin(8, 10, 8, 8),
+    panel.border      = element_rect(color = "black", fill = NA, linewidth = 0.6),
+    panel.grid.major  = element_blank(),
+    panel.grid.minor  = element_blank(),
+    axis.text         = element_text(color = "black"),
+    axis.title        = element_text(color = "black", size=11),
+    axis.ticks        = element_line(color = "black"),
+    axis.line         = element_line(color = "black"),
+    legend.background = element_blank(),
+    legend.key        = element_blank(),
+    legend.title      = element_text(color = "black"),
+    legend.text       = element_text(color = "black"),
+    legend.position   = "right"
+  )
 
-ggsave("pathsize_correlation_scatter_gsr_vs_original.png", p_scatter, 
+ggsave("pathsize_correlation_scatter_gsr_vs_original.png", p_scatter,
        width = 10, height = 8, dpi = 300)
 
 # --- Dumbbell Plot: connect Original → GSR, faceted by tool × n_pathways ---
@@ -215,33 +193,46 @@ p_dumbbell <- ggplot() +
   ) +
   scale_alpha_manual(
     values = c("TRUE" = 1, "FALSE" = 0.25),
-    name = "Significant\n(p < 0.05)",
+    name = "p<0.05",
     labels = c("TRUE" = "Yes", "FALSE" = "No")
   ) +
   facet_grid(tool_label ~ n_pathways,
              scales = "free_y",
              labeller = labeller(n_pathways = c("100" = "Top 100", "500" = "Top 500"))) +
+  scale_y_discrete(limits = rev) +
   labs(
     title = "Pathway Size-Rank Correlations by Trait and Tool",
-    subtitle = "Lines connect Original → GSR; Blue = Original, Red = GSR; Faded = n.s. (p ≥ 0.05)",
-    x = "Spearman's ρ",
+    subtitle = "Lines connect Original \u2192 GSR; Blue = Original, Red = GSR; Faded = n.s. (p \u2265 0.05)",
+    x = "Spearman's \u03c1",
     y = "Trait"
   ) +
-  theme_minimal(base_size = 10) +
+  theme_bw(base_size = 11) +
   theme(
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 9, color = "gray40"),
-    strip.text = element_text(face = "bold", size = 10),
-    legend.position = "right",
-    panel.grid.minor = element_blank(),
-    panel.spacing = unit(0.8, "lines")
+    plot.title        = element_text(face = "bold", color = "black", size = 13),
+    plot.subtitle     = element_text(size = 9, color = "black"),
+    plot.margin       = margin(8, 10, 8, 8),
+    strip.background  = element_blank(),
+    strip.text        = element_text(face = "bold", color = "black", size = 10),
+    panel.border      = element_rect(color = "black", fill = NA, linewidth = 0.6),
+    panel.grid.major  = element_blank(),
+    panel.grid.minor  = element_blank(),
+    axis.text         = element_text(color = "black", size = 10),
+    axis.title        = element_text(color = "black", size = 11),
+    axis.ticks        = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.length = unit(2, "pt"),
+    axis.line         = element_line(color = "black"),
+    legend.background = element_blank(),
+    legend.key        = element_blank(),
+    legend.title      = element_text(color = "black"),
+    legend.text       = element_text(color = "black"),
+    legend.position   = "right",
+    panel.spacing     = unit(0.8, "lines")
   )
 
 ggsave("pathsize_correlation_dotplot_by_tool.png", p_dumbbell,
        width = 12, height = 14, dpi = 300)
 
 cat("\n=== Plots saved ===\n")
-cat("1. pathsize_correlation_heatmap_all_tools.png/pdf\n")
 cat("2. pathsize_correlation_scatter_gsr_vs_original.png/pdf\n")
 cat("3. pathsize_rank_correlation_results_all_tools.txt\n")
 cat("4. pathsize_correlation_dotplot_by_tool.png\n")

@@ -36,9 +36,13 @@ install.packages(c("tidyverse", "data.table", "plyr", "jsonlite",
 ### Reference Files
 
 1. **MSigDB gene sets**:
-   ```bash
-   wget http://www.gsea-msigdb.org/gsea/msigdb/download_file.jsp?filePath=/msigdb/release/2023.2.Hs/c2.all.v2023.2.Hs.symbols.gmt
-   ```
+   Download the **C2 all, gene symbols** GMT (study used release **v2023.2.Hs**)
+   from [MSigDB](https://www.gsea-msigdb.org/gsea/msigdb/).
+
+   **Then filter it** to the gene universe in your gene-coordinate reference
+   (`gene_files.msigdbgenes`) to produce the `_filtered.txt` file that
+   `params.geneset_real` expects, so the real and randomized gene sets share one
+   gene space. See the filtering note in [../data/README.md](../data/README.md#1-core-gene-sets).
 
 2. **Randomized gene sets** (BiReWire + KeepPathSize):
    Generated automatically into `${params.outdir}/randomized_gene_sets/` when
