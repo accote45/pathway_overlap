@@ -590,8 +590,11 @@ workflow {
             // Use the grouped random results from PascalX workflow
             pascalx_fpr_inputs = random_pascalx_grouped
                 .map { trait, random_files, rand_method ->
+                    // run_random_sets_pascalx emits one list of CSVs per batch, so
+                    // groupTuple yields a list-of-lists here. Flatten it to a single
+                    // list of paths; path() cannot stage a nested ArrayList element.
                     def random_dir = "${params.outdir}/pascalx_random/${rand_method}/${trait}"
-                    tuple(trait, "pascalx", rand_method, random_files, random_dir)
+                    tuple(trait, "pascalx", rand_method, random_files.flatten(), random_dir)
                 }
             
             pascalx_fpr_results = calculate_fpr_pascalx(pascalx_fpr_inputs)
