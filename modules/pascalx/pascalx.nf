@@ -68,33 +68,35 @@ process run_pascalx_genes {
 }
 
 process run_random_sets_pascalx {
-  tag "${trait}_random${perm}_${rand_method}"
+  // Scores a contiguous batch of permutations [start_perm..end_perm] in a single
+  // job, loading the reference panel / genome / gene scores once instead of once
+  // per permutation. Output filenames are unchanged, so downstream is unaffected.
+  tag "${trait}_random${start_perm}-${end_perm}_${rand_method}"
   container "${params.pascalx_sif}"
   publishDir "${params.outdir}/pascalx_random/${rand_method}/${trait}", mode: 'copy', overwrite: true
-  
+
   input:
   tuple val(trait),
         path(gene_scores),
         val(rand_method),
-        val(perm)
-        
+        val(start_perm),
+        val(end_perm)
+
   output:
   tuple val(trait),
-        path("${trait}_random${perm}.${rand_method}.csv"),
+        path("${trait}_random*.${rand_method}.csv"),
         val(rand_method)
 
   script:
-  // Map to container-internal path
-  def random_gmt = "/randomized_gene_sets/random_${rand_method}/GeneSet.random${perm}.gmt"
-  
   """
-  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
+  python3 /scripts/tool_specific/pascalx/run_pascalx_pathways_batch.py \
     ${trait} \
     ${gene_scores} \
-    ${random_gmt} \
     ${params.pascalx_genome_annot} \
     ${params.pascalx_ref_panel} \
-    random${perm}.${rand_method}
+    ${rand_method} \
+    ${start_perm} \
+    ${end_perm}
   """
 }
 

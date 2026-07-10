@@ -383,23 +383,37 @@ workflow {
             }
             .combine(Channel.fromList(params.randomization_methods))  // Broadcast to both methods
         
+        // Split the 1..num_random_sets permutations into contiguous batches so a
+        // single job scores many permutations after loading the reference panel /
+        // genome / gene scores once. Each batch is a [start_perm, end_perm] pair;
+        // the last batch may be smaller when num_random_sets isn't a multiple.
+        def pascalx_batches = (1..params.num_random_sets)
+            .collate(params.pascalx_batch_size)
+            .collect { chunk -> [chunk.first(), chunk.last()] }
+        def pascalx_num_batches = pascalx_batches.size()
+        log.info "PascalX: ${params.num_random_sets} random sets split into ${pascalx_num_batches} batch(es) of up to ${params.pascalx_batch_size}"
+
         // Wait for GMT generation before starting random sets
         random_pascalx_inputs = pascalx_gene_scores
             .combine(gmt_ready_signal)  // Wait for GMTs
-            .map { trait, gene_scores_file, ready_signal -> 
+            .map { trait, gene_scores_file, ready_signal ->
                 tuple(trait, gene_scores_file)
             }
             .combine(Channel.fromList(params.randomization_methods))
-            .combine(Channel.from(1..params.num_random_sets))
-            .map { trait, gene_scores_file, rand_method, perm -> 
-                tuple(trait, gene_scores_file, rand_method, perm)
+            // Each batch is a [start_perm, end_perm] pair; combine() spreads it into
+            // two positional tuple elements (see the GSA-MiXeR collate(4) pattern above).
+            .combine(Channel.fromList(pascalx_batches))
+            .map { trait, gene_scores_file, rand_method, start_perm, end_perm ->
+                tuple(trait, gene_scores_file, rand_method, start_perm, end_perm)
             }
-        
+
         random_pascalx_results = run_random_sets_pascalx(random_pascalx_inputs)
-        
-        // Group random results by trait and randomization method
+
+        // Group random results by trait and randomization method. Each batch emits
+        // one tuple (with a list of per-permutation CSVs), so the barrier size is
+        // the number of batches, not the number of permutations.
         random_pascalx_grouped = random_pascalx_results
-            .groupTuple(by: [0, 2], size: params.num_random_sets)
+            .groupTuple(by: [0, 2], size: pascalx_num_batches)
         
         if (params.run_empirical) {
             pascalx_for_empirical = pascalx_real_for_empirical
