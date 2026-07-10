@@ -82,7 +82,7 @@ def main():
         
         # Score pathways
         print("Scoring pathways (this may take several minutes)...")
-        RESULT = Pscorer.score(M)
+        RESULT = Pscorer.score(M, parallel=int(os.environ.get("PASCALX_PARALLEL", "1")))
         print("Pathway scoring completed")
         
         # Save results to CSV

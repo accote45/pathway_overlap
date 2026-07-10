@@ -108,7 +108,7 @@ def main():
             print(f"[perm {perm}] Loaded {len(M)} pathways from {gmt_file}")
 
             gc.collect()
-            RESULT = Pscorer.score(M)
+            RESULT = Pscorer.score(M, parallel=int(os.environ.get("PASCALX_PARALLEL", "1")))
 
             output_file = f"{trait}_random{perm}.{rand_method}.csv"
             n = write_result(RESULT, output_file)

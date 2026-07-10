@@ -90,6 +90,7 @@ process run_random_sets_pascalx {
 
   script:
   """
+  export PASCALX_PARALLEL=${task.cpus}
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways_batch.py \
     ${trait} \
     ${gene_scores} \
@@ -123,6 +124,7 @@ process run_real_pascalx {
   // GMT is staged into the work dir by Nextflow (autoMounts handles the bind),
   // so reference it by its staged name rather than a hard-coded /data path.
   """
+  export PASCALX_PARALLEL=${task.cpus}
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
     ${gene_scores} \
