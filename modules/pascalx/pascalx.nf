@@ -90,6 +90,10 @@ process run_random_sets_pascalx {
 
   script:
   """
+  # Cap BLAS/OpenMP threads to 1 per worker: PascalX forks task.cpus workers, and
+  # without this each spawns its own BLAS thread pool (~15x), oversubscribing the
+  # reserved cores (HPC-unfriendly). 1 thread x task.cpus workers = task.cpus threads.
+  export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
   export PASCALX_PARALLEL=${task.cpus}
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways_batch.py \
     ${trait} \
@@ -124,6 +128,10 @@ process run_real_pascalx {
   // GMT is staged into the work dir by Nextflow (autoMounts handles the bind),
   // so reference it by its staged name rather than a hard-coded /data path.
   """
+  # Cap BLAS/OpenMP threads to 1 per worker: PascalX forks task.cpus workers, and
+  # without this each spawns its own BLAS thread pool (~15x), oversubscribing the
+  # reserved cores (HPC-unfriendly). 1 thread x task.cpus workers = task.cpus threads.
+  export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
   export PASCALX_PARALLEL=${task.cpus}
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
