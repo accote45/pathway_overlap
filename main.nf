@@ -367,10 +367,12 @@ workflow {
         // Run gene scoring directly
         pascalx_gene_scores = run_pascalx_genes(pascalx_preprocessed)
         
-        // Add dummy rand_method for channel consistency
+        // Add dummy rand_method for channel consistency. Join the prepared GWAS file
+        // (needed by the pathway step to re-score fused/meta-genes) by trait.
         gene_scores_for_real = pascalx_gene_scores
-            .map { trait, gene_scores_file ->
-                tuple(trait, gene_scores_file, "deduplicate", file(params.geneset_real))  // Dummy method name + staged GMT
+            .join(pascalx_preprocessed)  // (trait, gene_scores_file, gwas_file)
+            .map { trait, gene_scores_file, gwas_file ->
+                tuple(trait, gene_scores_file, gwas_file, "deduplicate", file(params.geneset_real))  // + Dummy method name + staged GMT
             }
         
         // Run real pathway analysis ONCE per trait
@@ -395,16 +397,17 @@ workflow {
 
         // Wait for GMT generation before starting random sets
         random_pascalx_inputs = pascalx_gene_scores
+            .join(pascalx_preprocessed)  // (trait, gene_scores_file, gwas_file) -- GWAS needed for meta-gene re-scoring
             .combine(gmt_ready_signal)  // Wait for GMTs
-            .map { trait, gene_scores_file, ready_signal ->
-                tuple(trait, gene_scores_file)
+            .map { trait, gene_scores_file, gwas_file, ready_signal ->
+                tuple(trait, gene_scores_file, gwas_file)
             }
             .combine(Channel.fromList(params.randomization_methods))
             // Each batch is a [start_perm, end_perm] pair; combine() spreads it into
             // two positional tuple elements (see the GSA-MiXeR collate(4) pattern above).
             .combine(Channel.fromList(pascalx_batches))
-            .map { trait, gene_scores_file, rand_method, start_perm, end_perm ->
-                tuple(trait, gene_scores_file, rand_method, start_perm, end_perm)
+            .map { trait, gene_scores_file, gwas_file, rand_method, start_perm, end_perm ->
+                tuple(trait, gene_scores_file, gwas_file, rand_method, start_perm, end_perm)
             }
 
         random_pascalx_results = run_random_sets_pascalx(random_pascalx_inputs)

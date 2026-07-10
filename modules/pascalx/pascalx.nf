@@ -78,6 +78,7 @@ process run_random_sets_pascalx {
   input:
   tuple val(trait),
         path(gene_scores),
+        path(gwas_file),
         val(rand_method),
         val(start_perm),
         val(end_perm)
@@ -92,6 +93,7 @@ process run_random_sets_pascalx {
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways_batch.py \
     ${trait} \
     ${gene_scores} \
+    ${gwas_file} \
     ${params.pascalx_genome_annot} \
     ${params.pascalx_ref_panel} \
     ${rand_method} \
@@ -108,6 +110,7 @@ process run_real_pascalx {
   input:
   tuple val(trait),
         path(gene_scores),
+        path(gwas_file),
         val(rand_method),
         path(gmt_file)
 
@@ -123,6 +126,7 @@ process run_real_pascalx {
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
     ${gene_scores} \
+    ${gwas_file} \
     ${gmt_file} \
     ${params.pascalx_genome_annot} \
     ${params.pascalx_ref_panel} \

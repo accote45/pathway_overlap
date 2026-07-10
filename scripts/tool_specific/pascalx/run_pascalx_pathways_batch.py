@@ -42,18 +42,19 @@ def write_result(result, output_file):
 
 
 def main():
-    if len(sys.argv) != 8:
+    if len(sys.argv) != 9:
         print("Usage: run_pascalx_pathways_batch.py <trait> <gene_scores_file> "
-              "<genome_annot> <ref_panel> <rand_method> <start_perm> <end_perm>")
+              "<gwas_file> <genome_annot> <ref_panel> <rand_method> <start_perm> <end_perm>")
         sys.exit(1)
 
     trait = sys.argv[1]
     gene_scores_file = sys.argv[2]
-    genome_file = sys.argv[3]
-    ref_panel = sys.argv[4]
-    rand_method = sys.argv[5]
-    start_perm = int(sys.argv[6])
-    end_perm = int(sys.argv[7])
+    gwas_file = sys.argv[3]        # REQUIRED for meta-gene re-scoring (see load_GWAS below)
+    genome_file = sys.argv[4]
+    ref_panel = sys.argv[5]
+    rand_method = sys.argv[6]
+    start_perm = int(sys.argv[7])
+    end_perm = int(sys.argv[8])
 
     # Same container-internal layout the per-permutation process used:
     #   /randomized_gene_sets/random_<rand_method>/GeneSet.random<perm>.gmt
@@ -73,6 +74,15 @@ def main():
         # on the fly. It is identical for every permutation, so load it just once.
         Scorer.load_refpanel(ref_panel, parallel=1)
         print(f"Reference panel loaded: {ref_panel}")
+
+        # GWAS summary stats are REQUIRED for that fused/meta-gene re-scoring: it needs
+        # SNP-level z-scores, which load_scores does NOT restore. Identical across every
+        # permutation, so load once. Without this every meta-gene fails with
+        # "0 genes scored / can not be scored (check annotation)".
+        if not os.path.exists(gwas_file):
+            raise FileNotFoundError(f"GWAS file not found: {gwas_file}")
+        Scorer.load_GWAS(gwas_file, rscol=0, a1col=1, a2col=2, pcol=3, bcol=4, header=True)
+        print(f"GWAS loaded: {gwas_file}")
 
         if not os.path.exists(genome_file):
             raise FileNotFoundError(f"Genome annotation not found: {genome_file}")

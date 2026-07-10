@@ -16,16 +16,17 @@ from PascalX import genescorer
 from PascalX import pathway
 
 def main():
-    if len(sys.argv) != 7:
-        print("Usage: run_pascalx_pathways.py <trait> <gene_scores_file> <gmt_file> <genome_annot> <ref_panel> <output_suffix>")
+    if len(sys.argv) != 8:
+        print("Usage: run_pascalx_pathways.py <trait> <gene_scores_file> <gwas_file> <gmt_file> <genome_annot> <ref_panel> <output_suffix>")
         sys.exit(1)
-    
+
     trait = sys.argv[1]
     gene_scores_file = sys.argv[2]
-    gmt_file = sys.argv[3]
-    genome_file = sys.argv[4]
-    ref_panel = sys.argv[5]        # NEW: e.g. "/pascalx_ref/EUR.1KG.GRCh37"
-    output_suffix = sys.argv[6]    # shifted from argv[5]
+    gwas_file = sys.argv[3]        # REQUIRED for meta-gene re-scoring (see load_GWAS below)
+    gmt_file = sys.argv[4]
+    genome_file = sys.argv[5]
+    ref_panel = sys.argv[6]        # e.g. "/pascalx_ref/EUR.1KG.GRCh37"
+    output_suffix = sys.argv[7]
     
     try:
         print(f"Starting pathway enrichment for trait: {trait}")
@@ -40,6 +41,16 @@ def main():
         # Load reference panel (REQUIRED: pathway scoring re-scores fused/meta-genes on the fly)
         Scorer.load_refpanel(ref_panel, parallel=1)
         print(f"Reference panel loaded: {ref_panel}")
+
+        # Load GWAS summary stats (REQUIRED). Pathway scoring fuses overlapping genes
+        # into meta-genes and re-scores them from SNP-level z-scores; load_scores only
+        # restores single-gene scores, so without the GWAS every meta-gene fails with
+        # "0 genes scored / can not be scored (check annotation)". Columns match the
+        # prepare_pascalx_gwas output and the gene-scoring step.
+        if not os.path.exists(gwas_file):
+            raise FileNotFoundError(f"GWAS file not found: {gwas_file}")
+        Scorer.load_GWAS(gwas_file, rscol=0, a1col=1, a2col=2, pcol=3, bcol=4, header=True)
+        print(f"GWAS loaded: {gwas_file}")
 
         # Load genome annotation (required before loading scores)
         if not os.path.exists(genome_file):
