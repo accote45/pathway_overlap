@@ -369,8 +369,8 @@ workflow {
         
         // Add dummy rand_method for channel consistency
         gene_scores_for_real = pascalx_gene_scores
-            .map { trait, gene_scores_file -> 
-                tuple(trait, gene_scores_file, "deduplicate")  // Dummy method name
+            .map { trait, gene_scores_file ->
+                tuple(trait, gene_scores_file, "deduplicate", file(params.geneset_real))  // Dummy method name + staged GMT
             }
         
         // Run real pathway analysis ONCE per trait

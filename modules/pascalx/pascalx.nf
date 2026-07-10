@@ -108,7 +108,8 @@ process run_real_pascalx {
   input:
   tuple val(trait),
         path(gene_scores),
-        val(rand_method)
+        val(rand_method),
+        path(gmt_file)
 
   output:
   tuple val(trait),
@@ -116,14 +117,13 @@ process run_real_pascalx {
         val(rand_method)
 
   script:
-  // Use container path (mapped from ${projectDir}/data -> /data)
-  def real_gmt = params.geneset_real.replaceFirst(".*/data/", "/data/")
-  
+  // GMT is staged into the work dir by Nextflow (autoMounts handles the bind),
+  // so reference it by its staged name rather than a hard-coded /data path.
   """
   python3 /scripts/tool_specific/pascalx/run_pascalx_pathways.py \
     ${trait} \
     ${gene_scores} \
-    ${real_gmt} \
+    ${gmt_file} \
     ${params.pascalx_genome_annot} \
     ${params.pascalx_ref_panel} \
     real
