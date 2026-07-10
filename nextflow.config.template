@@ -6,18 +6,18 @@
 // ============================================================================
 
 // Define parameters as flat key-value pairs
-params.traits_config = "${projectDir}/json_files/test.json"   // trait/GWAS table (see json_files/GWAS_input.json)
+params.traits_config = "${projectDir}/json_files/GWAS_input.json"   // trait/GWAS table (see json_files/GWAS_input.json)
 params.outdir = "${projectDir}/results"
-params.num_random_sets = 10   // number of null gene sets per method (study used 1000; use a small value to smoke-test)
+params.num_random_sets = 1000   // number of null gene sets per method (study used 1000; use a small value to smoke-test)
 params.randomization_methods = ['birewire','keeppathsize']
-params.bfile = "/sc/arion/projects/psychgen/cotea02_prset/subtyping/magma_test/g1000_eur"                       // MAGMA LD reference (1000G EUR) plink prefix
-params.geneset_real = "/sc/arion/projects/psychgen/cotea02_prset/pathway_overlap/data/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
-params.ukb_dir = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/ukb/"                                   // PRSet UKB validation cohort directory
-params.gtf_reference = "/sc/arion/projects/psychgen/cotea02_prset/reference/Homo_sapiens.GRCh37.75.gtf.gz"
+params.bfile = "/path/to/reference/g1000_eur"                       // MAGMA LD reference (1000G EUR) plink prefix
+params.geneset_real = "${projectDir}/data/c2.all.v2023.2.Hs.symbols.gmt_filtered.txt"
+params.ukb_dir = "/path/to/ukb/"                                   // PRSet UKB validation cohort directory
+params.gtf_reference = "/path/to/reference/Homo_sapiens.GRCh37.75.gtf.gz"
 
 // PRSet tool paths (used by modules/prset/prset.nf)
-// params.prsice_bin = "/path/to/PRSice_linux"                        // PRSice/PRSet executable
-// params.prset_background = "/path/to/msigdb.genes.txt:gene"         // PRSet --background gene coordinate file (with :gene suffix)
+params.prsice_bin = "/path/to/PRSice_linux"                        // PRSice/PRSet executable
+params.prset_background = "/path/to/msigdb.genes.txt:gene"         // PRSet --background gene coordinate file (with :gene suffix)
 
 //workflow control parameters
 params.run_magma = true
@@ -32,19 +32,19 @@ params.run_fpr_analysis = true
 params.run_dorothea_correlation = true
 
 // GSA-MiXeR container command (uses singularity, consistent with gsamixer.sh)
-params.mixer_sif = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gsa_mixer/gsa-mixer.sif"
+params.mixer_sif = "/path/to/gsa_mixer/gsa-mixer.sif"
 params.mixer_py  = "singularity exec --home pwd:/home ${params.mixer_sif} python /tools/mixer/precimed/mixer.py"
 
 // PascalX container and reference data
-params.pascalx_sif = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/pascalx_singularity.sif"
+params.pascalx_sif = "/path/to/pascalx_singularity.sif"
 // Container-internal paths point to mounted host directories (see singularity{} block below)
 params.pascalx_ref_panel    = "/pascalx_ref/EUR.1KG.GRCh37"   // writable mount (see singularity{} block below)
 params.pascalx_genome_annot = "/data/msigdbgenes.regions"
 
 // References (@ is the GSA-MiXeR per-chromosome wildcard)
-params.mixer_ref_bim     = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gsa_mixer/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bim"
-params.mixer_ref_loadlib = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gsa_mixer/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bin"
-params.mixer_ref_annot   = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/gsa_mixer/1000G_EUR_Phase3_plink/baseline_v2.2_1000G.EUR.QC.@.annot.gz"
+params.mixer_ref_bim     = "/path/to/gsa_mixer/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bim"
+params.mixer_ref_loadlib = "/path/to/gsa_mixer/1000G_EUR_Phase3_plink/1000G.EUR.QC.@.bin"
+params.mixer_ref_annot   = "/path/to/gsa_mixer/1000G_EUR_Phase3_plink/baseline_v2.2_1000G.EUR.QC.@.annot.gz"
 
 // Any extra mixer flags, or empty
 params.mixer_extra_flags = "--seed 1000 --hardprune-r2 0.6 --threads 8"
@@ -95,9 +95,13 @@ process {
   withName: generate_keeppathsize_random_gmts {
     executor = 'lsf'
     queue = 'premium'
-    cpus = 1
+    cpus = 8
     memory = '8G'
     time = '8h'
+    // Nextflow's LSF executor auto-adds span[hosts=1] for multi-cpu jobs,
+    // keeping all cores on one node so mclapply's forked workers run on the
+    // cores we reserved. Do NOT add it here too: LSF rejects duplicate
+    // -R "span[...]" strings.
     clusterOptions = '-P acc_paul_oreilly'
   }
   withName: run_random_sets {
@@ -221,10 +225,10 @@ process {
 }
 
 // Directory containing OpenTargets associationByDatatypeDirect JSON files
-params.opentargets_json_dir = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/results/drugtarget_test/associationByDatatypeDirect"
+params.opentargets_json_dir = "/path/to/opentargets/associationByDatatypeDirect"
 
 params {
-  gene_file = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap/data/msigdbgenes.regions"   // MAGMA gene-location file
+  gene_file = "/path/to/data/msigdbgenes.regions"   // MAGMA gene-location file
 
   // GMT directories for different randomization methods
   gmt_dirs = [
@@ -243,15 +247,15 @@ params {
   ]
 
   // tissue specificity data (GTEx-derived specificity tables; see data/README.md)
-    tissue_expression_data = "/sc/arion/projects/psychgen/cotea02_prset/judit_revisions/software/1kg_test/GeneExpressionLandscape/data/Exp_Spe_DataTables/specificity"
+    tissue_expression_data = "/path/to/tissue_specificity/specificity"
 
-  malacards_path = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/Malacards"
+  malacards_path = "/path/to/Malacards"
 
   // Only run MalaCards for these traits (case-insensitive)
   malacards_traits = 'bmi,cad,t2d,mdd,ad,scz,ibd,breast'
 
   //dorothea analysis (precomputed pairwise pathway scores; see data/README.md)
-  dorothea_scores_path = "/sc/arion/projects/psychgen/cotea02_prset/geneoverlap_nf/data/dorothea_pairwise_scores.csv"
+  dorothea_scores_path = "/path/to/dorothea_pairwise_scores.csv"
 }
 
 executor {
