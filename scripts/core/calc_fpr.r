@@ -45,17 +45,17 @@ get_tool_config <- function(tool_base) {
 config <- get_tool_config(tool_base)
 
 # Function to read files based on tool type
-read_random_files <- function(random_dir, pattern) {
-  if (!dir.exists(random_dir)) {
-    stop("Random directory does not exist: ", random_dir)
-  }
-  
-  files <- list.files(random_dir, pattern = glob2rx(pattern), full.names = TRUE)
-  
+read_random_files <- function(pattern) {
+  # Read the files Nextflow STAGED into the task working directory, NOT the
+  # publishDir (`random_dir`, kept only for logging). publishDir copies
+  # asynchronously, so listing it directly races the copy and can silently see a
+  # partial set (e.g. 993/1000). The staged inputs are guaranteed complete.
+  files <- list.files(".", pattern = glob2rx(pattern), full.names = TRUE)
+
   if (length(files) == 0) {
-    stop("No files found matching pattern '", pattern, "' in ", random_dir)
+    stop("No files found matching pattern '", pattern, "' in staging directory ", getwd())
   }
-  
+
   cat("Found", length(files), "random result files\n")
   
   # Read all files
@@ -148,7 +148,7 @@ calculate_pathway_fpr <- function(file_data, config) {
 # Main execution
 tryCatch({
   # Read random files
-  file_data <- read_random_files(random_dir, config$pattern)
+  file_data <- read_random_files(config$pattern)
   
   # Calculate FPR
   fpr_results <- calculate_pathway_fpr(file_data, config)
