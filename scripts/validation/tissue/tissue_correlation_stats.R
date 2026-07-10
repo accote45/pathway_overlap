@@ -122,8 +122,14 @@ cat("\n======= Performing Tissue Specificity Correlation Analysis =======\n")
 rank_correlation_results <- data.frame()
 
 if (tool_base == "gsamixer") {
-  # GSA-MiXeR has no p-value; rank by standardized effect size (higher = better)
+  # GSA-MiXeR has no p-value; rank by standardized effect size (higher = better).
+  # EffectSize = native enrich ranking = the ORIGINAL (pre-GSR) ranking used in the
+  # dumbbell "before" point (matches old rank_pvaluebeta = order(-enrich)).
   ranking_methods <- list(
+    list(method_name = "EffectSize",
+         data = birewire_data,
+         rank_col = c("enrich"),
+         higher_better = c(TRUE)),
     list(method_name = "BireWire_StdEffect",
          data = birewire_data,
          rank_col = c("std_effect_size"),
