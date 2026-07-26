@@ -126,6 +126,15 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
+    # Success path only. PascalX's parallel scorer forks multiprocessing workers and
+    # uses native BLAS; the interpreter-shutdown teardown of those resources can crash
+    # and turn a fully-completed batch (all CSVs written and closed above) into a
+    # non-zero process exit. Bypass the teardown with a hard exit so the process
+    # reports the real, successful status.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
+
 
 if __name__ == "__main__":
     main()
