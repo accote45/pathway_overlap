@@ -15,10 +15,6 @@ process prepare_reference {
   path "ref_snp_loc.txt",   emit: snp_loc
   path "ref_reference_diag.txt"
 
-  stub:
-  """
-  touch ref_reference.rds ref_gene_pool.txt ref_snp_loc.txt ref_reference_diag.txt
-  """
 
   script:
   """
@@ -35,6 +31,11 @@ process prepare_reference {
     out_prefix=ref \\
     min_snps=${params.min_snps_per_gene}
   """
+
+  stub:
+  """
+  touch ref_reference.rds ref_gene_pool.txt ref_snp_loc.txt ref_reference_diag.txt
+  """
 }
 
 process magma_annotate {
@@ -46,10 +47,6 @@ process magma_annotate {
   output:
   path "sim_annot.genes.annot", emit: annot
 
-  stub:
-  """
-  touch sim_annot.genes.annot
-  """
 
   script:
   """
@@ -60,11 +57,16 @@ process magma_annotate {
         --gene-loc ${params.gene_file} \\
         --out sim_annot
   """
+
+  stub:
+  """
+  touch sim_annot.genes.annot
+  """
 }
 
 process build_architecture {
   tag "${cond}_rep${rep}"
-  publishDir "${params.outdir}/architectures/${cond}/${rep}", mode: 'copy', overwrite: true,
+  publishDir path: { "${params.outdir}/architectures/${cond}/${rep}" }, mode: 'copy', overwrite: true,
              pattern: "a_{ground_truth.tsv,architecture_diag.txt}"
 
   input:
@@ -77,10 +79,6 @@ process build_architecture {
   tuple val(cond), val(rep), path("a_ground_truth.tsv"), emit: truth
   path "a_architecture_diag.txt"
 
-  stub:
-  """
-  touch a_geneset.gmt a_gene_signal.tsv a_ground_truth.tsv a_architecture_diag.txt
-  """
 
   script:
   // Seed is deterministic in (condition, replicate) so any replicate can be
@@ -110,11 +108,16 @@ process build_architecture {
     effect_scale=${params.effect_scale} \\
     frac_causal=${params.frac_causal}
   """
+
+  stub:
+  """
+  touch a_geneset.gmt a_gene_signal.tsv a_ground_truth.tsv a_architecture_diag.txt
+  """
 }
 
 process simulate_sumstats {
   tag "${cond}_rep${rep}"
-  publishDir "${params.outdir}/sumstats/${cond}/${rep}", mode: 'copy', overwrite: true,
+  publishDir path: { "${params.outdir}/sumstats/${cond}/${rep}" }, mode: 'copy', overwrite: true,
              pattern: "s_{sumstats_diag.txt,causal_snps.tsv}"
 
   input:
@@ -125,10 +128,6 @@ process simulate_sumstats {
   tuple val(cond), val(rep), path("s_causal_snps.tsv"), emit: causal
   path "s_sumstats_diag.txt"
 
-  stub:
-  """
-  touch s_sumstats.txt s_causal_snps.tsv s_sumstats_diag.txt
-  """
 
   script:
   def seed = (cond.hashCode() & 0xffff) * 100000 + (rep as int) + 7
@@ -145,5 +144,10 @@ process simulate_sumstats {
     max_block_snps=${params.max_block_snps} \\
     ld_lambda=${params.ld_lambda} \\
     independent=${params.independent_z}
+  """
+
+  stub:
+  """
+  touch s_sumstats.txt s_causal_snps.tsv s_sumstats_diag.txt
   """
 }

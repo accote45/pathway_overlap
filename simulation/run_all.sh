@@ -28,7 +28,7 @@ case "$STAGE" in
   calibrate)
     # Sec. 3: solve for mu at 0% overlap against Original's power curve.
     echo ">>> CALIBRATION PILOT"
-    $NF run main.nf -entry calibrate -resume --n_replicates 10
+    $NF run main.nf --stage calibrate -resume --n_replicates 10
     echo
     echo "Calibrated values:"
     cat results/calibration/calibration_mu.env

@@ -5,7 +5,7 @@
 
 process metrics {
   tag "${cond}_rep${rep}"
-  publishDir "${params.outdir}/metrics/${cond}/${rep}", mode: 'copy', overwrite: true
+  publishDir path: { "${params.outdir}/metrics/${cond}/${rep}" }, mode: 'copy', overwrite: true
 
   input:
   tuple val(cond), val(rep), path(truth), path(real_gsa),
@@ -15,10 +15,6 @@ process metrics {
   path "${cond}_rep${rep}_metrics.tsv",       emit: metrics
   path "${cond}_rep${rep}_pathway_stats.tsv", emit: pathway_stats
 
-  stub:
-  """
-  touch ${cond}_rep${rep}_metrics.tsv ${cond}_rep${rep}_pathway_stats.tsv
-  """
 
   script:
   """
@@ -34,6 +30,11 @@ process metrics {
     alpha=${params.alpha} top_k=${params.top_k} \\
     out_prefix=${cond}_rep${rep}
   """
+
+  stub:
+  """
+  touch ${cond}_rep${rep}_metrics.tsv ${cond}_rep${rep}_pathway_stats.tsv
+  """
 }
 
 // Calibration pilot needs Original only (raw MAGMA p), so it skips
@@ -47,10 +48,6 @@ process metrics_original {
   output:
   path "${cond}_rep${rep}_metrics.tsv", emit: metrics
 
-  stub:
-  """
-  touch ${cond}_rep${rep}_metrics.tsv
-  """
 
   script:
   """
@@ -63,6 +60,11 @@ process metrics_original {
     condition=${cond} replicate=${rep} \\
     alpha=${params.alpha} top_k=${params.top_k} \\
     out_prefix=${cond}_rep${rep}
+  """
+
+  stub:
+  """
+  touch ${cond}_rep${rep}_metrics.tsv
   """
 }
 
@@ -80,10 +82,6 @@ process aggregate_results {
   path "hub_regression.csv",        emit: hubreg
   path "sanity_checks.txt"
 
-  stub:
-  """
-  touch summary_metrics.csv all_replicate_metrics.csv all_pathway_stats.csv hub_regression.csv sanity_checks.txt
-  """
 
   script:
   """
@@ -91,6 +89,11 @@ process aggregate_results {
   export SIM_SCRIPTS=${params.sim_scripts}
 
   Rscript ${params.sim_scripts}/07_aggregate.R in_dir=. out_dir=.
+  """
+
+  stub:
+  """
+  touch summary_metrics.csv all_replicate_metrics.csv all_pathway_stats.csv hub_regression.csv sanity_checks.txt
   """
 }
 
@@ -103,10 +106,6 @@ process figures {
   output:
   path "figures/*"
 
-  stub:
-  """
-  mkdir -p figures && touch figures/fig1.png
-  """
 
   script:
   """
@@ -120,6 +119,11 @@ process figures {
     overlap_map="${params.overlap_map}" \\
     main_cond=${params.main_cond} nullhub_cond=${params.nullhub_cond}
   """
+
+  stub:
+  """
+  mkdir -p figures && touch figures/fig1.png
+  """
 }
 
 process birewire_diagnostics {
@@ -132,10 +136,6 @@ process birewire_diagnostics {
   output:
   path "bw_${cond}_*"
 
-  stub:
-  """
-  touch bw_${cond}_report.txt bw_${cond}_convergence.csv
-  """
 
   script:
   """
@@ -144,6 +144,11 @@ process birewire_diagnostics {
 
   Rscript ${params.sim_scripts}/09_birewire_diagnostics.R \\
     gmt=${gmt} out_prefix=bw_${cond} seed=${rep}
+  """
+
+  stub:
+  """
+  touch bw_${cond}_report.txt bw_${cond}_convergence.csv
   """
 }
 
@@ -161,10 +166,6 @@ process fit_calibration {
   path "calibration_power_curve.csv"
   path "calibration_clean_null_fpr.csv"
 
-  stub:
-  """
-  touch calibration_mu.tsv calibration_mu.env calibration_report.txt calibration_power_curve.csv calibration_clean_null_fpr.csv
-  """
 
   script:
   """
@@ -174,5 +175,10 @@ process fit_calibration {
   Rscript ${params.sim_scripts}/10_calibrate.R \\
     pilot_metrics=metrics pilot_grid=${grid} \\
     out_prefix=calibration
+  """
+
+  stub:
+  """
+  touch calibration_mu.tsv calibration_mu.env calibration_report.txt calibration_power_curve.csv calibration_clean_null_fpr.csv
   """
 }

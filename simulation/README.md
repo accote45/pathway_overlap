@@ -70,7 +70,7 @@ reused across all batches.
 ## Layout
 
 ```
-main.nf                       sweep + `-entry calibrate`
+main.nf                       SWEEP + CALIBRATE, selected by `--stage`
 nextflow.config               all paths and parameters (single source of truth)
 conf/extended.config          the 10% / 20% overlap conditions
 run_all.sh                    smoke | calibrate | sweep | extended
@@ -91,6 +91,15 @@ results/
   calibration/                the fitted mu values
 ```
 
+## Nextflow version
+
+Developed and verified against **Nextflow 26.04.3** (the version on Minerva) with
+its strict parser. `nextflow lint main.nf modules/ nextflow.config` is clean —
+no errors, no deprecation warnings. Also runs on 21.10.
+
+Stage selection uses `--stage calibrate` rather than `-entry`, because the strict
+parser requires the entry workflow to be the anonymous one.
+
 ## Verification status
 
 Verified off-cluster on a synthetic PLINK panel built for the purpose:
@@ -104,9 +113,11 @@ Verified off-cluster on a synthetic PLINK panel built for the purpose:
   `calc_empirical.r` consumes the split files unmodified.
 - AUROC / AUPRC / top-K helpers match hand-computed values including ties.
 - Calibration inverts a known power curve to within 1%.
-- Full Nextflow DAG runs to completion in stub mode with correct task counts;
+- Full Nextflow DAG runs to completion in stub mode on Nextflow 26 with correct
+  task counts, for both `--stage sweep` and `--stage calibrate`;
   `prepare_reference`, `build_architecture` and `simulate_sumstats` also run for
-  real end-to-end.
+  real end-to-end, including with numeric parameters supplied on the command line
+  (which arrive as Strings and must be coerced before use in a range).
 
 **Not yet exercised** (no MAGMA / BiRewire on the development machine): the MAGMA
 invocations themselves, and the two parent randomization scripts. Those are the

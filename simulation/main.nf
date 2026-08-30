@@ -9,9 +9,12 @@
 //  changes nothing outside this directory.
 //
 //  Run order:
-//    1) nextflow run main.nf -entry calibrate      # solve for mu (Sec. 3)
+//    1) nextflow run main.nf --stage calibrate     # solve for mu (Sec. 3)
 //    2) paste results/calibration/calibration_mu.env into nextflow.config
 //    3) nextflow run main.nf -resume               # the sweep
+//
+//  Stage selection is a PARAM, not `-entry`: Nextflow's strict parser (25.x+)
+//  requires the entry workflow to be the anonymous one.
 // ============================================================================
 
 nextflow.enable.dsl = 2
@@ -56,19 +59,19 @@ workflow SIMULATE {
 // ---------------------------------------------------------------------------
 // Main sweep
 // ---------------------------------------------------------------------------
-workflow {
+workflow SWEEP {
   if (params.mu_low == null || params.mu_med == null || params.mu_high == null) {
     error """
     mu_low / mu_med / mu_high are unset.
 
     Instructions Sec. 3 requires these to be CALIBRATED, not guessed. Run:
-        nextflow run main.nf -entry calibrate
+        nextflow run main.nf --stage calibrate
     then copy results/calibration/calibration_mu.env into nextflow.config.
     """.stripIndent()
   }
 
   log.info "GSR simulation sweep"
-  log.info "  conditions      : ${params.conditions.collect{ it.name }.join(', ')}"
+  log.info "  conditions      : ${params.conditions.collect{ c -> c.name }.join(', ')}"
   log.info "  replicates      : ${params.n_replicates}"
   log.info "  null databases  : ${params.num_random_sets} per method"
   log.info "  mu low/med/high : ${params.mu_low} / ${params.mu_med} / ${params.mu_high}"
@@ -78,8 +81,12 @@ workflow {
              "these results must not appear in final figures (Sec. 4)."
   }
 
-  cells = Channel.fromList(params.conditions)
-    .combine(Channel.of(1..params.n_replicates))
+  def n_reps   = params.n_replicates as Integer
+  def n_null   = params.num_random_sets as Integer
+  def batch_sz = params.batch_size as Integer
+
+  cells = channel.fromList(params.conditions)
+    .combine(channel.of(1..n_reps))
     .map { c, r -> tuple(c.name, r, c.overlap_frac, c.hub_signal,
                          params.mu_low, params.mu_med, params.mu_high) }
 
@@ -89,22 +96,23 @@ workflow {
   // The randomized databases depend only on the architecture, so they are
   // generated once per (condition, replicate) and reused across all batches.
   randomize_gmts(
-    SIMULATE.out.gmt.combine(Channel.fromList(params.randomization_methods)))
+    SIMULATE.out.gmt.combine(channel.fromList(params.randomization_methods)))
 
-  n_batches = (int) Math.ceil(params.num_random_sets / (double) params.batch_size)
-  batches = Channel.of(0..<n_batches).map { b ->
-    tuple(b + 1,
-          b * params.batch_size + 1,
-          Math.min((b + 1) * params.batch_size, params.num_random_sets))
-  }
+  // Batch boundaries come straight from `collate` rather than any arithmetic:
+  // Nextflow 26's runtime does not expose intdiv/Math to the DSL.
+  batches = channel.of(1..n_null)
+    .collate(batch_sz)
+    .map { grp -> tuple(grp[0], grp[-1]) }
 
   magma_geneset_random_batch(
     randomize_gmts.out.gmt_dir
       .combine(SIMULATE.out.gene_raw, by: [0, 1])
       .combine(batches))
 
+  // No `size:` - the number of batches is now implicit in the collate above,
+  // and groupTuple closes each group when the upstream channel completes.
   random_grouped = magma_geneset_random_batch.out.split
-    .groupTuple(by: [0, 1, 2], size: n_batches)
+    .groupTuple(by: [0, 1, 2])
     .map { c, r, m, fl -> tuple(c, r, m, fl.flatten()) }
 
   calc_empirical(
@@ -115,8 +123,8 @@ workflow {
 
   // ---- metrics -----------------------------------------------------------
   emp = calc_empirical.out.empirical
-  emp_bw = emp.filter { it[2] == 'birewire'     }.map { c, r, m, f -> tuple(c, r, f) }
-  emp_kp = emp.filter { it[2] == 'keeppathsize' }.map { c, r, m, f -> tuple(c, r, f) }
+  emp_bw = emp.filter { t -> t[2] == 'birewire'     }.map { c, r, _m, f -> tuple(c, r, f) }
+  emp_kp = emp.filter { t -> t[2] == 'keeppathsize' }.map { c, r, _m, f -> tuple(c, r, f) }
 
   metrics(
     SIMULATE.out.truth
@@ -135,14 +143,14 @@ workflow {
   // ---- controls and diagnostics ------------------------------------------
   if (params.run_birewire_diagnostics) {
     // one representative architecture per condition
-    birewire_diagnostics(SIMULATE.out.gmt.filter { it[1] == 1 })
+    birewire_diagnostics(SIMULATE.out.gmt.filter { t -> t[1] == 1 })
   }
 
   if (params.run_batch_verification) {
     verify_batching(
       randomize_gmts.out.gmt_dir
         .combine(SIMULATE.out.gene_raw, by: [0, 1])
-        .filter { it[1] == 1 && it[2] == 'birewire' }
+        .filter { t -> t[1] == 1 && t[2] == 'birewire' }
         .first())
   }
 }
@@ -153,16 +161,18 @@ workflow {
 // 0% overlap, all three tiers sharing one mu, swept over the grid. Calibrates
 // on Original (raw MAGMA p), so no null databases are needed.
 // ---------------------------------------------------------------------------
-workflow calibrate {
+workflow CALIBRATE {
   log.info "GSR simulation - mu calibration pilot"
   log.info "  grid       : ${params.calibration_mu_grid.join(', ')}"
   log.info "  replicates : ${params.n_replicates}"
 
-  grid = Channel.fromList(params.calibration_mu_grid.withIndex()
+  grid = channel.fromList(params.calibration_mu_grid.withIndex()
            .collect { mu, i -> tuple("cal${i + 1}", mu) })
 
+  def n_reps = params.n_replicates as Integer
+
   cells = grid
-    .combine(Channel.of(1..params.n_replicates))
+    .combine(channel.of(1..n_reps))
     .map { name, mu, r -> tuple(name, r, 0.0, true, mu, mu, mu) }
 
   SIMULATE(cells)
@@ -175,4 +185,20 @@ workflow calibrate {
                  seed: "condition\tmu")
 
   fit_calibration(metrics_original.out.metrics.collect(), grid_file)
+}
+
+// ---------------------------------------------------------------------------
+// Entry point. The strict parser requires exactly one anonymous workflow, so
+// the stage is selected by `--stage` rather than `-entry`.
+// ---------------------------------------------------------------------------
+workflow {
+  if (params.stage == 'calibrate') {
+    CALIBRATE()
+  }
+  else if (params.stage == 'sweep') {
+    SWEEP()
+  }
+  else {
+    error "Unknown --stage '${params.stage}' (expected 'sweep' or 'calibrate')"
+  }
 }

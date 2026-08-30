@@ -8,7 +8,7 @@
 
 process magma_gene_analysis {
   tag "${cond}_rep${rep}"
-  publishDir "${params.outdir}/magma_genes/${cond}/${rep}", mode: 'copy', overwrite: true,
+  publishDir path: { "${params.outdir}/magma_genes/${cond}/${rep}" }, mode: 'copy', overwrite: true,
              pattern: "*.genes.out"
 
   input:
@@ -18,10 +18,6 @@ process magma_gene_analysis {
   tuple val(cond), val(rep), path("g.genes.raw"), emit: raw
   path "g.genes.out"
 
-  stub:
-  """
-  touch g.genes.raw g.genes.out
-  """
 
   script:
   """
@@ -31,6 +27,11 @@ process magma_gene_analysis {
         --pval ${sumstats} use=SNP,P N=${params.gwas_n} \\
         --gene-annot ${annot} \\
         --out g
+  """
+
+  stub:
+  """
+  touch g.genes.raw g.genes.out
   """
 }
 
@@ -46,11 +47,6 @@ process randomize_gmts {
   output:
   tuple val(cond), val(rep), val(method), path("random_gmts"), emit: gmt_dir
 
-  stub:
-  """
-  mkdir -p random_gmts
-  for i in \$(seq 1 ${params.num_random_sets}); do touch random_gmts/GeneSet.random\$i.gmt; done
-  """
 
   script:
   if (method == 'birewire')
@@ -67,11 +63,17 @@ process randomize_gmts {
     """
   else
     error "Unknown randomization method: ${method}"
+
+  stub:
+  """
+  mkdir -p random_gmts
+  for i in \$(seq 1 ${params.num_random_sets}); do touch random_gmts/GeneSet.random\$i.gmt; done
+  """
 }
 
 process magma_geneset_real {
   tag "${cond}_rep${rep}"
-  publishDir "${params.outdir}/magma_real/${cond}/${rep}", mode: 'copy', overwrite: true
+  publishDir path: { "${params.outdir}/magma_real/${cond}/${rep}" }, mode: 'copy', overwrite: true
 
   input:
   tuple val(cond), val(rep), path(gene_raw), path(gmt)
@@ -79,10 +81,6 @@ process magma_geneset_real {
   output:
   tuple val(cond), val(rep), path("real_set.gsa.out"), emit: real_gsa
 
-  stub:
-  """
-  touch real_set.gsa.out
-  """
 
   script:
   """
@@ -99,23 +97,23 @@ process magma_geneset_real {
     gsa_out=raw_real_set.gsa.out out_dir=. strip_prefix=false
   mv raw_real_set.gsa.out real_set.gsa.out
   """
+
+  stub:
+  """
+  touch real_set.gsa.out
+  """
 }
 
 process magma_geneset_random_batch {
-  tag "${cond}_rep${rep}_${method}_b${batch}"
+  tag "${cond}_rep${rep}_${method}_${first}-${last}"
 
   input:
   tuple val(cond), val(rep), val(method), path(gmt_dir), path(gene_raw),
-        val(batch), val(first), val(last)
+        val(first), val(last)
 
   output:
   tuple val(cond), val(rep), val(method), path("split/*.gsa.out"), emit: split
 
-  stub:
-  """
-  mkdir -p split
-  for i in \$(seq ${first} ${last}); do touch split/${cond}rep${rep}_set_random\$i.${method}.gsa.out; done
-  """
 
   script:
   """
@@ -134,11 +132,17 @@ process magma_geneset_random_batch {
     gsa_out=batch.gsa.out out_dir=split \\
     tag=${cond}rep${rep} method=${method}
   """
+
+  stub:
+  """
+  mkdir -p split
+  for i in \$(seq ${first} ${last}); do touch split/${cond}rep${rep}_set_random\$i.${method}.gsa.out; done
+  """
 }
 
 process calc_empirical {
   tag "${cond}_rep${rep}_${method}"
-  publishDir "${params.outdir}/empirical/${cond}/${rep}", mode: 'copy', overwrite: true
+  publishDir path: { "${params.outdir}/empirical/${cond}/${rep}" }, mode: 'copy', overwrite: true
 
   input:
   tuple val(cond), val(rep), val(method), path(real_gsa), path(gmt),
@@ -148,10 +152,6 @@ process calc_empirical {
   tuple val(cond), val(rep), val(method),
         path("${cond}rep${rep}_${method}_magma_empirical_pvalues.txt"), emit: empirical
 
-  stub:
-  """
-  touch ${cond}rep${rep}_${method}_magma_empirical_pvalues.txt
-  """
 
   script:
   // The parent pipeline's empirical-p / SES code, called verbatim.
@@ -165,6 +165,11 @@ process calc_empirical {
 
   Rscript ${params.core_scripts}/calc_empirical.r \\
     "${cond}rep${rep}_${method}" "magma" "${real_gsa}" "random_sets" "${gmt}"
+  """
+
+  stub:
+  """
+  touch ${cond}rep${rep}_${method}_magma_empirical_pvalues.txt
   """
 }
 
@@ -180,10 +185,6 @@ process verify_batching {
   output:
   path "batching_equivalence_${cond}_rep${rep}_${method}.txt"
 
-  stub:
-  """
-  touch batching_equivalence_${cond}_rep${rep}_${method}.txt
-  """
 
   script:
   """
@@ -222,5 +223,10 @@ process verify_batching {
     cat(paste(out, collapse="\\n"), "\\n")
     if (!ok) { cat("\\nERROR: batched MAGMA results differ from standalone.\\n"); quit(status=1) }
   '
+  """
+
+  stub:
+  """
+  touch batching_equivalence_${cond}_rep${rep}_${method}.txt
   """
 }
